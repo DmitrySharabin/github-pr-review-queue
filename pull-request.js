@@ -7,7 +7,7 @@
  * @property {"unreviewed" | "force-pushed"} [whole] - Why the diff is the whole PR
  *
  * @typedef {object} Reviewer
- * @property {string} name - A user’s login or a team’s name
+ * @property {string} name - The login
  * @property {string} avatar - The avatar URL
  * @property {"awaiting" | "approved" | "changes-requested" | "commented"} state
  *
@@ -21,7 +21,7 @@
  * @property {Diff} [diffSinceReview] - What the user has left to review, or the whole PR when that is unknown
  * @property {number} [iterations] - How many times the user was asked to review it
  * @property {Date | null} [waitingSince] - The latest review request to the user
- * @property {Reviewer[]} [reviewers] - Everyone else asked to review it or who reviewed it
+ * @property {Reviewer[]} [reviewers] - Everyone else asked to review it or who reviewed it, but teams
  * The optional ones are `undefined` until {@link details} arrive.
  */
 
@@ -83,7 +83,7 @@ export function details ({ user, ids }) {
 				nodes { commit { oid additions deletions parents { totalCount } } }
 			}
 			reviewRequests(first: 20) {
-				nodes { requestedReviewer { ... on Actor { login avatarUrl(size: 48) } ... on Team { name avatarUrl(size: 48) } } }
+				nodes { requestedReviewer { ... on Actor { login avatarUrl(size: 48) } } }
 			}
 			latestReviews(first: 20) {
 				nodes { state author { login avatarUrl(size: 48) } }
@@ -165,10 +165,9 @@ function reviewers (pr, user) {
 	}
 
 	for (let { requestedReviewer: reviewer } of pr.reviewRequests.nodes) {
-		// No name for a reviewer the token can’t see, e.g. a secret team, or an enterprise team
-		let name = reviewer?.login ?? reviewer?.name;
-		if (name) {
-			found.set(name, { name, avatar: reviewer.avatarUrl, state: "awaiting" });
+		// NOTE: Skips teams: their fields need the read:org scope, which the sign-in doesn’t ask for
+		if (reviewer?.login) {
+			found.set(reviewer.login, { name: reviewer.login, avatar: reviewer.avatarUrl, state: "awaiting" });
 		}
 	}
 
