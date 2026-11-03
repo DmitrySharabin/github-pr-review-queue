@@ -91,6 +91,10 @@ caption {
 	}
 
 	dt {
+		display: flex;
+		align-items: center;
+		/* As tall as the role switch, so that every value starts at the same height */
+		min-block-size: 1.5rem;
 		color: var(--muted);
 		font-size: 0.85em;
 	}
