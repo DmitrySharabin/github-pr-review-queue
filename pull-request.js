@@ -19,7 +19,7 @@
  * @property {string} avatar - The author’s avatar URL
  * @property {Diff} diff - The whole PR
  * @property {Diff} [diffSinceReview] - What the user has left to review, or the whole PR when that is unknown
- * @property {number} [iterations] - How many times the user was asked to review it
+ * @property {number} [iterations] - How many times the user was asked to review it again after reviewing
  * @property {Date | null} [waitingSince] - The latest review request to the user
  * @property {Reviewer[]} [reviewers] - Everyone else asked to review it or who reviewed it, but teams
  * The optional ones are `undefined` until {@link details} arrive.
@@ -138,7 +138,9 @@ export function summarize (pr, user) {
 			url: `${pr.url}/changes/${reviewed}..${commits.at(-1).oid}`,
 			range: exact ? `${reviewed}...${last.oid}` : undefined,
 		},
-		iterations: requests.length,
+		// A round is a request that follows a review: requests with no review between them add none
+		iterations: requests.filter((request, i) => pr.reviews.nodes.some(review =>
+			review.submittedAt < request.createdAt && review.submittedAt > (requests[i - 1]?.createdAt ?? ""))).length,
 		waitingSince,
 		reviewers: reviewers(pr, user),
 	};
