@@ -20,7 +20,20 @@
 		</header>
 		<p id="status" role="status">Loading pull requests…</p>
 		<progress aria-labelledby="status"></progress>
-		<button id="sign-in" hidden>Sign in with GitHub</button>
+		<div id="sign-in" hidden>
+			<button aria-describedby="sign-in-note">Sign in with GitHub</button>
+			<small id="sign-in-note">For now, signing in grants this page full access to your profile and to all your repos, private ones included.</small>
+			<p class="or">or</p>
+			<form id="token">
+				<label>Fine-grained token <input name="token" type="password" placeholder="github_pat_…" required autocomplete="off" spellcheck="false" aria-describedby="token-note"></label>
+				<small id="token-note">
+					<a href="https://github.com/settings/personal-access-tokens/new?name=PR+review+queue&expires_in=90" target="_blank">Create one on GitHub</a>.
+					It reads public repos as is.
+					For a private repo, choose “Only select repositories”, pick the repo, and add read-only “Pull requests” and “Contents”.
+				</small>
+				<button>Use token</button>
+			</form>
+		</div>
 		<form id="choose" hidden>
 			<label>Repository <input name="repo" placeholder="owner/name" pattern="[\w.\-]+/[\w.\-]+" required autocomplete="off" spellcheck="false"></label>
 			<label>Reviewer <input name="user" placeholder="you" pattern="[\w\-]+" autocomplete="off" spellcheck="false"></label>

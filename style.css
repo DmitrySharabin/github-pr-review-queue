@@ -157,9 +157,9 @@ caption {
 	}
 }
 
-#sign-in,
 #refresh,
-#choose button {
+form button,
+#sign-in > button {
 	min-block-size: 2.5rem;
 	padding-inline: 1em;
 	border: none;
@@ -169,7 +169,7 @@ caption {
 	cursor: pointer;
 }
 
-#sign-in,
+#sign-in > button,
 #choose button {
 	background: var(--text);
 	color: white;
@@ -179,8 +179,9 @@ caption {
 	}
 }
 
-/* Secondary to the table it updates */
-#refresh {
+/* Secondary to the table it updates, or to the sign-in */
+#refresh,
+#token button {
 	background: color-mix(in oklch, var(--text) 8%, var(--surface));
 	color: var(--text);
 
@@ -194,7 +195,43 @@ caption {
 	}
 }
 
-#choose {
+#sign-in {
+	display: grid;
+	gap: 0.75em;
+	max-inline-size: 24rem;
+
+	&[hidden] {
+		display: none;
+	}
+
+	small {
+		color: var(--muted);
+		font-size: 0.85em;
+		text-wrap: pretty;
+	}
+
+	a {
+		color: inherit;
+	}
+}
+
+/* A rule on each side of the word */
+.or {
+	display: flex;
+	gap: 1em;
+	align-items: center;
+	margin-block: 0.75em;
+	color: var(--muted);
+
+	&::before,
+	&::after {
+		content: "";
+		flex: 1;
+		border-block-start: 1px solid var(--border);
+	}
+}
+
+form {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 0.75em 1.5em;
@@ -223,6 +260,21 @@ caption {
 		background: var(--surface);
 		font: inherit;
 		font-weight: 400;
+	}
+}
+
+/* Stacked: the label above a field as wide as the sign-in button, then the note and the button */
+#token {
+	display: grid;
+	gap: 0.5em;
+
+	label {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	input {
+		field-sizing: fixed;
 	}
 }
 

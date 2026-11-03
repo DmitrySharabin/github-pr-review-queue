@@ -42,7 +42,14 @@ table.addEventListener("command", event => {
 	document.startViewTransition(sort);
 });
 
-signIn.addEventListener("click", () => github.login().catch(error => status.textContent = describe(error)));
+signIn.querySelector("button").addEventListener("click", () => github.login().catch(error => status.textContent = describe(error)));
+
+let token = document.querySelector("#token");
+token.addEventListener("submit", event => {
+	event.preventDefault();
+	// Madata stores the token and checks it like one from the sign-in, so login() below resumes on its mv-login
+	github.login({ accessToken: token.elements.token.value }).catch(error => status.textContent = describe(error));
+});
 
 // The form submits its fields as URL parameters, so the URL it opens can be copied and reused
 choose.elements.repo.value = repo;
