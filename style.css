@@ -226,7 +226,6 @@ caption {
 	}
 }
 
-/* Chrome-only styling */
 progress {
 	--duration: 1.5s;
 
@@ -250,6 +249,13 @@ progress {
 	}
 
 	&::-webkit-progress-value {
+		background: var(--text);
+		border-radius: 1e5px;
+		animation: progress-indeterminate var(--duration) infinite linear;
+	}
+
+	/* Firefox, e.g. Zen; a rule shared with the WebKit pseudo-element would be dropped as invalid in both */
+	&::-moz-progress-bar {
 		background: var(--text);
 		border-radius: 1e5px;
 		animation: progress-indeterminate var(--duration) infinite linear;
