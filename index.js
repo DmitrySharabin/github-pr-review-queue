@@ -5,6 +5,7 @@ import { details, query, search, summarize, sum } from "./pull-request.js";
 let params = new URLSearchParams(location.search);
 let repo = params.get("repo");
 let filter = params.get("filter");
+let role = params.get("role");
 
 let github = new GithubAPI("https://api.github.com/graphql");
 let table = document.querySelector("#queue");
@@ -98,6 +99,27 @@ for (let form of [choose, narrow.querySelector("form")]) {
 	});
 }
 
+// An author sees their own PRs, so some names change, e.g. “Awaiting review” becomes “Open”
+if (role === "author") {
+	for (let element of document.querySelectorAll("[data-author]")) {
+		element.textContent = element.dataset.author;
+	}
+}
+
+// Each role opens the same queue, filter and all, from the other side
+for (let link of document.querySelectorAll("#summary .roles a")) {
+	let switched = new URLSearchParams(params);
+	if (link.dataset.role) {
+		switched.set("role", link.dataset.role);
+	}
+	else {
+		switched.delete("role");
+	}
+
+	link.href = `?${switched}`;
+	link.ariaCurrent = (link.dataset.role === "author") === (role === "author") ? "true" : null;
+}
+
 // The folded filter still shows what it filters by
 narrow.querySelector("summary code").textContent = filter;
 
@@ -143,13 +165,13 @@ async function load () {
 			throw new Error("GitHub didn’t say who is signed in.");
 		}
 
-		let { search: found } = await graphql(query({ repo, user, filter }));
+		let { search: found } = await graphql(query({ repo, user, role, filter }));
 		let previous = new Map(rows.map(row => [row.pr.id, row]));
 		rows = found.nodes.map(pr => {
 			let row = previous.get(pr.id) ?? {};
 			row.pr = pr;
 			// Without details the summary has no slow fields, so a refreshed row keeps its old ones until they arrive
-			fill(row, { ...row.summary, ...summarize(pr, user) });
+			fill(row, { ...row.summary, ...summarize(pr, user, role) });
 			return row;
 		});
 		sort();
@@ -159,16 +181,19 @@ async function load () {
 		choose.hidden = true;
 		// The status names the progress bar, so it says “Loading” until there is nothing left to load
 		if (rows.length === 0) {
-			status.textContent = `Nothing awaits ${user}’s review in ${repo}${filter ? ` that matches “${filter}”` : ""}.`;
+			let matching = filter ? ` matching “${filter}”` : "";
+			status.textContent = role === "author"
+				? `${user} has no open pull requests${matching} in ${repo}.`
+				: `Nothing${matching} awaits ${user}’s review in ${repo}.`;
 		}
 		status.hidden = rows.length > 0;
 
-		await Promise.all(details({ user, ids: rows.map(row => row.pr.id) }).map(async text => {
+		await Promise.all(details({ user, role, ids: rows.map(row => row.pr.id) }).map(async text => {
 			// A batch retries once on its own: GitHub drops a slow query without a readable response, or answers that it timed out
 			let { nodes } = await graphql(text).catch(() => graphql(text));
 			await Promise.all(nodes.map(async pr => {
 				let row = rows.find(row => row.pr.id === pr.id);
-				let summary = summarize({ ...row.pr, ...pr }, user);
+				let summary = summarize({ ...row.pr, ...pr }, user, role);
 				await compare(summary.diffSinceReview);
 				fill(row, summary);
 			}));
@@ -209,7 +234,7 @@ function showSummary (user) {
 	reviewer.querySelector("span").textContent = user;
 
 	let awaiting = summary.querySelector(".count");
-	awaiting.href = `https://github.com/pulls?q=${encodeURIComponent(search({ repo, user, filter }))}`;
+	awaiting.href = `https://github.com/pulls?q=${encodeURIComponent(search({ repo, user, role, filter }))}`;
 	awaiting.textContent = rows.length;
 
 	// Requests to a team have no date for the user
@@ -249,7 +274,7 @@ async function login () {
 	}
 	catch {
 		// No stored token. The sign-in popup needs a click, or the browser blocks it
-		status.textContent = `Sign in to see the pull requests awaiting review in ${repo}.`;
+		status.textContent = `Sign in to see the pull requests in ${repo}.`;
 		progress.hidden = true;
 		signIn.hidden = false;
 		// Waits for the sign-in, not the click: Madata’s login() never settles if the popup is closed, so the button stays to try again

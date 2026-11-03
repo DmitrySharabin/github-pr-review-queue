@@ -37,7 +37,8 @@
 		</div>
 		<form id="choose" hidden>
 			<label>Repository <input name="repo" placeholder="owner/name" pattern="[\w.\-]+/[\w.\-]+" required autocomplete="off" spellcheck="false"></label>
-			<label>Reviewer <input name="user" placeholder="you" pattern="[\w\-]+" autocomplete="off" spellcheck="false"></label>
+			<label>User <input name="user" placeholder="you" pattern="[\w\-]+" autocomplete="off" spellcheck="false"></label>
+			<input type="hidden" name="role">
 			<button>Show queue</button>
 		</form>
 
@@ -47,11 +48,16 @@
 				<dd><a class="repo" target="_blank"></a></dd>
 			</div>
 			<div>
-				<dt>Reviewer</dt>
+				<dt>
+					<span class="roles" role="group" aria-label="Role">
+						<a>Reviewer</a>
+						<a data-role="author">Author</a>
+					</span>
+				</dt>
 				<dd><a class="reviewer" target="_blank"><img alt="" width="24" height="24"> <span></span></a></dd>
 			</div>
 			<div>
-				<dt>Awaiting review</dt>
+				<dt data-author="Open">Awaiting review</dt>
 				<dd><a class="count" target="_blank"></a></dd>
 			</div>
 			<div>
@@ -65,6 +71,7 @@
 			<form>
 				<input type="hidden" name="repo">
 				<input type="hidden" name="user">
+				<input type="hidden" name="role">
 				<label>Search terms <input name="filter" type="search" placeholder="label:foo -label:bar" autocomplete="off" spellcheck="false" aria-describedby="filter-note"></label>
 				<button>Apply</button>
 				<a class="clear" hidden>Clear filter</a>
@@ -74,7 +81,7 @@
 
 		<div class="scroller" role="region" aria-labelledby="caption" hidden>
 			<table id="queue">
-				<caption id="caption">Pull requests awaiting review</caption>
+				<caption id="caption" data-author="Open pull requests">Pull requests awaiting review</caption>
 				<thead>
 					<tr>
 						<th scope="col">Pull request</th>
@@ -82,7 +89,7 @@
 						<th scope="col"><button commandfor="queue" command="--sort" value="diffSinceReview">Changes since last review</button></th>
 						<th scope="col"><button commandfor="queue" command="--sort" value="iterations">Iterations</button></th>
 						<th scope="col" aria-sort="descending"><button commandfor="queue" command="--sort" value="waitingSince">Requested</button></th>
-						<th scope="col">Other reviewers</th>
+						<th scope="col" data-author="Reviewers">Other reviewers</th>
 					</tr>
 				</thead>
 				<tbody></tbody>

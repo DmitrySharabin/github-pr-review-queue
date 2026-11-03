@@ -156,6 +156,27 @@ caption {
 		margin-inline-end: 0.4em;
 		border-radius: 50%;
 	}
+
+	.roles {
+		display: inline-flex;
+		gap: 0.25em;
+		margin-inline-start: -0.5em;
+
+		a {
+			padding: 0.1em 0.5em;
+			border-radius: 1e5px;
+			text-decoration: none;
+
+			&:hover {
+				color: var(--text);
+			}
+
+			&[aria-current] {
+				background: var(--rule);
+				color: var(--text);
+			}
+		}
+	}
 }
 
 #refresh,

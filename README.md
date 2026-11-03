@@ -24,6 +24,7 @@ Use URL parameters:
 | --- | --- |
 | `repo` | Required. Without it, the page asks for it. |
 | `user` | Optional. Defaults to the signed-in user. |
+| `role` | Optional. `author` lists the open PRs `user` wrote, with what every reviewer did. Otherwise, the PRs awaiting `user`’s review. The switch above the table changes it. |
 | `filter` | Optional. More [GitHub search terms](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests), e.g. `label:foo -label:bar` or words in the title. |
 
 For example: `?repo=foo/bar&user=baz&filter=-label:bar`.

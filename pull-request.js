@@ -6,6 +6,8 @@
  * @property {string} [range] - `base...head` to compare for an exact count, when the sum of commits is only an estimate
  * @property {"unreviewed" | "force-pushed"} [whole] - Why the diff is the whole PR
  *
+ * @typedef {"reviewer" | "author"} Role - Whose view of the PRs: `user` reviews them, or wrote them
+ *
  * @typedef {object} Reviewer
  * @property {string} name - The login
  * @property {string} avatar - The avatar URL
@@ -19,27 +21,28 @@
  * @property {string} avatar - The author’s avatar URL
  * @property {Diff} diff - The whole PR
  * @property {Diff} [diffSinceReview] - What the user has left to review, or the whole PR when that is unknown
- * @property {number} [iterations] - How many times the user was asked to review it again after reviewing
- * @property {Date | null} [waitingSince] - The latest review request to the user
+ * @property {number} [iterations] - How many times review was asked for again after a review
+ * @property {Date | null} [waitingSince] - The latest review request to the user, or for an author to anyone
  * @property {Reviewer[]} [reviewers] - Everyone else asked to review it or who reviewed it, but teams
  * The optional ones are `undefined` until {@link details} arrive.
  */
 
 /**
- * GitHub search for the open PRs in `repo` that await a review from `user`, e.g. for github.com/pulls?q=
- * @param {{ repo: string, user: string, filter?: string | null }} options - `filter` narrows it further, e.g. `label:foo -label:bar`
+ * GitHub search for the open PRs in `repo` that await a review from `user`, or that `user` wrote, e.g. for github.com/pulls?q=
+ * @param {{ repo: string, user: string, role?: Role | null, filter?: string | null }} options - `filter` narrows it further, e.g. `label:foo -label:bar`
  * @returns {string}
  */
-export function search ({ repo, user, filter }) {
-	return `repo:${repo} is:pr is:open review-requested:${user} ${filter ?? ""}`.trim();
+export function search ({ repo, user, role, filter }) {
+	let qualifier = role === "author" ? "author" : "review-requested";
+	return `repo:${repo} is:pr is:open ${qualifier}:${user} ${filter ?? ""}`.trim();
 }
 
 /**
  * GraphQL query for the PRs {@link search} finds, with the fields that are cheap to get.
- * @param {{ repo: string, user: string, filter?: string }} options
+ * @param {{ repo: string, user: string, role?: Role | null, filter?: string | null }} options
  * @returns {string}
  */
-export function query ({ repo, user, filter }) {
+export function query ({ repo, user, role, filter }) {
 	let [owner, name] = repo.split("/");
 
 	// The search finds nothing for a repo or a user that does not exist, `repository` and `user` fail with an error instead
@@ -47,7 +50,7 @@ export function query ({ repo, user, filter }) {
 	return `query {
 	repository(owner: ${JSON.stringify(owner)}, name: ${JSON.stringify(name)}) { id }
 	user(login: ${JSON.stringify(user)}) { id }
-	search(type: ISSUE, first: 100, query: ${JSON.stringify(search({ repo, user, filter }))}) {
+	search(type: ISSUE, first: 100, query: ${JSON.stringify(search({ repo, user, role, filter }))}) {
 		nodes {
 			... on PullRequest {
 				id number title url additions deletions
@@ -61,20 +64,23 @@ export function query ({ repo, user, filter }) {
 /**
  * GraphQL queries for the rest of what {@link summarize} needs, a few PRs each:
  * GitHub stops a query that runs too long, and these fields are the slow ones.
- * @param {{ user: string, ids: string[] }} options
+ * @param {{ user: string, role?: Role | null, ids: string[] }} options
  * @returns {string[]}
  */
-export function details ({ user, ids }) {
+export function details ({ user, role, ids }) {
 	let size = 10;
 	let batches = Array.from({ length: Math.ceil(ids.length / size) }, (_, i) => ids.slice(i * size, (i + 1) * size));
+
+	// A reviewer needs only their own reviews, an author everyone else’s
+	let author = role === "author" ? "" : `author: ${JSON.stringify(user)}, `;
 
 	// NOTE: Gets only the last 100 commits, reviews and review requests of each PR, and 20 other reviewers
 	return batches.map(batch => `query {
 	nodes(ids: ${JSON.stringify(batch)}) {
 		... on PullRequest {
 			id
-			reviews(author: ${JSON.stringify(user)}, states: [APPROVED, CHANGES_REQUESTED, COMMENTED, DISMISSED], last: 100) {
-				nodes { submittedAt commit { oid } }
+			reviews(${author}states: [APPROVED, CHANGES_REQUESTED, COMMENTED, DISMISSED], last: 100) {
+				nodes { submittedAt author { login } commit { oid } }
 			}
 			timelineItems(itemTypes: [REVIEW_REQUESTED_EVENT], last: 100) {
 				nodes { ... on ReviewRequestedEvent { createdAt requestedReviewer { ... on User { login } } } }
@@ -97,12 +103,13 @@ export function details ({ user, ids }) {
 }
 
 /**
- * Summarize a PR from the point of view of its reviewer.
+ * Summarize a PR from the point of view of its reviewer or its author.
  * @param {object} pr - A node from {@link query}, with the fields from {@link details} once they arrive
- * @param {string} user - The reviewer’s login
+ * @param {string} user - The reviewer’s or the author’s login
+ * @param {Role | null} [role]
  * @returns {Summary}
  */
-export function summarize (pr, user) {
+export function summarize (pr, user, role) {
 	let summary = {
 		number: pr.number,
 		title: pr.title,
@@ -116,12 +123,16 @@ export function summarize (pr, user) {
 		return summary;
 	}
 
-	// NOTE: Requests to a team the user is in are not counted
-	let requests = pr.timelineItems.nodes.filter(event => event.requestedReviewer?.login?.toLowerCase() === user.toLowerCase());
+	let author = role === "author";
+	let isUser = login => login?.toLowerCase() === user.toLowerCase();
+	// An author waits on everyone they asked. NOTE: Requests to a team are not counted
+	let requests = pr.timelineItems.nodes.filter(event => author ? event.requestedReviewer?.login : isUser(event.requestedReviewer?.login));
+	// The author’s own reviews are replies to the others
+	let reviews = author ? pr.reviews.nodes.filter(review => !isUser(review.author?.login)) : pr.reviews.nodes;
 	let waitingSince = requests.length > 0 ? new Date(requests.at(-1).createdAt) : null;
 	let commits = pr.commits.nodes.map(node => node.commit);
-	// A review clears the request, so one after the latest request is only a reply in a thread
-	let reviewed = pr.reviews.nodes.findLast(review => !waitingSince || new Date(review.submittedAt) < waitingSince)?.commit.oid;
+	// A review clears the request, so a reviewer’s one after the latest request is only a reply in a thread
+	let reviewed = reviews.findLast(review => author || !waitingSince || new Date(review.submittedAt) < waitingSince)?.commit.oid;
 	// NOTE: -1 also when the reviewed commit is older than the last 100, which then reads as a force push
 	let index = commits.findIndex(commit => commit.oid === reviewed);
 	let since = commits.slice(index + 1);
@@ -139,7 +150,7 @@ export function summarize (pr, user) {
 			range: exact ? `${reviewed}...${last.oid}` : undefined,
 		},
 		// A round is a request that follows a review: requests with no review between them add none
-		iterations: requests.filter((request, i) => pr.reviews.nodes.some(review =>
+		iterations: requests.filter((request, i) => reviews.some(review =>
 			review.submittedAt < request.createdAt && review.submittedAt > (requests[i - 1]?.createdAt ?? ""))).length,
 		waitingSince,
 		reviewers: reviewers(pr, user),
