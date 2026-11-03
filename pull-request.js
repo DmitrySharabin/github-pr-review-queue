@@ -21,19 +21,19 @@
 
 /**
  * GitHub search for the open PRs in `repo` that await a review from `user`, e.g. for github.com/pulls?q=
- * @param {{ repo: string, user: string }} options
+ * @param {{ repo: string, user: string, filter?: string | null }} options - `filter` narrows it further, e.g. `label:foo -label:bar`
  * @returns {string}
  */
-export function search ({ repo, user }) {
-	return `repo:${repo} is:pr is:open review-requested:${user}`;
+export function search ({ repo, user, filter }) {
+	return `repo:${repo} is:pr is:open review-requested:${user} ${filter ?? ""}`.trim();
 }
 
 /**
  * GraphQL query for the PRs {@link search} finds, with the fields that are cheap to get.
- * @param {{ repo: string, user: string }} options
+ * @param {{ repo: string, user: string, filter?: string }} options
  * @returns {string}
  */
-export function query ({ repo, user }) {
+export function query ({ repo, user, filter }) {
 	let [owner, name] = repo.split("/");
 
 	// The search finds nothing for a repo or a user that does not exist, `repository` and `user` fail with an error instead
@@ -41,7 +41,7 @@ export function query ({ repo, user }) {
 	return `query {
 	repository(owner: ${JSON.stringify(owner)}, name: ${JSON.stringify(name)}) { id }
 	user(login: ${JSON.stringify(user)}) { id }
-	search(type: ISSUE, first: 100, query: ${JSON.stringify(search({ repo, user }))}) {
+	search(type: ISSUE, first: 100, query: ${JSON.stringify(search({ repo, user, filter }))}) {
 		nodes {
 			... on PullRequest {
 				id number title url additions deletions

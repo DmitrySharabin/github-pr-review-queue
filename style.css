@@ -180,10 +180,11 @@ form button,
 	}
 }
 
-/* Secondary to the table it updates, or to the sign-in */
+/* Secondary to the table it updates or filters, or to the sign-in */
 #refresh,
 #sign-out,
-#token button {
+#token button,
+#narrow button {
 	background: color-mix(in oklch, var(--text) 8%, var(--surface));
 	color: var(--text);
 
@@ -251,7 +252,8 @@ form {
 	}
 }
 
-#choose {
+#choose,
+#narrow {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 0.75em 1.5em;
@@ -271,6 +273,10 @@ form {
 		min-inline-size: 12ch;
 		max-inline-size: 100%;
 	}
+}
+
+#narrow {
+	margin-block-end: 1rem;
 }
 
 #token {

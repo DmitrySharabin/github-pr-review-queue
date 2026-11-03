@@ -24,8 +24,9 @@ Use URL parameters:
 | --- | --- |
 | `repo` | Required. Without it, the page asks for it. |
 | `user` | Optional. Defaults to the signed-in user. |
+| `filter` | Optional. More [GitHub search terms](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests), e.g. `label:foo -label:bar` or words in the title. |
 
-For example: `?repo=foo/bar&user=baz`.
+For example: `?repo=foo/bar&user=baz&filter=-label:bar`.
 Without `repo`, or after an error, the page shows a form that opens that URL, so it can be copied and reused.
 
 Sign-in goes through [Madata](https://madata.dev) and its auth server, `auth.madata.dev`.

@@ -4,6 +4,7 @@ import { details, query, search, summarize, sum } from "./pull-request.js";
 
 let params = new URLSearchParams(location.search);
 let repo = params.get("repo");
+let filter = params.get("filter");
 
 let github = new GithubAPI("https://api.github.com/graphql");
 let table = document.querySelector("#queue");
@@ -15,6 +16,7 @@ let signOut = document.querySelector("#sign-out");
 let token = document.querySelector("#token");
 let template = document.querySelector("#row");
 let choose = document.querySelector("#choose");
+let narrow = document.querySelector("#narrow");
 
 /** Sort value of each column. `null` and `undefined` (still loading) sort last in both directions. */
 const sortKeys = {
@@ -64,15 +66,23 @@ signOut.addEventListener("click", async () => {
 	location.reload();
 });
 
-// The form submits its fields as URL parameters, so the URL it opens can be copied and reused
-choose.elements.repo.value = repo;
-choose.elements.user.value = params.get("user");
-choose.addEventListener("formdata", ({ formData }) => {
-	// An empty reviewer means the signed-in user: ?repo=foo/bar, not ?repo=foo/bar&user=
-	if (!formData.get("user")) {
-		formData.delete("user");
+// The forms submit their fields as URL parameters, so the URL they open can be copied and reused
+for (let form of [choose, narrow]) {
+	for (let field of form.elements) {
+		if (field.name) {
+			field.value = params.get(field.name);
+		}
 	}
-});
+
+	form.addEventListener("formdata", ({ formData }) => {
+		// An empty field means its default, e.g. the signed-in user: ?repo=foo/bar, not ?repo=foo/bar&user=
+		for (let [name, value] of [...formData]) {
+			if (!value) {
+				formData.delete(name);
+			}
+		}
+	});
+}
 
 if (repo) {
 	refresh.addEventListener("click", load);
@@ -105,7 +115,7 @@ async function load () {
 			throw new Error("GitHub didn’t say who is signed in.");
 		}
 
-		let { search: found } = await graphql(query({ repo, user }));
+		let { search: found } = await graphql(query({ repo, user, filter }));
 		let previous = new Map(rows.map(row => [row.pr.id, row]));
 		rows = found.nodes.map(pr => {
 			let row = previous.get(pr.id) ?? {};
@@ -121,7 +131,7 @@ async function load () {
 		choose.hidden = true;
 		// The status names the progress bar, so it says “Loading” until there is nothing left to load
 		if (rows.length === 0) {
-			status.textContent = `Nothing awaits ${user}’s review in ${repo}.`;
+			status.textContent = `Nothing awaits ${user}’s review in ${repo}${filter ? ` that matches “${filter}”` : ""}.`;
 		}
 		status.hidden = rows.length > 0;
 
@@ -171,7 +181,7 @@ function showSummary (user) {
 	reviewer.querySelector("span").textContent = user;
 
 	let awaiting = summary.querySelector(".count");
-	awaiting.href = `https://github.com/pulls?q=${encodeURIComponent(search({ repo, user }))}`;
+	awaiting.href = `https://github.com/pulls?q=${encodeURIComponent(search({ repo, user, filter }))}`;
 	awaiting.textContent = rows.length;
 
 	// Requests to a team have no date for the user
@@ -181,6 +191,7 @@ function showSummary (user) {
 	// Unknown until every row has its details
 	showTime(summary.querySelector(".latest"), dates.includes(undefined) ? undefined : latest);
 	summary.hidden = false;
+	narrow.hidden = false;
 }
 
 function graphql (text) {
