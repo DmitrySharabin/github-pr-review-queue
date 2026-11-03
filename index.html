@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>GitHub PR review queue</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;700&display=swap">
+	<link rel="stylesheet" href="style.css">
+	<script type="module" src="index.js"></script>
+</head>
+<body>
+	<main>
+		<header>
+			<h1>GitHub PR review queue</h1>
+			<button id="refresh" hidden>Refresh</button>
+		</header>
+		<p id="status" role="status">Loading pull requests…</p>
+		<progress aria-labelledby="status"></progress>
+		<button id="sign-in" hidden>Sign in with GitHub</button>
+
+		<table id="queue" hidden>
+			<caption></caption>
+			<thead>
+				<tr>
+					<th scope="col">Pull request</th>
+					<th scope="col"><button commandfor="queue" command="--sort" value="diff">All changes</button></th>
+					<th scope="col"><button commandfor="queue" command="--sort" value="diffSinceReview">Changes since last review</button></th>
+					<th scope="col"><button commandfor="queue" command="--sort" value="iterations">Iterations</button></th>
+					<th scope="col" aria-sort="descending"><button commandfor="queue" command="--sort" value="waitingSince">Requested</button></th>
+				</tr>
+			</thead>
+			<tbody></tbody>
+		</table>
+
+		<template id="row">
+			<tr>
+				<th scope="row">
+					<div class="pull-request">
+						<img alt="" width="32" height="32">
+						<a target="_blank"></a>
+						<small></small>
+					</div>
+				</th>
+				<td class="diff"><a target="_blank"><span class="added"></span> <span class="deleted"></span> <span class="diffstat" aria-hidden="true"></span></a></td>
+				<td class="since-review"><a target="_blank"><span class="added"></span> <span class="deleted"></span> <span class="diffstat" aria-hidden="true"></span></a></td>
+				<td class="iterations"></td>
+				<td class="requested"><time></time></td>
+			</tr>
+		</template>
+	</main>
+
+	<footer>
+		Idea by <a href="https://lea.verou.me" target="_blank">Lea Verou</a>.
+		Built by <a href="https://d12n.me" target="_blank">Dmitry Sharabin</a> with <a href="https://claude.com/claude-code" target="_blank">Claude</a>.
+	</footer>
+</body>
+</html>
