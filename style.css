@@ -343,9 +343,13 @@ form {
 		flex-basis: 100%;
 		color: var(--muted);
 		font-size: 0.85em;
+	}
 
-		a {
-			color: inherit;
+	a {
+		color: var(--muted);
+
+		&:hover {
+			color: var(--text);
 		}
 	}
 }

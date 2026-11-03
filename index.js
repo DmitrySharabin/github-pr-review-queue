@@ -100,6 +100,12 @@ for (let form of [choose, narrow.querySelector("form")]) {
 
 // The folded filter still shows what it filters by
 narrow.querySelector("summary code").textContent = filter;
+
+let unfiltered = new URLSearchParams(params);
+unfiltered.delete("filter");
+let clear = narrow.querySelector(".clear");
+clear.href = `?${unfiltered}`;
+clear.hidden = !filter;
 narrow.addEventListener("toggle", () => {
 	if (narrow.open) {
 		narrow.querySelector("[name=filter]").focus();
