@@ -381,6 +381,19 @@ tbody {
 	}
 }
 
+/* A value still loading leaves its cell or time empty: a flat bar holds its place.
+   An empty time draws the bar itself, since its ::before is a scroll fade in the summary */
+td:empty::before,
+time:empty {
+	content: "";
+	display: inline-block;
+	inline-size: 3em;
+	block-size: 0.8em;
+	vertical-align: middle;
+	border-radius: 0.25em;
+	background: color-mix(in oklch, var(--text) 8%, var(--surface));
+}
+
 .added {
 	color: var(--positive);
 }

@@ -1,6 +1,6 @@
 /** @import { Summary } from "./pull-request.js" */
 import GithubAPI from "https://cdn.jsdelivr.net/gh/madatajs/madata@063fc247b1a03924c836d74ea2f3d8fdc86ded2c/backends/github/api/github-api.js";
-import { query, search, summarize, sum } from "./pull-request.js";
+import { details, query, search, summarize, sum } from "./pull-request.js";
 
 let params = new URLSearchParams(location.search);
 let repo = params.get("repo");
@@ -14,7 +14,7 @@ let refresh = document.querySelector("#refresh");
 let template = document.querySelector("#row");
 let choose = document.querySelector("#choose");
 
-/** Sort value of each column. `null` sorts last in both directions. */
+/** Sort value of each column. `null` and `undefined` (still loading) sort last in both directions. */
 const sortKeys = {
 	diff: summary => size(summary.diff),
 	diffSinceReview: summary => summary.diffSinceReview && size(summary.diffSinceReview),
@@ -26,7 +26,7 @@ const units = [["day", 864e5], ["hour", 36e5], ["minute", 6e4]];
 // Short units, e.g. “11 min. ago”, keep the latest request on one line in the summary
 const relative = new Intl.RelativeTimeFormat("en", { numeric: "auto", style: "short" });
 
-/** @type {{ summary: Summary, tr: HTMLTableRowElement }[]} */
+/** @type {{ pr: object, summary: Summary, tr: HTMLTableRowElement }[]} */
 let rows = [];
 
 table.addEventListener("command", event => {
@@ -84,11 +84,37 @@ async function load () {
 			throw new Error("GitHub didn’t say who is signed in.");
 		}
 
-		let data = await github.load("https://api.github.com/graphql#" + query({ repo, user }));
-		let summaries = data.search.nodes.map(pr => summarize(pr, user));
-		await Promise.all(summaries.map(summary => compare(summary.diffSinceReview)));
-		rows = summaries.map(summary => ({ summary, tr: render(summary) }));
+		let { search: found } = await graphql(query({ repo, user }));
+		let previous = new Map(rows.map(row => [row.pr.id, row]));
+		rows = found.nodes.map(pr => {
+			let row = previous.get(pr.id) ?? {};
+			row.pr = pr;
+			// Without details the summary has no slow fields, so a refreshed row keeps its old ones until they arrive
+			fill(row, { ...row.summary, ...summarize(pr, user) });
+			return row;
+		});
 		sort();
+		showSummary(user);
+
+		table.parentElement.hidden = rows.length === 0;
+		choose.hidden = true;
+		// The status names the progress bar, so it says “Loading” until there is nothing left to load
+		if (rows.length === 0) {
+			status.textContent = `Nothing awaits ${user}’s review in ${repo}.`;
+		}
+		status.hidden = rows.length > 0;
+
+		await Promise.all(details({ user, ids: rows.map(row => row.pr.id) }).map(async text => {
+			// A batch retries once on its own: GitHub drops a slow query without a readable response, or answers that it timed out
+			let { nodes } = await graphql(text).catch(() => graphql(text));
+			await Promise.all(nodes.map(async pr => {
+				let row = rows.find(row => row.pr.id === pr.id);
+				let summary = summarize({ ...row.pr, ...pr }, user);
+				await compare(summary.diffSinceReview);
+				fill(row, summary);
+			}));
+		}));
+		document.startViewTransition(sort);
 		showSummary(user);
 
 		let updated = document.querySelector("#updated");
@@ -96,11 +122,6 @@ async function load () {
 		updated.querySelector("time").dateTime = now.toISOString();
 		updated.querySelector("time").textContent = now.toLocaleTimeString("en", { timeStyle: "short" });
 		updated.hidden = false;
-
-		table.parentElement.hidden = rows.length === 0;
-		status.textContent = `Nothing awaits ${user}’s review in ${repo}.`;
-		status.hidden = rows.length > 0;
-		choose.hidden = true;
 	}
 	catch (error) {
 		status.textContent = `Couldn’t load pull requests. ${describe(error)}`;
@@ -133,9 +154,16 @@ function showSummary (user) {
 	awaiting.textContent = rows.length;
 
 	// Requests to a team have no date for the user
-	let dates = rows.map(row => row.summary.waitingSince).filter(Boolean);
-	showTime(summary.querySelector(".latest"), dates.length > 0 ? new Date(Math.max(...dates)) : null);
+	let dates = rows.map(row => row.summary.waitingSince);
+	let known = dates.filter(Boolean);
+	let latest = known.length > 0 ? new Date(Math.max(...known)) : null;
+	// Unknown until every row has its details
+	showTime(summary.querySelector(".latest"), dates.includes(undefined) ? undefined : latest);
 	summary.hidden = false;
+}
+
+function graphql (text) {
+	return github.load("https://api.github.com/graphql#" + text);
 }
 
 /** Replace a diff’s estimate with GitHub’s exact count, when it has a range to compare. */
@@ -195,14 +223,21 @@ function sort () {
 	rows.sort((a, b) => {
 		let [x, y] = [key(a.summary), key(b.summary)];
 
-		if (x === null || y === null) {
-			return (x === null) - (y === null);
+		if (x == null || y == null) {
+			return (x == null) - (y == null);
 		}
 
 		return sign * (x - y);
 	});
 
 	table.tBodies[0].replaceChildren(...rows.map(row => row.tr));
+}
+
+/** Show a summary in its row, replacing what the row showed before. */
+function fill (row, summary) {
+	let tr = render(summary);
+	row.tr?.replaceWith(tr);
+	Object.assign(row, { summary, tr });
 }
 
 function render ({ number, title, url, author, avatar, diff, diffSinceReview, iterations, waitingSince }) {
@@ -216,7 +251,7 @@ function render ({ number, title, url, author, avatar, diff, diffSinceReview, it
 
 	showDiff(tr.querySelector(".diff"), diff);
 	showDiff(tr.querySelector(".since-review"), diffSinceReview);
-	tr.querySelector(".iterations").textContent = iterations;
+	tr.querySelector(".iterations").textContent = iterations ?? "";
 
 	showTime(tr.querySelector("time"), waitingSince);
 
@@ -225,7 +260,7 @@ function render ({ number, title, url, author, avatar, diff, diffSinceReview, it
 
 function showDiff (cell, diff) {
 	if (!diff) {
-		cell.textContent = "—";
+		cell.textContent = diff === null ? "—" : "";
 		return;
 	}
 
@@ -244,7 +279,7 @@ function showDiff (cell, diff) {
 function showTime (time, date) {
 	time.dateTime = date?.toISOString() ?? "";
 	time.title = date?.toLocaleString("en") ?? "";
-	time.textContent = date ? ago(date) : "—";
+	time.textContent = date ? ago(date) : date === null ? "—" : "";
 }
 
 function size (diff) {
