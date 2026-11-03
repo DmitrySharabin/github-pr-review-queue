@@ -165,6 +165,28 @@ async function load () {
 			throw new Error("GitHub didn’t say who is signed in.");
 		}
 
+		/** Fill in the slow fields of these PRs’ rows, a few PRs per query. */
+		let update = ids => Promise.all(details({ user, role, ids }).map(async text => {
+			// A batch retries once on its own: GitHub drops a slow query without a readable response, or answers that it timed out
+			let { nodes } = await graphql(text).catch(() => graphql(text));
+			await Promise.all(nodes.map(async pr => {
+				let row = rows.find(row => row.pr.id === pr.id);
+
+				// A PR the search no longer finds, e.g. merged meanwhile
+				if (!row) {
+					return;
+				}
+
+				let summary = summarize({ ...row.pr, ...pr }, user, role);
+				await compare(summary.diffSinceReview);
+				fill(row, summary);
+			}));
+		}));
+
+		// The rows on screen update while the search looks for new ones, so a refresh doesn’t wait for it first
+		let known = rows.map(row => row.pr.id);
+		let updating = update(known);
+
 		let { search: found } = await graphql(query({ repo, user, role, filter }));
 		let previous = new Map(rows.map(row => [row.pr.id, row]));
 		rows = found.nodes.map(pr => {
@@ -188,16 +210,7 @@ async function load () {
 		}
 		status.hidden = rows.length > 0;
 
-		await Promise.all(details({ user, role, ids: rows.map(row => row.pr.id) }).map(async text => {
-			// A batch retries once on its own: GitHub drops a slow query without a readable response, or answers that it timed out
-			let { nodes } = await graphql(text).catch(() => graphql(text));
-			await Promise.all(nodes.map(async pr => {
-				let row = rows.find(row => row.pr.id === pr.id);
-				let summary = summarize({ ...row.pr, ...pr }, user, role);
-				await compare(summary.diffSinceReview);
-				fill(row, summary);
-			}));
-		}));
+		await Promise.all([updating, update(rows.map(row => row.pr.id).filter(id => !known.includes(id)))]);
 		document.startViewTransition(sort);
 		showSummary(user);
 
