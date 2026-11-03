@@ -163,7 +163,11 @@ caption {
 		margin-inline-start: -0.5em;
 
 		a {
-			padding: 0.1em 0.5em;
+			display: inline-flex;
+			align-items: center;
+			/* The smallest target WCAG allows */
+			min-block-size: 1.5rem;
+			padding-inline: 0.5em;
 			border-radius: 1e5px;
 			text-decoration: none;
 

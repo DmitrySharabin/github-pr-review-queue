@@ -4,7 +4,10 @@ The open pull requests awaiting someone’s review in one GitHub repo.
 Each one shows its diff size, the diff since that person’s last review, how many times they were asked to review again after reviewing, when they were last asked, and what every other reviewer did.
 When there is no diff since that person’s last review, the column shows the whole diff, grayed out.
 A “force-pushed” tag marks a PR whose reviewed commit a force push removed.
-Every column except “Pull request” sorts, and the page remembers the last sort.
+The figure columns sort, and the page remembers the last sort.
+
+The author view lists someone’s own open PRs instead.
+There, the columns count everyone else’s reviews and requests, and the switch above the table goes back.
 
 ## Run
 
@@ -25,7 +28,7 @@ Use URL parameters:
 | `repo` | Required. Without it, the page asks for it. |
 | `user` | Optional. Defaults to the signed-in user. |
 | `role` | Optional. `author` lists the open PRs `user` wrote, with what every reviewer did. Otherwise, the PRs awaiting `user`’s review. The switch above the table changes it. |
-| `filter` | Optional. More [GitHub search terms](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests), e.g. `label:foo -label:bar` or words in the title. |
+| `filter` | Optional. More [GitHub search terms](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests), e.g. `label:foo -label:bar` or `in:title` words. |
 
 For example: `?repo=foo/bar&user=baz&filter=-label:bar`.
 Without `repo`, or after an error, the page shows a form that opens that URL, so it can be copied and reused.

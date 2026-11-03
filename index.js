@@ -50,9 +50,9 @@ const relative = new Intl.RelativeTimeFormat("en", { numeric: "auto", style: "sh
 let rows = [];
 
 // The last sort survives a reload, e.g. { column: "diff", direction: "ascending" }
-let sorted = JSON.parse(localStorage.getItem("review-queue:sort"));
-if (sorted) {
-	sortBy(sorted);
+let saved = JSON.parse(localStorage.getItem("review-queue:sort"));
+if (saved) {
+	markSort(saved);
 }
 
 table.addEventListener("command", event => {
@@ -61,8 +61,8 @@ table.addEventListener("command", event => {
 	}
 
 	let th = event.source.closest("th");
-	sorted = { column: event.source.value, direction: th.ariaSort === "descending" ? "ascending" : "descending" };
-	sortBy(sorted);
+	let sorted = { column: event.source.value, direction: th.ariaSort === "descending" ? "ascending" : "descending" };
+	markSort(sorted);
 	localStorage.setItem("review-queue:sort", JSON.stringify(sorted));
 	document.startViewTransition(sort);
 });
@@ -117,7 +117,7 @@ for (let link of document.querySelectorAll("#summary .roles a")) {
 	}
 
 	link.href = `?${switched}`;
-	link.ariaCurrent = (link.dataset.role === "author") === (role === "author") ? "true" : null;
+	link.ariaCurrent = (link.dataset.role === "author") === (role === "author") ? "page" : null;
 }
 
 // The folded filter still shows what it filters by
@@ -179,7 +179,8 @@ async function load () {
 
 				let summary = summarize({ ...row.pr, ...pr }, user, role);
 				await compare(summary.diffSinceReview);
-				fill(row, summary);
+				// The search may have refreshed the cheap fields during the comparison, e.g. a new title
+				fill(row, { ...summary, ...summarize(row.pr, user, role) });
 			}));
 		}));
 
@@ -201,6 +202,7 @@ async function load () {
 
 		table.parentElement.hidden = rows.length === 0;
 		choose.hidden = true;
+		narrow.hidden = false;
 		// The status names the progress bar, so it says “Loading” until there is nothing left to load
 		if (rows.length === 0) {
 			let matching = filter ? ` matching “${filter}”` : "";
@@ -223,7 +225,7 @@ async function load () {
 	catch (error) {
 		status.textContent = `Couldn’t load pull requests. ${describe(error)}`;
 		status.hidden = false;
-		// Most failures come from the repo or the reviewer, so the form lets the user check and fix them
+		// Most failures come from the repo or the user, so the form lets the user check and fix them
 		choose.hidden = false;
 	}
 	finally {
@@ -241,10 +243,10 @@ function showSummary (user) {
 	link.href = `https://github.com/${repo}`;
 	link.textContent = repo;
 
-	let reviewer = summary.querySelector(".reviewer");
-	reviewer.href = `https://github.com/${user}`;
-	reviewer.querySelector("img").src = `https://github.com/${user}.png?size=48`;
-	reviewer.querySelector("span").textContent = user;
+	let person = summary.querySelector(".user");
+	person.href = `https://github.com/${user}`;
+	person.querySelector("img").src = `https://github.com/${user}.png?size=48`;
+	person.querySelector("span").textContent = user;
 
 	let awaiting = summary.querySelector(".count");
 	awaiting.href = `https://github.com/pulls?q=${encodeURIComponent(search({ repo, user, role, filter }))}`;
@@ -257,7 +259,6 @@ function showSummary (user) {
 	// Unknown until every row has its details
 	showTime(summary.querySelector(".latest"), dates.includes(undefined) ? undefined : latest);
 	summary.hidden = false;
-	narrow.hidden = false;
 }
 
 function graphql (text) {
@@ -314,7 +315,7 @@ function describe (error) {
 }
 
 /** Mark the column the table sorts by. */
-function sortBy ({ column, direction }) {
+function markSort ({ column, direction }) {
 	let th = table.tHead.querySelector(`[value="${column}"]`)?.closest("th");
 
 	// A saved column the table no longer has
