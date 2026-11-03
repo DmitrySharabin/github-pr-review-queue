@@ -39,16 +39,21 @@ const relative = new Intl.RelativeTimeFormat("en", { numeric: "auto", style: "sh
 /** @type {{ pr: object, summary: Summary, tr: HTMLTableRowElement }[]} */
 let rows = [];
 
+// The last sort survives a reload, e.g. { column: "diff", direction: "ascending" }
+let sorted = JSON.parse(localStorage.getItem("review-queue:sort"));
+if (sorted) {
+	sortBy(sorted);
+}
+
 table.addEventListener("command", event => {
 	if (event.command !== "--sort") {
 		return;
 	}
 
 	let th = event.source.closest("th");
-	let direction = th.ariaSort === "descending" ? "ascending" : "descending";
-
-	table.tHead.querySelector("[aria-sort]").ariaSort = null;
-	th.ariaSort = direction;
+	sorted = { column: event.source.value, direction: th.ariaSort === "descending" ? "ascending" : "descending" };
+	sortBy(sorted);
+	localStorage.setItem("review-queue:sort", JSON.stringify(sorted));
 	document.startViewTransition(sort);
 });
 
@@ -245,6 +250,19 @@ function describe (error) {
 
 	// A GraphQL error, e.g. a repo that does not exist
 	return error.message;
+}
+
+/** Mark the column the table sorts by. */
+function sortBy ({ column, direction }) {
+	let th = table.tHead.querySelector(`[value="${column}"]`)?.closest("th");
+
+	// A saved column the table no longer has
+	if (!th) {
+		return;
+	}
+
+	table.tHead.querySelector("[aria-sort]").ariaSort = null;
+	th.ariaSort = direction;
 }
 
 function sort () {
