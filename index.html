@@ -14,25 +14,52 @@
 	<main>
 		<header>
 			<h1>GitHub PR review queue</h1>
+			<p id="updated" hidden>Updated at <time></time></p>
 			<button id="refresh" hidden>Refresh</button>
 		</header>
 		<p id="status" role="status">Loading pull requests…</p>
 		<progress aria-labelledby="status"></progress>
 		<button id="sign-in" hidden>Sign in with GitHub</button>
+		<form id="choose" hidden>
+			<label>Repository <input name="repo" placeholder="owner/name" pattern="[\w.\-]+/[\w.\-]+" required autocomplete="off" spellcheck="false"></label>
+			<label>Reviewer <input name="user" placeholder="you" pattern="[\w\-]+" autocomplete="off" spellcheck="false"></label>
+			<button>Show queue</button>
+		</form>
 
-		<table id="queue" hidden>
-			<caption></caption>
-			<thead>
-				<tr>
-					<th scope="col">Pull request</th>
-					<th scope="col"><button commandfor="queue" command="--sort" value="diff">All changes</button></th>
-					<th scope="col"><button commandfor="queue" command="--sort" value="diffSinceReview">Changes since last review</button></th>
-					<th scope="col"><button commandfor="queue" command="--sort" value="iterations">Iterations</button></th>
-					<th scope="col" aria-sort="descending"><button commandfor="queue" command="--sort" value="waitingSince">Requested</button></th>
-				</tr>
-			</thead>
-			<tbody></tbody>
-		</table>
+		<dl id="summary" hidden>
+			<div>
+				<dt>Repository</dt>
+				<dd><a class="repo" target="_blank"></a></dd>
+			</div>
+			<div>
+				<dt>Reviewer</dt>
+				<dd><a class="reviewer" target="_blank"><img alt="" width="24" height="24"> <span></span></a></dd>
+			</div>
+			<div>
+				<dt>Awaiting review</dt>
+				<dd><a class="count" target="_blank"></a></dd>
+			</div>
+			<div>
+				<dt>Latest request</dt>
+				<dd><time class="latest"></time></dd>
+			</div>
+		</dl>
+
+		<div class="scroller" role="region" aria-labelledby="caption" hidden>
+			<table id="queue">
+				<caption id="caption">Pull requests awaiting review</caption>
+				<thead>
+					<tr>
+						<th scope="col">Pull request</th>
+						<th scope="col"><button commandfor="queue" command="--sort" value="diff">All changes</button></th>
+						<th scope="col"><button commandfor="queue" command="--sort" value="diffSinceReview">Changes since last review</button></th>
+						<th scope="col"><button commandfor="queue" command="--sort" value="iterations">Iterations</button></th>
+						<th scope="col" aria-sort="descending"><button commandfor="queue" command="--sort" value="waitingSince">Requested</button></th>
+					</tr>
+				</thead>
+				<tbody></tbody>
+			</table>
+		</div>
 
 		<template id="row">
 			<tr>

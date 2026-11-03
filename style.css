@@ -9,14 +9,13 @@
 	--negative: oklch(53% 0.19 25);
 	--radius: 0.5rem;
 	--gutter: clamp(1rem, 3vw, 1.5rem);
-
-	font: 0.875rem / 1.45 "Geist", system-ui, sans-serif;
-	color: var(--text);
 }
 
 body {
 	margin: 0;
 	background: var(--ground);
+	color: var(--text);
+	font: 0.875rem / 1.45 "Geist", system-ui, sans-serif;
 }
 
 main,
@@ -28,6 +27,7 @@ footer {
 
 main {
 	padding-block-start: 2.25rem;
+	container-type: inline-size;
 }
 
 header {
@@ -35,36 +35,144 @@ header {
 	flex-wrap: wrap;
 	gap: 1em;
 	align-items: center;
-	justify-content: space-between;
 }
 
 h1 {
 	margin: 0;
+	margin-inline-end: auto;
 	font-size: 1.5rem;
 	line-height: 1.3;
 	font-weight: 700;
 	text-wrap: balance;
 }
 
-#status,
-caption {
+#status {
 	margin-block: 0.25em 1.5em;
 	color: var(--muted);
-	text-align: start;
 	text-wrap: pretty;
 }
 
+#updated {
+	margin: 0;
+	color: var(--muted);
+}
+
+/* The summary above the table says it on screen; the caption names the table for screen readers */
+caption {
+	position: absolute;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+/* A value too long for its cell scrolls inside it. The 1px gap shows the strip’s own fill as hairlines */
+#summary {
+	display: grid;
+	grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) max-content max-content;
+	gap: 1px;
+	margin-block: 1.5rem;
+	overflow: clip;
+	background: var(--rule);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+
+	&[hidden] {
+		display: none;
+	}
+
+	div {
+		padding: 0.85em 1.15em;
+		background: var(--surface);
+	}
+
+	/* A phone has no room for four cells in a row: two rows of two */
+	@container (width < 36rem) {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	dt {
+		color: var(--muted);
+		font-size: 0.85em;
+	}
+
+	dd {
+		margin: 0.15em 0 0;
+		overflow-x: auto;
+		scrollbar-width: thin;
+		font-size: 1.25rem;
+		font-weight: 500;
+		font-variant-numeric: tabular-nums;
+		white-space: nowrap;
+		/* Lets the fades below show only while there is more to scroll to */
+		container-type: scroll-state;
+
+		> * {
+			display: inline-flex;
+			align-items: center;
+
+			/* Fades over the clipped edge */
+			&::before,
+			&::after {
+				content: "";
+				position: sticky;
+				z-index: 1;
+				align-self: stretch;
+				flex: none;
+				inline-size: 2rem;
+				opacity: 0;
+				transition: opacity 0.2s;
+				pointer-events: none;
+			}
+
+			&::before {
+				inset-inline-start: 0;
+				margin-inline-end: -2rem;
+				background: linear-gradient(to right, var(--surface), transparent);
+			}
+
+			&::after {
+				inset-inline-end: 0;
+				margin-inline-start: -2rem;
+				background: linear-gradient(to left, var(--surface), transparent);
+			}
+		}
+	}
+
+	@container scroll-state(scrollable: inline-start) {
+		dd > ::before {
+			opacity: 1;
+		}
+	}
+
+	@container scroll-state(scrollable: inline-end) {
+		dd > ::after {
+			opacity: 1;
+		}
+	}
+
+	img {
+		inline-size: 1.2em;
+		block-size: auto;
+		margin-inline-end: 0.4em;
+		border-radius: 50%;
+	}
+}
+
 #sign-in,
-#refresh {
+#refresh,
+#choose button {
 	min-block-size: 2.5rem;
 	padding-inline: 1em;
 	border: none;
 	border-radius: calc(var(--radius) * 0.75);
-	background: var(--text);
-	color: white;
 	font: inherit;
 	font-weight: 500;
 	cursor: pointer;
+}
+
+#sign-in,
+#choose button {
+	background: var(--text);
+	color: white;
 
 	&:hover {
 		background: color-mix(in oklch, var(--text), white 20%);
@@ -86,7 +194,39 @@ caption {
 	}
 }
 
-/* Chrome-only styling, per the Modern Web Guidance progress guide */
+#choose {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.75em 1.5em;
+	align-items: center;
+
+	&[hidden] {
+		display: none;
+	}
+
+	label {
+		display: flex;
+		gap: 0.5em;
+		align-items: center;
+		font-weight: 500;
+	}
+
+	/* Grows with the name, so a long one is never cut off */
+	input {
+		field-sizing: content;
+		min-inline-size: 12ch;
+		max-inline-size: 100%;
+		min-block-size: 2.5rem;
+		padding-inline: 0.75em;
+		border: 1px solid color-mix(in oklch, var(--text) 20%, var(--surface));
+		border-radius: calc(var(--radius) * 0.75);
+		background: var(--surface);
+		font: inherit;
+		font-weight: 400;
+	}
+}
+
+/* Chrome-only styling */
 progress {
 	--duration: 1.5s;
 
@@ -132,6 +272,15 @@ progress {
 	}
 }
 
+/* Too narrow for the table: it scrolls in its own frame, the width of the summary above it, instead of the page.
+   Only then, since a scrolling frame would also pin the sticky header to itself rather than the window */
+@container (width < 48rem) {
+	.scroller {
+		overflow-x: auto;
+		border-radius: var(--radius);
+	}
+}
+
 table {
 	inline-size: 100%;
 	border-spacing: 0;
@@ -144,9 +293,22 @@ table {
 th,
 td {
 	padding: 0.7em 1.15em;
+	vertical-align: middle;
+}
+
+th {
+	font-weight: 400;
+	text-align: start;
+}
+
+/* Figures: every column after the pull request */
+:is(th, td):not(:first-child) {
 	text-align: end;
 	white-space: nowrap;
-	vertical-align: middle;
+}
+
+td:not(.requested) {
+	color: var(--muted);
 }
 
 thead {
@@ -158,10 +320,8 @@ thead {
 		background: var(--surface);
 		color: var(--muted);
 		font-size: 0.85em;
-		font-weight: 400;
 
 		&:first-child {
-			text-align: start;
 			border-start-start-radius: var(--radius);
 		}
 
@@ -180,31 +340,25 @@ tbody {
 		border-block-start: 1px solid var(--rule);
 	}
 
-	th {
-		text-align: start;
-		white-space: normal;
-		font-weight: 400;
-	}
-
-	a {
-		color: inherit;
-		text-decoration: none;
-
-		&:hover {
-			text-decoration: underline;
-		}
-	}
-
 	small {
 		color: var(--muted);
 		font-size: 0.85em;
 	}
 }
 
+:is(#summary, tbody) a {
+	color: inherit;
+	text-decoration: none;
+
+	&:hover {
+		text-decoration: underline;
+	}
+}
+
 /* Avatar in a fixed slot, so titles and sublines share one left edge */
 .pull-request {
 	display: grid;
-	grid-template-columns: 2.25rem 1fr;
+	grid-template-columns: 2rem 1fr;
 	column-gap: 0.85em;
 
 	a {
@@ -221,14 +375,6 @@ tbody {
 	}
 }
 
-td {
-	color: var(--muted);
-
-	&.requested {
-		color: var(--text);
-	}
-}
-
 .added {
 	color: var(--positive);
 }
@@ -237,27 +383,24 @@ td {
 	color: var(--negative);
 }
 
-/* GitHub’s diffstat: five squares split by the share of added and deleted lines */
+/* GitHub’s diffstat: five squares split by the share of added, then deleted lines */
 .diffstat {
-	display: inline-flex;
-	gap: 1px;
+	--added: round(5 * var(--additions) / max(var(--additions) + var(--deletions), 1));
+	/* An empty diff gets five grey squares, not five red ones */
+	--deleted: min(5 - var(--added), 5 * var(--deletions));
+
+	display: inline-block;
+	inline-size: calc(5 * 0.6em + 4px);
+	block-size: 0.6em;
 	margin-inline-start: 0.3em;
-	vertical-align: -0.05em;
-
-	span {
-		inline-size: 0.6em;
-		aspect-ratio: 1;
-		border-radius: 1px;
-		background: var(--border);
-
-		&.added {
-			background: var(--positive);
-		}
-
-		&.deleted {
-			background: var(--negative);
-		}
-	}
+	background: linear-gradient(
+		to right,
+		var(--positive) calc(var(--added) * 20%),
+		var(--negative) 0 calc((var(--added) + var(--deleted)) * 20%),
+		var(--border) 0
+	);
+	/* Cuts the strip into squares with 1px gaps */
+	mask: repeating-linear-gradient(to right, black 0 calc(20% - 1px), transparent 0 20%);
 }
 
 th button {
@@ -282,16 +425,15 @@ th button {
 		vertical-align: -0.1em;
 		background-color: currentColor;
 		mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 3v10M4 9l4 4 4-4'/%3E%3C/svg%3E") no-repeat center / contain;
-		visibility: hidden;
 	}
+}
+
+th:not([aria-sort]) button::after {
+	visibility: hidden;
 }
 
 th[aria-sort] button {
 	color: var(--text);
-
-	&::after {
-		visibility: visible;
-	}
 }
 
 th[aria-sort="ascending"] button::after {

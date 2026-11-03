@@ -1,8 +1,9 @@
+/** @import { Summary } from "./pull-request.js" */
 import GithubAPI from "https://cdn.jsdelivr.net/gh/madatajs/madata@063fc247b1a03924c836d74ea2f3d8fdc86ded2c/backends/github/api/github-api.js";
-import { query, summarize } from "./pull-request.js";
+import { query, search, summarize, sum } from "./pull-request.js";
 
 let params = new URLSearchParams(location.search);
-let repo = params.get("repo") ?? "DmitrySharabin/github-pr-review-queue";
+let repo = params.get("repo");
 
 let github = new GithubAPI("https://api.github.com/graphql");
 let table = document.querySelector("#queue");
@@ -11,19 +12,21 @@ let progress = document.querySelector("progress");
 let signIn = document.querySelector("#sign-in");
 let refresh = document.querySelector("#refresh");
 let template = document.querySelector("#row");
+let choose = document.querySelector("#choose");
 
 /** Sort value of each column. `null` sorts last in both directions. */
 const sortKeys = {
 	diff: summary => size(summary.diff),
 	diffSinceReview: summary => summary.diffSinceReview && size(summary.diffSinceReview),
 	iterations: summary => summary.iterations,
-	waitingSince: summary => summary.waitingSince && Date.now() - summary.waitingSince,
+	waitingSince: summary => summary.waitingSince && -summary.waitingSince,
 };
 
 const units = [["day", 864e5], ["hour", 36e5], ["minute", 6e4]];
-const relative = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+// Short units, e.g. “11 min. ago”, keep the latest request on one line in the summary
+const relative = new Intl.RelativeTimeFormat("en", { numeric: "auto", style: "short" });
 
-/** @type {{ summary: import("./pull-request.js").Summary, tr: HTMLTableRowElement }[]} */
+/** @type {{ summary: Summary, tr: HTMLTableRowElement }[]} */
 let rows = [];
 
 table.addEventListener("command", event => {
@@ -34,16 +37,32 @@ table.addEventListener("command", event => {
 	let th = event.source.closest("th");
 	let direction = th.ariaSort === "descending" ? "ascending" : "descending";
 
-	for (let cell of table.tHead.querySelectorAll("[aria-sort]")) {
-		cell.ariaSort = null;
-	}
-
+	table.tHead.querySelector("[aria-sort]").ariaSort = null;
 	th.ariaSort = direction;
 	document.startViewTransition(sort);
 });
 
-refresh.addEventListener("click", load);
-await load();
+signIn.addEventListener("click", () => github.login().catch(error => status.textContent = describe(error)));
+
+// The form submits its fields as URL parameters, so the URL it opens can be copied and reused
+choose.elements.repo.value = repo;
+choose.elements.user.value = params.get("user");
+choose.addEventListener("formdata", ({ formData }) => {
+	// An empty reviewer means the signed-in user: ?repo=foo/bar, not ?repo=foo/bar&user=
+	if (!formData.get("user")) {
+		formData.delete("user");
+	}
+});
+
+if (repo) {
+	refresh.addEventListener("click", load);
+	load();
+}
+else {
+	status.textContent = "Choose a repository to see its review queue.";
+	progress.hidden = true;
+	choose.hidden = false;
+}
 
 /** Load the queue. A refresh keeps the current rows on screen until the new ones arrive. */
 async function load () {
@@ -59,35 +78,80 @@ async function load () {
 	try {
 		await login();
 
-		let user = params.get("user") ?? github.user.username;
+		// Madata signs in without a user when GitHub fails to answer anything but a 401, e.g. offline
+		let user = params.get("user") || github.user?.username;
+		if (!user) {
+			throw new Error("GitHub didn’t say who is signed in.");
+		}
+
 		let data = await github.load("https://api.github.com/graphql#" + query({ repo, user }));
-		rows = data.search.nodes.map(pr => {
-			let summary = summarize(pr, user);
-			return { summary, tr: render(summary) };
-		});
+		let summaries = data.search.nodes.map(pr => summarize(pr, user));
+		await Promise.all(summaries.map(summary => compare(summary.diffSinceReview)));
+		rows = summaries.map(summary => ({ summary, tr: render(summary) }));
+		sort();
+		showSummary(user);
 
-		if (rows.length > 0) {
-			let oldest = Math.min(...rows.map(row => row.summary.waitingSince ?? Infinity));
-			let count = rows.length === 1 ? "1 pull request awaits" : `${rows.length} pull requests await`;
-			let updated = new Date().toLocaleTimeString("en", { timeStyle: "short" });
-			table.caption.textContent = `${count} ${user}’s review in ${repo}. The oldest was requested ${ago(oldest)}. Updated at ${updated}.`;
-			sort();
-		}
-		else {
-			status.textContent = `Nothing awaits ${user}’s review in ${repo}.`;
-		}
+		let updated = document.querySelector("#updated");
+		let now = new Date();
+		updated.querySelector("time").dateTime = now.toISOString();
+		updated.querySelector("time").textContent = now.toLocaleTimeString("en", { timeStyle: "short" });
+		updated.hidden = false;
 
-		table.hidden = rows.length === 0;
+		table.parentElement.hidden = rows.length === 0;
+		status.textContent = `Nothing awaits ${user}’s review in ${repo}.`;
 		status.hidden = rows.length > 0;
+		choose.hidden = true;
 	}
 	catch (error) {
 		status.textContent = `Couldn’t load pull requests. ${describe(error)}`;
 		status.hidden = false;
+		// Most failures come from the repo or the reviewer, so the form lets the user check and fix them
+		choose.hidden = false;
 	}
 	finally {
 		progress.hidden = true;
 		refresh.hidden = false;
 		refresh.ariaDisabled = null;
+	}
+}
+
+/** Fill the strip above the table: where, for whom, how many, since when. */
+function showSummary (user) {
+	let summary = document.querySelector("#summary");
+
+	let link = summary.querySelector(".repo");
+	link.href = `https://github.com/${repo}`;
+	link.textContent = repo;
+
+	let reviewer = summary.querySelector(".reviewer");
+	reviewer.href = `https://github.com/${user}`;
+	reviewer.querySelector("img").src = `https://github.com/${user}.png?size=48`;
+	reviewer.querySelector("span").textContent = user;
+
+	let awaiting = summary.querySelector(".count");
+	awaiting.href = `https://github.com/pulls?q=${encodeURIComponent(search({ repo, user }))}`;
+	awaiting.textContent = rows.length;
+
+	// Requests to a team have no date for the user
+	let dates = rows.map(row => row.summary.waitingSince).filter(Boolean);
+	showTime(summary.querySelector(".latest"), dates.length > 0 ? new Date(Math.max(...dates)) : null);
+	summary.hidden = false;
+}
+
+/** Replace a diff’s estimate with GitHub’s exact count, when it has a range to compare. */
+async function compare (diff) {
+	if (!diff?.range) {
+		return;
+	}
+
+	try {
+		// NOTE: GitHub lists at most 300 files in a comparison
+		let { files } = await github.load(`https://api.github.com/repos/${repo}/compare/${diff.range}`);
+		Object.assign(diff, sum(files));
+	}
+	catch (error) {
+		// One failed comparison should not hide the queue: the estimate stays
+		console.warn(`Couldn’t compare ${diff.range}, showing the estimate.`, error);
 	}
 }
 
@@ -100,11 +164,11 @@ async function login () {
 		status.textContent = `Sign in to see the pull requests awaiting review in ${repo}.`;
 		progress.hidden = true;
 		signIn.hidden = false;
-		await new Promise(resolve => signIn.addEventListener("click", resolve, { once: true }));
+		// Waits for the sign-in, not the click: Madata’s login() never settles if the popup is closed, so the button stays to try again
+		await new Promise(resolve => github.addEventListener("mv-login", resolve, { once: true }));
 		signIn.hidden = true;
 		progress.hidden = false;
 		status.textContent = "Loading pull requests…";
-		await github.login();
 	}
 }
 
@@ -124,12 +188,12 @@ function describe (error) {
 }
 
 function sort () {
-	let th = table.querySelector("th[aria-sort]");
-	let value = sortKeys[th.querySelector("button").value];
+	let th = table.tHead.querySelector("[aria-sort]");
+	let key = sortKeys[th.querySelector("button").value];
 	let sign = th.ariaSort === "ascending" ? 1 : -1;
 
 	rows.sort((a, b) => {
-		let [x, y] = [value(a.summary), value(b.summary)];
+		let [x, y] = [key(a.summary), key(b.summary)];
 
 		if (x === null || y === null) {
 			return (x === null) - (y === null);
@@ -154,15 +218,7 @@ function render ({ number, title, url, author, avatar, diff, diffSinceReview, it
 	showDiff(tr.querySelector(".since-review"), diffSinceReview);
 	tr.querySelector(".iterations").textContent = iterations;
 
-	let time = tr.querySelector("time");
-	if (waitingSince) {
-		time.dateTime = waitingSince.toISOString();
-		time.title = waitingSince.toLocaleString("en");
-		time.textContent = ago(waitingSince);
-	}
-	else {
-		time.textContent = "—";
-	}
+	showTime(tr.querySelector("time"), waitingSince);
 
 	return tr;
 }
@@ -173,18 +229,22 @@ function showDiff (cell, diff) {
 		return;
 	}
 
+	// Re-requested with no new commits
+	if (size(diff) === 0) {
+		cell.textContent = "No changes";
+		return;
+	}
+
 	cell.querySelector("a").href = diff.url;
 	cell.querySelector(".added").textContent = `+${diff.additions.toLocaleString("en")}`;
 	cell.querySelector(".deleted").textContent = `−${diff.deletions.toLocaleString("en")}`;
+	cell.querySelector(".diffstat").style = `--additions: ${diff.additions}; --deletions: ${diff.deletions}`;
+}
 
-	// Five squares, like GitHub’s: the share of added lines, then of deleted ones
-	let added = Math.round(5 * diff.additions / (size(diff) || 1));
-	let deleted = diff.deletions > 0 ? 5 - added : 0;
-	cell.querySelector(".diffstat").append(...Array.from({ length: 5 }, (_, i) => {
-		let square = document.createElement("span");
-		square.className = i < added ? "added" : i < added + deleted ? "deleted" : "";
-		return square;
-	}));
+function showTime (time, date) {
+	time.dateTime = date?.toISOString() ?? "";
+	time.title = date?.toLocaleString("en") ?? "";
+	time.textContent = date ? ago(date) : "—";
 }
 
 function size (diff) {
