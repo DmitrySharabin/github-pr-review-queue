@@ -24,7 +24,7 @@ const sortKeys = {
 	waitingSince: summary => summary.waitingSince && -summary.waitingSince,
 };
 
-/** Why “Changes since last review” counts the whole PR, by the diff’s `whole` */
+/** Why “Changes since last review” counts the whole PR, keyed by the diff’s `whole` */
 const wholeTitles = {
 	"unreviewed": "Not reviewed yet, so this counts the whole pull request",
 	"force-pushed": "A force push removed the reviewed commit, so this counts the whole pull request",
@@ -285,22 +285,24 @@ function showDiff (cell, diff) {
 		return;
 	}
 
-	if (diff.whole) {
-		cell.classList.add("whole");
-		cell.title = wholeTitles[diff.whole];
-	}
-
-	// Re-requested with no new commits
+	// Re-requested with no new commits, or a PR with no changed lines at all
 	if (size(diff) === 0) {
 		cell.textContent = "No changes";
 		return;
 	}
 
-	cell.querySelector("a").href = diff.url;
+	let link = cell.querySelector("a");
+	link.href = diff.url;
 	cell.querySelector(".added").textContent = `+${diff.additions.toLocaleString("en")}`;
 	cell.querySelector(".deleted").textContent = `−${diff.deletions.toLocaleString("en")}`;
 	cell.querySelector(".diffstat").style = `--additions: ${diff.additions}; --deletions: ${diff.deletions}`;
-	cell.querySelector(".tag")?.toggleAttribute("hidden", diff.whole !== "force-pushed");
+
+	if (diff.whole) {
+		cell.classList.add("whole");
+		// On the link, so keyboard focus reaches it too
+		link.title = wholeTitles[diff.whole];
+		cell.querySelector(".tag").hidden = diff.whole !== "force-pushed";
+	}
 }
 
 function showTime (time, date) {

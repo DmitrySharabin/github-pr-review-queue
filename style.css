@@ -459,8 +459,6 @@ time:empty {
 	padding: 0.1em 0.5em;
 	border-radius: 1e5px;
 	background: var(--rule);
-	color: var(--muted);
-	font-size: 0.85em;
 }
 
 .added {
