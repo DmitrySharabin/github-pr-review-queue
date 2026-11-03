@@ -6,6 +6,11 @@
  * @property {string} [range] - `base...head` to compare for an exact count, when the sum of commits is only an estimate
  * @property {"unreviewed" | "force-pushed"} [whole] - Why the diff is the whole PR
  *
+ * @typedef {object} Reviewer
+ * @property {string} name - A user’s login or a team’s name
+ * @property {string} avatar - The avatar URL
+ * @property {"awaiting" | "approved" | "changes-requested" | "commented"} state
+ *
  * @typedef {object} Summary
  * @property {number} number
  * @property {string} title
@@ -16,6 +21,7 @@
  * @property {Diff} [diffSinceReview] - What the user has left to review, or the whole PR when that is unknown
  * @property {number} [iterations] - How many times the user was asked to review it
  * @property {Date | null} [waitingSince] - The latest review request to the user
+ * @property {Reviewer[]} [reviewers] - Everyone else asked to review it or who reviewed it
  * The optional ones are `undefined` until {@link details} arrive.
  */
 
@@ -62,7 +68,7 @@ export function details ({ user, ids }) {
 	let size = 10;
 	let batches = Array.from({ length: Math.ceil(ids.length / size) }, (_, i) => ids.slice(i * size, (i + 1) * size));
 
-	// NOTE: Gets only the last 100 commits, reviews and review requests of each PR
+	// NOTE: Gets only the last 100 commits, reviews and review requests of each PR, and 20 other reviewers
 	return batches.map(batch => `query {
 	nodes(ids: ${JSON.stringify(batch)}) {
 		... on PullRequest {
@@ -75,6 +81,15 @@ export function details ({ user, ids }) {
 			}
 			commits(last: 100) {
 				nodes { commit { oid additions deletions parents { totalCount } } }
+			}
+			reviewRequests(first: 20) {
+				nodes { requestedReviewer { ... on Actor { login avatarUrl(size: 48) } ... on Team { name avatarUrl(size: 48) } } }
+			}
+			latestReviews(first: 20) {
+				nodes { state author { login avatarUrl(size: 48) } }
+			}
+			latestOpinionatedReviews(first: 20) {
+				nodes { state author { login avatarUrl(size: 48) } }
 			}
 		}
 	}
@@ -125,7 +140,39 @@ export function summarize (pr, user) {
 		},
 		iterations: requests.length,
 		waitingSince,
+		reviewers: reviewers(pr, user),
 	};
+}
+
+const states = { APPROVED: "approved", CHANGES_REQUESTED: "changes-requested", COMMENTED: "commented" };
+
+/**
+ * The latest say of everyone but `user` on a PR, from {@link details}.
+ * @param {object} pr
+ * @param {string} user
+ * @returns {Reviewer[]}
+ */
+function reviewers (pr, user) {
+	let found = new Map();
+
+	// Later entries win: an approval outranks a comment after it, and a pending request outranks any review
+	let reviews = [...pr.latestReviews.nodes, ...pr.latestOpinionatedReviews.nodes];
+	for (let { state, author } of reviews) {
+		// A dismissed review says nothing anymore. A deleted account has no author
+		if (states[state] && author) {
+			found.set(author.login, { name: author.login, avatar: author.avatarUrl, state: states[state] });
+		}
+	}
+
+	for (let { requestedReviewer: reviewer } of pr.reviewRequests.nodes) {
+		// No name for a reviewer the token can’t see, e.g. a secret team, or an enterprise team
+		let name = reviewer?.login ?? reviewer?.name;
+		if (name) {
+			found.set(name, { name, avatar: reviewer.avatarUrl, state: "awaiting" });
+		}
+	}
+
+	return [...found.values()].filter(reviewer => reviewer.name.toLowerCase() !== user.toLowerCase());
 }
 
 /**

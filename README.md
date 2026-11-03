@@ -1,7 +1,7 @@
 # GitHub PR review queue
 
 The open pull requests awaiting someone’s review in one GitHub repo.
-Each one shows its diff size, the diff since that person’s last review, how many times they were asked to review, and when they were last asked.
+Each one shows its diff size, the diff since that person’s last review, how many times they were asked to review, when they were last asked, and what every other reviewer did.
 When there is no diff since that person’s last review, the column shows the whole diff, grayed out.
 A “force-pushed” tag marks a PR whose reviewed commit a force push removed.
 Every column except “Pull request” sorts, and the page remembers the last sort.

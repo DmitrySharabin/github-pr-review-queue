@@ -15,6 +15,7 @@ let refresh = document.querySelector("#refresh");
 let signOut = document.querySelector("#sign-out");
 let token = document.querySelector("#token");
 let template = document.querySelector("#row");
+let reviewerTemplate = document.querySelector("#reviewer");
 let choose = document.querySelector("#choose");
 let narrow = document.querySelector("#narrow");
 
@@ -30,6 +31,14 @@ const sortKeys = {
 const wholeTitles = {
 	"unreviewed": "Not reviewed yet, so this counts the whole pull request",
 	"force-pushed": "A force push removed the reviewed commit, so this counts the whole pull request",
+};
+
+/** What each other reviewer did, keyed by their `state` */
+const reviewerPhrases = {
+	"awaiting": "has yet to review",
+	"approved": "approved",
+	"changes-requested": "requested changes",
+	"commented": "commented",
 };
 
 const units = [["day", 864e5], ["hour", 36e5], ["minute", 6e4]];
@@ -298,7 +307,7 @@ function fill (row, summary) {
 	Object.assign(row, { summary, tr });
 }
 
-function render ({ number, title, url, author, avatar, diff, diffSinceReview, iterations, waitingSince }) {
+function render ({ number, title, url, author, avatar, diff, diffSinceReview, iterations, waitingSince, reviewers }) {
 	let tr = template.content.firstElementChild.cloneNode(true);
 
 	tr.querySelector("img").src = avatar;
@@ -312,8 +321,27 @@ function render ({ number, title, url, author, avatar, diff, diffSinceReview, it
 	tr.querySelector(".iterations").textContent = iterations ?? "";
 
 	showTime(tr.querySelector("time"), waitingSince);
+	showReviewers(tr.querySelector(".reviewers"), reviewers);
 
 	return tr;
+}
+
+function showReviewers (cell, reviewers) {
+	if (!reviewers?.length) {
+		cell.textContent = reviewers ? "—" : "";
+		return;
+	}
+
+	let list = document.createElement("ul");
+	list.append(...reviewers.map(({ name, avatar, state }) => {
+		let item = reviewerTemplate.content.firstElementChild.cloneNode(true);
+		let image = item.querySelector("img");
+		item.className = state;
+		image.src = avatar;
+		image.alt = item.title = `${name} ${reviewerPhrases[state]}`;
+		return item;
+	}));
+	cell.append(list);
 }
 
 function showDiff (cell, diff) {

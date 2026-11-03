@@ -7,6 +7,7 @@
 	--rule: color-mix(in oklch, var(--text) 6%, var(--surface));
 	--positive: oklch(52% 0.13 145);
 	--negative: oklch(53% 0.19 25);
+	--attention: oklch(72% 0.15 75);
 	--radius: 0.5rem;
 	--gutter: clamp(1rem, 3vw, 1.5rem);
 }
@@ -535,6 +536,60 @@ time:empty {
 	padding: 0.1em 0.5em;
 	border-radius: 1e5px;
 	background: var(--rule);
+}
+
+/* Avatars with a badge for what each did */
+.reviewers ul {
+	display: flex;
+	gap: 0.4em;
+	justify-content: end;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.reviewers li {
+	position: relative;
+
+	img {
+		display: block;
+		inline-size: 1.5rem;
+		block-size: auto;
+		border-radius: 50%;
+		background: var(--rule);
+	}
+
+	&::after {
+		content: "";
+		position: absolute;
+		inset-block-end: -0.2em;
+		inset-inline-end: -0.2em;
+		inline-size: 0.85rem;
+		aspect-ratio: 1;
+		border-radius: 50%;
+		background: var(--badge) var(--icon, none) center / 75% no-repeat;
+		/* Cuts the badge out of the avatar */
+		box-shadow: 0 0 0 2px var(--surface);
+	}
+
+	&.awaiting {
+		--badge: var(--attention);
+	}
+
+	&.approved {
+		--badge: var(--positive);
+		--icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
+	}
+
+	&.changes-requested {
+		--badge: var(--negative);
+		--icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M8 3v6M5 6h6M5 12h6'/%3E%3C/svg%3E");
+	}
+
+	&.commented {
+		--badge: var(--muted);
+		--icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='white'%3E%3Cpath d='M3 3.5h10v6.5H8l-3 2.5V10H3z'/%3E%3C/svg%3E");
+	}
 }
 
 .added {

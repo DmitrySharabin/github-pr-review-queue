@@ -81,6 +81,7 @@
 						<th scope="col"><button commandfor="queue" command="--sort" value="diffSinceReview">Changes since last review</button></th>
 						<th scope="col"><button commandfor="queue" command="--sort" value="iterations">Iterations</button></th>
 						<th scope="col" aria-sort="descending"><button commandfor="queue" command="--sort" value="waitingSince">Requested</button></th>
+						<th scope="col">Other reviewers</th>
 					</tr>
 				</thead>
 				<tbody></tbody>
@@ -100,7 +101,12 @@
 				<td class="since-review"><small class="tag" hidden>force-pushed</small> <a target="_blank"><span class="added"></span> <span class="deleted"></span> <span class="diffstat" aria-hidden="true"></span></a></td>
 				<td class="iterations"></td>
 				<td class="requested"><time></time></td>
+				<td class="reviewers"></td>
 			</tr>
+		</template>
+
+		<template id="reviewer">
+			<li><img alt="" width="24" height="24"></li>
 		</template>
 	</main>
 
