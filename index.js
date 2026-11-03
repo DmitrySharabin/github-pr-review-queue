@@ -72,7 +72,7 @@ signOut.addEventListener("click", async () => {
 });
 
 // The forms submit their fields as URL parameters, so the URL they open can be copied and reused
-for (let form of [choose, narrow]) {
+for (let form of [choose, narrow.querySelector("form")]) {
 	for (let field of form.elements) {
 		if (field.name) {
 			field.value = params.get(field.name);
@@ -88,6 +88,14 @@ for (let form of [choose, narrow]) {
 		}
 	});
 }
+
+// The folded filter still shows what it filters by
+narrow.querySelector("summary code").textContent = filter;
+narrow.addEventListener("toggle", () => {
+	if (narrow.open) {
+		narrow.querySelector("[name=filter]").focus();
+	}
+});
 
 if (repo) {
 	refresh.addEventListener("click", load);

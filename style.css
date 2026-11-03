@@ -252,8 +252,7 @@ form {
 	}
 }
 
-#choose,
-#narrow {
+#choose {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 0.75em 1.5em;
@@ -277,6 +276,77 @@ form {
 
 #narrow {
 	margin-block-end: 1rem;
+
+	summary {
+		display: inline-flex;
+		gap: 0.5em;
+		align-items: center;
+		color: var(--muted);
+		font-weight: 500;
+		cursor: pointer;
+
+		&:hover {
+			color: var(--text);
+		}
+
+		/* A chevron that turns down while open */
+		&::before {
+			content: "";
+			inline-size: 1em;
+			aspect-ratio: 1;
+			background-color: currentColor;
+			mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 4l4 4-4 4'/%3E%3C/svg%3E") no-repeat center / contain;
+			transition: rotate 0.2s;
+		}
+	}
+
+	&[open] summary::before {
+		rotate: 90deg;
+	}
+
+	code {
+		padding: 0.1em 0.5em;
+		border-radius: 1e5px;
+		background: var(--rule);
+		color: var(--text);
+		font-size: 0.85em;
+
+		&:empty {
+			display: none;
+		}
+	}
+
+	form {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5em 0.75em;
+		align-items: center;
+		margin-block-start: 0.75em;
+		padding: 0.85em 1.15em;
+		background: var(--surface);
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+	}
+
+	label {
+		flex: 1;
+		align-items: center;
+	}
+
+	input[type="search"] {
+		flex: 1;
+		min-inline-size: 16ch;
+	}
+
+	small {
+		flex-basis: 100%;
+		color: var(--muted);
+		font-size: 0.85em;
+
+		a {
+			color: inherit;
+		}
+	}
 }
 
 #token {
