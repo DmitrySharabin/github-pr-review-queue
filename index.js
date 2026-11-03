@@ -24,6 +24,12 @@ const sortKeys = {
 	waitingSince: summary => summary.waitingSince && -summary.waitingSince,
 };
 
+/** Why “Changes since last review” counts the whole PR, by the diff’s `whole` */
+const wholeTitles = {
+	"unreviewed": "Not reviewed yet, so this counts the whole pull request",
+	"force-pushed": "A force push removed the reviewed commit, so this counts the whole pull request",
+};
+
 const units = [["day", 864e5], ["hour", 36e5], ["minute", 6e4]];
 // Short units, e.g. “11 min. ago”, keep the latest request on one line in the summary
 const relative = new Intl.RelativeTimeFormat("en", { numeric: "auto", style: "short" });
@@ -275,8 +281,13 @@ function render ({ number, title, url, author, avatar, diff, diffSinceReview, it
 
 function showDiff (cell, diff) {
 	if (!diff) {
-		cell.textContent = diff === null ? "—" : "";
+		cell.textContent = "";
 		return;
+	}
+
+	if (diff.whole) {
+		cell.classList.add("whole");
+		cell.title = wholeTitles[diff.whole];
 	}
 
 	// Re-requested with no new commits
@@ -289,6 +300,7 @@ function showDiff (cell, diff) {
 	cell.querySelector(".added").textContent = `+${diff.additions.toLocaleString("en")}`;
 	cell.querySelector(".deleted").textContent = `−${diff.deletions.toLocaleString("en")}`;
 	cell.querySelector(".diffstat").style = `--additions: ${diff.additions}; --deletions: ${diff.deletions}`;
+	cell.querySelector(".tag")?.toggleAttribute("hidden", diff.whole !== "force-pushed");
 }
 
 function showTime (time, date) {

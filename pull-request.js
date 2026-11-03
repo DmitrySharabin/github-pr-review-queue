@@ -4,6 +4,7 @@
  * @property {number} deletions
  * @property {string} url - The diff on GitHub
  * @property {string} [range] - `base...head` to compare for an exact count, when the sum of commits is only an estimate
+ * @property {"unreviewed" | "force-pushed"} [whole] - Why the diff is the whole PR
  *
  * @typedef {object} Summary
  * @property {number} number
@@ -12,7 +13,7 @@
  * @property {string} author
  * @property {string} avatar - The author’s avatar URL
  * @property {Diff} diff - The whole PR
- * @property {Diff | null} [diffSinceReview] - `null` when the user has not reviewed it
+ * @property {Diff} [diffSinceReview] - What the user has left to review, or the whole PR when that is unknown
  * @property {number} [iterations] - How many times the user was asked to review it
  * @property {Date | null} [waitingSince] - The latest review request to the user
  * The optional ones are `undefined` until {@link details} arrive.
@@ -106,7 +107,7 @@ export function summarize (pr, user) {
 	let commits = pr.commits.nodes.map(node => node.commit);
 	// A review clears the request, so one after the latest request is only a reply in a thread
 	let reviewed = pr.reviews.nodes.findLast(review => !waitingSince || new Date(review.submittedAt) < waitingSince)?.commit.oid;
-	// NOTE: -1 also when a force push removed the reviewed commit
+	// NOTE: -1 also when the reviewed commit is older than the last 100, which then reads as a force push
 	let index = commits.findIndex(commit => commit.oid === reviewed);
 	let since = commits.slice(index + 1);
 	// Merges of the base branch bring in other PRs’ changes, e.g. +32,997 lines on a +729 PR
@@ -117,7 +118,7 @@ export function summarize (pr, user) {
 
 	return {
 		...summary,
-		diffSinceReview: index === -1 ? null : {
+		diffSinceReview: index === -1 ? { ...summary.diff, whole: reviewed ? "force-pushed" : "unreviewed" } : {
 			...sum(own),
 			url: `${pr.url}/changes/${reviewed}..${commits.at(-1).oid}`,
 			range: exact ? `${reviewed}...${last.oid}` : undefined,

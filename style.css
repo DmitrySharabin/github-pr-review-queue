@@ -450,6 +450,19 @@ time:empty {
 	background: color-mix(in oklch, var(--text) 8%, var(--surface));
 }
 
+/* The whole PR, standing in for a diff since a review */
+.whole {
+	filter: grayscale(1);
+}
+
+.tag {
+	padding: 0.1em 0.5em;
+	border-radius: 1e5px;
+	background: var(--rule);
+	color: var(--muted);
+	font-size: 0.85em;
+}
+
 .added {
 	color: var(--positive);
 }
