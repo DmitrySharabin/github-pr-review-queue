@@ -32,6 +32,6 @@ GitHub’s GraphQL API needs a token even for public repos.
 The sign-in asks for access to every repo you can reach.
 To grant less, paste a [fine-grained token](https://github.com/settings/personal-access-tokens/new?name=PR+review+queue&expires_in=90) instead.
 The link opens GitHub’s form set to read-only access to public repos.
-For a private repo, choose “Only select repositories”, pick the repo, and add read-only “Pull requests” and “Contents”.
-GitHub has no link parameter for that choice. Any permission in the link switches the form to “All repositories”.
+For a private repo, set “Resource owner” to the repo’s owner, choose “Only select repositories”, pick the repo, and add read-only “Pull requests” and “Contents”.
+To switch between the sign-in and a token, sign out.
 The page keeps the token in `localStorage`.

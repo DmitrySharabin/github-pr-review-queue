@@ -17,19 +17,20 @@
 			<h1>GitHub PR review queue</h1>
 			<p id="updated" hidden>Updated at <time></time></p>
 			<button id="refresh" hidden>Refresh</button>
+			<button id="sign-out" hidden>Sign out</button>
 		</header>
 		<p id="status" role="status">Loading pull requests…</p>
 		<progress aria-labelledby="status"></progress>
 		<div id="sign-in" hidden>
 			<button aria-describedby="sign-in-note">Sign in with GitHub</button>
-			<small id="sign-in-note">For now, signing in grants this page full access to your profile and to all your repos, private ones included.</small>
+			<small id="sign-in-note">For now, signing in grants this page full access to your profile and to every repo you can reach, private ones included.</small>
 			<p class="or">or</p>
 			<form id="token">
-				<label>Fine-grained token <input name="token" type="password" placeholder="github_pat_…" required autocomplete="off" spellcheck="false" aria-describedby="token-note"></label>
+				<label>Fine-grained token <input name="token" type="password" placeholder="github_pat_…" required autocomplete="off" aria-describedby="token-note"></label>
 				<small id="token-note">
 					<a href="https://github.com/settings/personal-access-tokens/new?name=PR+review+queue&expires_in=90" target="_blank">Create one on GitHub</a>.
-					It reads public repos as is.
-					For a private repo, choose “Only select repositories”, pick the repo, and add read-only “Pull requests” and “Contents”.
+					As created, it reads public repos.
+					For a private repo, set “Resource owner” to the repo’s owner, choose “Only select repositories”, pick the repo, and add read-only “Pull requests” and “Contents”.
 				</small>
 				<button>Use token</button>
 			</form>

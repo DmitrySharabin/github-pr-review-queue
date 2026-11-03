@@ -158,6 +158,7 @@ caption {
 }
 
 #refresh,
+#sign-out,
 form button,
 #sign-in > button {
 	min-block-size: 2.5rem;
@@ -181,6 +182,7 @@ form button,
 
 /* Secondary to the table it updates, or to the sign-in */
 #refresh,
+#sign-out,
 #token button {
 	background: color-mix(in oklch, var(--text) 8%, var(--surface));
 	color: var(--text);
@@ -232,27 +234,13 @@ form button,
 }
 
 form {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 0.75em 1.5em;
-	align-items: center;
-
-	&[hidden] {
-		display: none;
-	}
-
 	label {
 		display: flex;
 		gap: 0.5em;
-		align-items: center;
 		font-weight: 500;
 	}
 
-	/* Grows with the name, so a long one is never cut off */
 	input {
-		field-sizing: content;
-		min-inline-size: 12ch;
-		max-inline-size: 100%;
 		min-block-size: 2.5rem;
 		padding-inline: 0.75em;
 		border: 1px solid color-mix(in oklch, var(--text) 20%, var(--surface));
@@ -263,18 +251,34 @@ form {
 	}
 }
 
-/* Stacked: the label above a field as wide as the sign-in button, then the note and the button */
+#choose {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.75em 1.5em;
+	align-items: center;
+
+	&[hidden] {
+		display: none;
+	}
+
+	label {
+		align-items: center;
+	}
+
+	/* Grows with the name, so a long one is never cut off */
+	input {
+		field-sizing: content;
+		min-inline-size: 12ch;
+		max-inline-size: 100%;
+	}
+}
+
 #token {
 	display: grid;
 	gap: 0.5em;
 
 	label {
 		flex-direction: column;
-		align-items: stretch;
-	}
-
-	input {
-		field-sizing: fixed;
 	}
 }
 

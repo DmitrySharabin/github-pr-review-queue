@@ -11,6 +11,8 @@ let status = document.querySelector("#status");
 let progress = document.querySelector("progress");
 let signIn = document.querySelector("#sign-in");
 let refresh = document.querySelector("#refresh");
+let signOut = document.querySelector("#sign-out");
+let token = document.querySelector("#token");
 let template = document.querySelector("#row");
 let choose = document.querySelector("#choose");
 
@@ -44,11 +46,16 @@ table.addEventListener("command", event => {
 
 signIn.querySelector("button").addEventListener("click", () => github.login().catch(error => status.textContent = describe(error)));
 
-let token = document.querySelector("#token");
 token.addEventListener("submit", event => {
 	event.preventDefault();
-	// Madata stores the token and checks it like one from the sign-in, so login() below resumes on its mv-login
+	// Madata stores and validates the token as it does after the popup, then fires mv-login, which login() waits for
 	github.login({ accessToken: token.elements.token.value }).catch(error => status.textContent = describe(error));
+});
+
+// A token that works but can’t read the repo keeps the sign-in hidden, so signing out is the way to replace it
+signOut.addEventListener("click", async () => {
+	await github.logout();
+	location.reload();
 });
 
 // The form submits its fields as URL parameters, so the URL it opens can be copied and reused
@@ -84,6 +91,7 @@ async function load () {
 
 	try {
 		await login();
+		signOut.hidden = false;
 
 		// Madata signs in without a user when GitHub fails to answer anything but a 401, e.g. offline
 		let user = params.get("user") || github.user?.username;
