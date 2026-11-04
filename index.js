@@ -461,13 +461,32 @@ function forget () {
 }
 
 function store (view, queue) {
-	try {
-		localStorage.setItem(queueKey(view), JSON.stringify(queue));
-	}
-	catch (error) {
-		// A full storage only costs the next visit its head start
-		// NOTE: Queues of past views stay until sign-out
-		console.warn("Couldn’t store the queue.", error);
+	let key = queueKey(view);
+	let text = JSON.stringify(queue);
+	let others;
+
+	// A full storage drops the queues stored longest ago, e.g. of a label looked at once, until this one fits
+	for (;;) {
+		try {
+			localStorage.setItem(key, text);
+			return;
+		}
+		catch (error) {
+			// Newest first, so the last one is the oldest
+			// NOTE: Storage full of other data, e.g. of another app on the origin, loses every queue before this one gives up
+			others ??= error.name === "QuotaExceededError" ? Object.keys(localStorage)
+				.filter(other => other.startsWith(queuePrefix) && other !== key)
+				.map(other => ({ key: other, at: JSON.parse(localStorage.getItem(other)).at }))
+				.sort((a, b) => b.at.localeCompare(a.at)) : [];
+
+			if (others.length === 0) {
+				// Only the next visit’s head start is lost
+				console.warn("Couldn’t store the queue.", error);
+				return;
+			}
+
+			localStorage.removeItem(others.pop().key);
+		}
 	}
 }
 
