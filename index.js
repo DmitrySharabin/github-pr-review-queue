@@ -44,6 +44,8 @@ const reviewerPhrases = {
 	"commented": "commented",
 };
 
+const queuePrefix = "review-queue:queue:";
+
 /** How many labels a row shows before a button for the rest */
 const labelLimit = 5;
 
@@ -95,10 +97,7 @@ tokenForm.addEventListener("submit", event => {
 // A token that works but can’t read the repo keeps the sign-in hidden, so signing out is the way to replace it
 signOut.addEventListener("click", async () => {
 	await github.logout();
-	// Titles of private repos stay on this device no longer than the sign-in does
-	for (let key of Object.keys(localStorage).filter(key => key.startsWith("review-queue:queue:"))) {
-		localStorage.removeItem(key);
-	}
+	forget();
 	location.reload();
 });
 
@@ -286,6 +285,14 @@ async function load () {
 			throw new Error("GitHub didn’t say who is signed in.");
 		}
 
+		// A queue stored without a `user` parameter is that of whoever was signed in then
+		if (stored && stored.user !== user) {
+			stored = undefined;
+			rows = [];
+			seen = undefined;
+			changes.textContent = "";
+		}
+
 		/** Fill in the slow fields of these PRs’ rows, a few PRs per query. */
 		let update = ids => Promise.all(details({ user, role, ids }).map(async text => {
 			// A batch retries once on its own: GitHub drops a slow query without a readable response, or answers that it timed out
@@ -322,7 +329,8 @@ async function load () {
 		rows = found.nodes.map(pr => {
 			let row = previous.get(pr.id) ?? {};
 			// A review, a review request or a force push changes updatedAt, a push the head commit, so the details a row has hold while both stay
-			if (!row.summary?.reviewers || row.pr.updatedAt !== pr.updatedAt || row.pr.headRefOid !== pr.headRefOid) {
+			// A range left means its comparison failed, so the next load tries again
+			if (!row.summary?.reviewers || row.summary.diffSinceReview.range || row.pr.updatedAt !== pr.updatedAt || row.pr.headRefOid !== pr.headRefOid) {
 				stale.push(pr.id);
 			}
 
@@ -402,7 +410,9 @@ function showQueue ({ repo, user, role, filter }) {
 
 function showUpdated (date) {
 	updated.dateTime = date.toISOString();
-	updated.textContent = date.toLocaleTimeString("en", { timeStyle: "short" });
+	// A stored queue may be days old, e.g. “Nov 1, 6:05 PM”
+	let today = date.toDateString() === new Date().toDateString();
+	updated.textContent = date.toLocaleString("en", today ? { timeStyle: "short" } : { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
 /**
@@ -410,7 +420,7 @@ function showUpdated (date) {
  * @param {View} view
  */
 function queueKey (view) {
-	return `review-queue:queue:${new URLSearchParams(Object.entries(view).filter(([, value]) => value))}`;
+	return `${queuePrefix}${new URLSearchParams(Object.entries(view).filter(([, value]) => value))}`;
 }
 
 /**
@@ -422,6 +432,13 @@ function restore (view) {
 	// JSON has no dates
 	let revive = (key, value) => key === "waitingSince" && value ? new Date(value) : value;
 	return JSON.parse(localStorage.getItem(queueKey(view)), revive) ?? undefined;
+}
+
+/** Remove every stored queue, e.g. the titles of private repos, when the signed-in user may change. */
+function forget () {
+	for (let key of Object.keys(localStorage).filter(key => key.startsWith(queuePrefix))) {
+		localStorage.removeItem(key);
+	}
 }
 
 function store (view, queue) {
@@ -473,6 +490,8 @@ async function compare (repo, diff) {
 		// NOTE: GitHub lists at most 300 files in a comparison
 		let { files } = await github.load(`https://api.github.com/repos/${repo}/compare/${diff.range}`);
 		Object.assign(diff, sum(files));
+		// Exact now, so a later load of the unchanged PR needn’t compare again
+		delete diff.range;
 	}
 	catch (error) {
 		// One failed comparison should not hide the queue: the estimate stays
@@ -486,7 +505,14 @@ async function login (repo) {
 		await github.login({ passive: true });
 	}
 	catch {
-		// No stored token. The sign-in popup needs a click, or the browser blocks it
+		// No stored token. The sign-in popup needs a click, or the browser blocks it.
+		// Whoever signs in may be someone else, e.g. after a token expired, so the queues of the last one go
+		forget();
+		strip.hidden = true;
+		table.parentElement.hidden = true;
+		narrow.hidden = true;
+		changes.textContent = "";
+		status.hidden = false;
 		status.textContent = `Sign in to see the pull requests in ${repo}.`;
 		progress.hidden = true;
 		signIn.hidden = false;
