@@ -548,7 +548,7 @@ form {
 		/* Ringed like a focused control. Inside its row, since the list that scrolls would clip it outside */
 		&[aria-selected="true"] {
 			outline: auto;
-			/* The browser’s own ring color, as on the field. `auto` alone takes the text color */
+			/* The browser’s own ring color, as on the field. Chrome draws `auto` alone in the text color, Firefox in its own and has no keyword for it */
 			outline-color: -webkit-focus-ring-color;
 			outline-offset: -2px;
 			background: color-mix(in oklch, var(--text) 8%, var(--surface));
