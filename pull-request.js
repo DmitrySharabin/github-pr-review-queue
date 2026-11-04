@@ -8,6 +8,12 @@
  *
  * @typedef {"reviewer" | "author"} Role - Whose view of the PRs: `user` reviews them, or wrote them
  *
+ * @typedef {object} View
+ * @property {string} repo
+ * @property {string} user
+ * @property {Role | null} [role]
+ * @property {string | null} [filter] - Narrows the search further, e.g. `label:foo -label:bar`
+ *
  * @typedef {object} Reviewer
  * @property {string} name - The login
  * @property {string} avatar - The avatar URL
@@ -30,7 +36,7 @@
 
 /**
  * GitHub search for the open PRs in `repo` that await a review from `user`, or that `user` wrote, e.g. for github.com/pulls?q=
- * @param {{ repo: string, user: string, role?: Role | null, filter?: string | null }} options - `filter` narrows it further, e.g. `label:foo -label:bar`
+ * @param {View} options
  * @returns {string}
  */
 export function search ({ repo, user, role, filter }) {
@@ -40,7 +46,7 @@ export function search ({ repo, user, role, filter }) {
 
 /**
  * GraphQL query for the PRs {@link search} finds, with the fields that are cheap to get.
- * @param {{ repo: string, user: string, role?: Role | null, filter?: string | null }} options
+ * @param {View} options
  * @returns {string}
  */
 export function query ({ repo, user, role, filter }) {
