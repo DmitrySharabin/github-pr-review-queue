@@ -154,19 +154,18 @@ export function summarize (pr, user, role) {
 		iterations: requests.filter((request, i) => reviews.some(review =>
 			review.submittedAt < request.createdAt && review.submittedAt > (requests[i - 1]?.createdAt ?? ""))).length,
 		waitingSince,
-		reviewers: reviewers(pr, user),
+		reviewers: reviewers(pr).filter(reviewer => !isUser(reviewer.name)),
 	};
 }
 
 const states = { APPROVED: "approved", CHANGES_REQUESTED: "changes-requested", COMMENTED: "commented" };
 
 /**
- * The latest say of everyone but `user` on a PR, from {@link details}.
+ * The latest say of everyone on a PR, from {@link details}.
  * @param {object} pr
- * @param {string} user
  * @returns {Reviewer[]}
  */
-function reviewers (pr, user) {
+function reviewers (pr) {
 	let found = new Map();
 
 	// Later entries win: an approval outranks a comment after it, and a pending request outranks any review
@@ -185,7 +184,7 @@ function reviewers (pr, user) {
 		}
 	}
 
-	return [...found.values()].filter(reviewer => reviewer.name.toLowerCase() !== user.toLowerCase());
+	return [...found.values()];
 }
 
 /**
