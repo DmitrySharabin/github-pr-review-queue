@@ -15,6 +15,9 @@ let rowTemplate = document.querySelector("#row");
 let reviewerTemplate = document.querySelector("#reviewer");
 let repoForm = document.querySelector("#repo-form");
 let narrow = document.querySelector("#narrow");
+let strip = document.querySelector("#summary");
+let updated = document.querySelector("#updated time");
+let filterForm = narrow.querySelector("form");
 
 /** Sort value of each column. `null` and `undefined` (still loading) sort last in both directions. */
 const sortKeys = {
@@ -78,7 +81,7 @@ signOut.addEventListener("click", async () => {
 });
 
 // The forms submit their fields as URL parameters, so the URL they open can be copied and reused
-for (let form of [repoForm, narrow.querySelector("form")]) {
+for (let form of [repoForm, filterForm]) {
 	form.addEventListener("formdata", ({ formData }) => {
 		// An empty field means its default, e.g. the signed-in user: ?repo=foo/bar, not ?repo=foo/bar&user=
 		for (let [name, value] of [...formData]) {
@@ -91,7 +94,7 @@ for (let form of [repoForm, narrow.querySelector("form")]) {
 
 narrow.addEventListener("toggle", () => {
 	if (narrow.open) {
-		narrow.querySelector("[name=filter]").focus();
+		filterForm.elements.filter.focus();
 	}
 });
 
@@ -123,7 +126,7 @@ function showView () {
 	let role = params.get("role");
 	let filter = params.get("filter");
 
-	for (let form of [repoForm, narrow.querySelector("form")]) {
+	for (let form of [repoForm, filterForm]) {
 		for (let field of form.elements) {
 			if (field.name) {
 				field.value = params.get(field.name);
@@ -132,7 +135,7 @@ function showView () {
 	}
 
 	// Each role opens the same queue, filter and all, from the other side
-	for (let link of document.querySelectorAll("#summary .roles a")) {
+	for (let link of strip.querySelectorAll(".roles a")) {
 		let switched = new URLSearchParams(params);
 		if (link.dataset.role) {
 			switched.set("role", link.dataset.role);
@@ -267,10 +270,9 @@ async function load () {
 		document.startViewTransition?.(sort) ?? sort();
 		showSummary({ ...view, user });
 
-		let time = document.querySelector("#updated time");
 		let now = new Date();
-		time.dateTime = now.toISOString();
-		time.textContent = now.toLocaleTimeString("en", { timeStyle: "short" });
+		updated.dateTime = now.toISOString();
+		updated.textContent = now.toLocaleTimeString("en", { timeStyle: "short" });
 	}
 	catch (error) {
 		// The newer load shows its own outcome
@@ -281,10 +283,10 @@ async function load () {
 		// Rows of another view would sit under labels they don’t match, e.g. after a failed role switch, so they go,
 		// with the filter of that view and the time they were updated at
 		if (!sameView && shown !== view) {
-			document.querySelector("#summary").hidden = true;
+			strip.hidden = true;
 			table.parentElement.hidden = true;
 			narrow.hidden = true;
-			document.querySelector("#updated time").textContent = "";
+			updated.textContent = "";
 		}
 
 		status.textContent = `Couldn’t load pull requests. ${describe(error)}`;
@@ -299,8 +301,6 @@ async function load () {
 
 /** Fill the strip above the table: where, for whom, how many, since when. */
 function showSummary ({ repo, user, role, filter }) {
-	let strip = document.querySelector("#summary");
-
 	let link = strip.querySelector(".repo");
 	link.href = `https://github.com/${repo}`;
 	link.textContent = repo;
