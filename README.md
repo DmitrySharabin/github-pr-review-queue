@@ -2,7 +2,7 @@
 
 The open pull requests awaiting someone’s review in one GitHub repo.
 Each one shows its diff size, the diff since that person’s last review, how many times they were asked to review again after reviewing, when they were last asked, and what every other reviewer did.
-When there is no diff since that person’s last review, the column shows the whole diff, grayed out.
+When that person has not reviewed it yet, or a force push removed the reviewed commit, the column shows the whole diff, grayed out.
 GitHub’s push icon marks a PR whose reviewed commit a force push removed.
 An author’s avatar opens their profile, and another reviewer’s opens their latest review, or their profile while it is awaited.
 The figure columns sort, and the page remembers the last sort.
@@ -47,5 +47,5 @@ The page keeps the token in `localStorage`.
 ## Browser support
 
 The page uses features that reached every browser in 2025–2026.
-It needs Chrome or Edge 135, Firefox 144, or Safari 26.2. In older browsers the table does not sort.
+It needs Chrome or Edge 135, Firefox 144, or Safari 26.2. In older browsers the column headers do not sort the table.
 Before Firefox 147, a filter or a role switch reloads the page instead of updating it in place.
