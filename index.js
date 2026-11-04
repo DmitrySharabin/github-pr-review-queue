@@ -308,6 +308,8 @@ async function load () {
 		// A queue stored without a `user` parameter is that of whoever was signed in then
 		if (stored && stored.user !== user) {
 			stored = undefined;
+			// The rows on screen then show no view, so a failed search hides them
+			shown = undefined;
 			rows = [];
 			seen = undefined;
 			changes.textContent = "";
