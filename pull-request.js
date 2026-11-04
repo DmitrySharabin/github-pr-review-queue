@@ -80,6 +80,27 @@ export function addedLabel (filter, next) {
 }
 
 /**
+ * Whether a PR from {@link query} has the label `name`, which GitHub’s search matches in any case, e.g. `Bug` for `label:bug`.
+ * @param {object} pr
+ * @param {string} name
+ * @returns {boolean}
+ */
+export function hasLabel (pr, name) {
+	return pr.labels.nodes.some(label => label.name.toLowerCase() === name.toLowerCase());
+}
+
+/**
+ * Whether the {@link details} of an earlier copy of a PR from {@link query} may be out of date:
+ * a review, a review request or a force push changes `updatedAt`, a push the head commit.
+ * @param {object} earlier
+ * @param {object} pr
+ * @returns {boolean}
+ */
+export function outdated (earlier, pr) {
+	return earlier.updatedAt !== pr.updatedAt || earlier.headRefOid !== pr.headRefOid;
+}
+
+/**
  * GraphQL query for the PRs {@link search} finds, with the fields that are cheap to get.
  * @param {View} options
  * @returns {string}

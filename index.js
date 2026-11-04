@@ -1,7 +1,7 @@
 /** @import { Summary, View } from "./pull-request.js" */
 // The commit is also in index.html, which preloads the modules this one imports
 import GithubAPI from "https://cdn.jsdelivr.net/gh/madatajs/madata@063fc247b1a03924c836d74ea2f3d8fdc86ded2c/backends/github/api/github-api.js";
-import { addedLabel, details, outcomes, query, search, summarize, sum, withLabel } from "./pull-request.js";
+import { addedLabel, details, hasLabel, outcomes, outdated, query, search, summarize, sum, withLabel } from "./pull-request.js";
 
 let github = new GithubAPI("https://api.github.com/graphql");
 let table = document.querySelector("#queue");
@@ -254,7 +254,7 @@ async function load () {
 	// Unless the search found its maximum of 100 PRs: then others with the label may be past them
 	let label = sameQueue && rows.length < 100 ? addedLabel(shown.filter, filter) : undefined;
 	if (label !== undefined) {
-		rows = rows.filter(({ pr }) => pr.labels.nodes.some(({ name }) => name.toLowerCase() === label.toLowerCase()));
+		rows = rows.filter(({ pr }) => hasLabel(pr, label));
 		// The load marks what changed against the last finished load’s rows that stay on screen. Before the first load finishes there are none
 		// NOTE: A PR that a refresh in flight already dropped isn’t among them, so it doesn’t count as merged or off
 		seen &&= new Map([...seen].filter(([id]) => rows.some(row => row.pr.id === id)));
@@ -346,9 +346,8 @@ async function load () {
 		let stale = [];
 		rows = found.nodes.map(pr => {
 			let row = previous.get(pr.id) ?? {};
-			// A review, a review request or a force push changes updatedAt, a push the head commit, so the details a row has hold while both stay
 			// A range left means its comparison failed, so the next load tries again
-			if (!row.summary?.reviewers || row.summary.diffSinceReview.range || row.pr.updatedAt !== pr.updatedAt || row.pr.headRefOid !== pr.headRefOid) {
+			if (!row.summary?.reviewers || row.summary.diffSinceReview.range || outdated(row.pr, pr)) {
 				stale.push(pr.id);
 			}
 
