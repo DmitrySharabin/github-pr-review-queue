@@ -265,7 +265,8 @@ async function load () {
 
 		await Promise.all([updating, update(rows.map(row => row.pr.id).filter(id => !early.includes(id)))]);
 		signal.throwIfAborted();
-		document.startViewTransition(sort);
+		// Firefox before 144 has no view transitions: the rows then sort without moving
+		document.startViewTransition?.(sort) ?? sort();
 		showSummary({ ...view, user });
 
 		let time = document.querySelector("#updated time");

@@ -43,3 +43,9 @@ The link opens GitHub’s form set to read-only access to public repos.
 For a private repo, set “Resource owner” to the repo’s owner, choose “Only select repositories”, pick the repo, and add read-only “Pull requests” and “Contents”.
 To switch between the sign-in and a token, sign out.
 The page keeps the token in `localStorage`.
+
+## Browser support
+
+The page uses features that reached every browser in 2025–2026.
+It needs Chrome or Edge 135, Firefox 144, or Safari 26.2. In older browsers the table does not sort.
+Before Firefox 147, a filter or a role switch reloads the page instead of updating it in place.
