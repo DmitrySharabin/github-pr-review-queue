@@ -14,6 +14,7 @@
 	--block-gap: 1.5rem;
 	/* A strong ease-out: motion that answers the user starts at once */
 	--ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+	--inset: 1rem;
 }
 
 /* The footer starts at the bottom of the window, so the queue arriving above it doesn’t push it down */
@@ -127,7 +128,7 @@ caption {
 	}
 
 	div {
-		padding: 0.85em 1.15em;
+		padding: 0.85em var(--inset);
 		background: var(--surface);
 	}
 
@@ -425,7 +426,7 @@ form {
 		gap: 0.5em 0.75em;
 		align-items: center;
 		margin-block-start: 0.75em;
-		padding: 0.85em 1.15em;
+		padding: 0.85em var(--inset);
 		background: var(--surface);
 		border: 1px solid var(--border);
 		border-radius: var(--radius);
@@ -552,7 +553,7 @@ table {
 
 th,
 td {
-	padding: 0.7em 1.15em;
+	padding: 0.7em var(--inset);
 	vertical-align: middle;
 }
 
@@ -659,7 +660,7 @@ time:empty {
 	--icon-gap: 0.5rem;
 
 	&:not(:has(.force-pushed)) {
-		padding-inline-end: calc(1.15em + var(--icon-gap) + var(--icon-size));
+		padding-inline-end: calc(var(--inset) + var(--icon-gap) + var(--icon-size));
 	}
 }
 
