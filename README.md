@@ -9,7 +9,10 @@ An author’s avatar opens their profile, and another reviewer’s opens their l
 The figure columns sort, and the page remembers the last sort.
 After a refresh, the PRs it found and the cells it changed stay marked until the next load, or until a link in that row is opened.
 The line under the update time says “Refreshing…” during a refresh, then sums them up, e.g. “1 new, 2 changed, 1 merged”, or says “No changes”.
-A PR that left the list counts as merged, closed, or, while still open, e.g. once reviewed, as off.
+A PR that left the list counts as merged, as closed, or as off when it is still open, e.g. once reviewed.
+
+The page keeps the last queue of each view on this device and shows it at once on the next visit, while it loads again.
+A load asks GitHub for the slow details only of the PRs that changed since, and signing out forgets the stored queues.
 
 The author view lists someone’s own open PRs instead.
 There, the columns count everyone else’s reviews and requests, and the switch above the table goes back.

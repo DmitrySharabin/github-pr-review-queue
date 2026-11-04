@@ -116,7 +116,7 @@ header:has(progress[hidden]) #updated:has(time:empty) {
 		content: "" / ", ";
 	}
 
-	/* As wide as the time above it, wrapping a long summary, e.g. “2 new, 1 changed, 1 gone”, rather than widening the line */
+	/* As wide as the time above it, wrapping a long summary, e.g. “2 new, 1 changed, 1 merged”, rather than widening the line */
 	@container (width < 36rem) {
 		inline-size: 0;
 		min-inline-size: 100%;

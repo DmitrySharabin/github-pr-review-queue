@@ -78,7 +78,7 @@ export function query ({ repo, user, role, filter }) {
 	search(type: ISSUE, first: 100, query: ${JSON.stringify(search({ repo, user, role, filter }))}) {
 		nodes {
 			... on PullRequest {
-				id number title url additions deletions
+				id number title url additions deletions updatedAt headRefOid
 				author { login avatarUrl(size: 64) }
 				labels(first: 100) { nodes { name color description } }
 			}
@@ -100,13 +100,11 @@ export function details ({ user, role, ids }) {
 	// A reviewer needs only their own reviews, an author everyone else’s
 	let byUser = role === "author" ? "" : `author: ${JSON.stringify(user)}, `;
 
-	// Asks for the PR’s size again, because the diff since review of an unreviewed or force-pushed PR is the whole PR.
-	// A refresh asks for details before the search, so the size from the last search may be old
 	// NOTE: Gets only the last 100 commits, reviews and review requests of each PR, and 20 other reviewers
 	return batches.map(batch => `query {
 	nodes(ids: ${JSON.stringify(batch)}) {
 		... on PullRequest {
-			id additions deletions
+			id
 			reviews(${byUser}states: [APPROVED, CHANGES_REQUESTED, COMMENTED, DISMISSED], last: 100) {
 				nodes { submittedAt author { login } commit { oid } }
 			}

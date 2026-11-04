@@ -1,4 +1,4 @@
-/** @import { Summary } from "./pull-request.js" */
+/** @import { Summary, View } from "./pull-request.js" */
 import GithubAPI from "https://cdn.jsdelivr.net/gh/madatajs/madata@063fc247b1a03924c836d74ea2f3d8fdc86ded2c/backends/github/api/github-api.js";
 import { details, outcomes, query, search, summarize, sum, withLabel } from "./pull-request.js";
 
@@ -95,6 +95,10 @@ tokenForm.addEventListener("submit", event => {
 // A token that works but can’t read the repo keeps the sign-in hidden, so signing out is the way to replace it
 signOut.addEventListener("click", async () => {
 	await github.logout();
+	// Titles of private repos stay on this device no longer than the sign-in does
+	for (let key of Object.keys(localStorage).filter(key => key.startsWith("review-queue:queue:"))) {
+		localStorage.removeItem(key);
+	}
 	location.reload();
 });
 
@@ -247,6 +251,22 @@ async function load () {
 	if (!sameView) {
 		seen = undefined;
 	}
+
+	// Another view shows at once what it showed last, e.g. on the last visit, while it loads again.
+	// Its rows then count as the last load’s, so the load marks what changed since
+	let stored = sameView ? undefined : restore(view);
+	if (stored) {
+		rows = stored.rows.map(({ pr, summary }) => {
+			let row = { pr };
+			fill(row, summary);
+			return row;
+		});
+		shown = view;
+		showQueue({ ...view, user: stored.user });
+		showUpdated(new Date(stored.at));
+		seen = new Map(rows.map(row => [row.pr.id, row.tr.cloneNode(true)]));
+	}
+
 	// Keeps the line the last load’s changes took, so the time above it doesn’t move
 	changes.textContent = seen ? "Refreshing…" : "";
 
@@ -291,68 +311,44 @@ async function load () {
 		}));
 
 		// Rows of another queue, e.g. before a role switch, stay on screen until the search replaces them, but don’t update
-		let kept = sameQueue ? rows : [];
-
-		// A refresh updates the rows on screen while the search looks for new ones, so it doesn’t wait for the search first.
-		// A new filter may drop some of them, so it waits for the search to know which to update
-		let early = sameView ? kept.map(row => row.pr.id) : [];
-		let updating = update(early);
-		// Awaited after the search, which may fail first and skip that await
-		updating.catch(() => {});
+		let kept = sameQueue || stored ? rows : [];
 
 		let { search: found } = await graphql(query({ ...view, user }));
 		signal.throwIfAborted();
 		shown = view;
 
-		// An author sees their own PRs, so some names change with the rows, e.g. “Awaiting review” becomes “Open”
-		for (let element of document.querySelectorAll("[data-author]")) {
-			element.textContent = role === "author" ? element.dataset.author : element.dataset.reviewer;
-		}
-
 		let previous = new Map(kept.map(row => [row.pr.id, row]));
+		let stale = [];
 		rows = found.nodes.map(pr => {
 			let row = previous.get(pr.id) ?? {};
+			// A review, a review request or a force push changes updatedAt, a push the head commit, so the details a row has hold while both stay
+			if (!row.summary?.reviewers || row.pr.updatedAt !== pr.updatedAt || row.pr.headRefOid !== pr.headRefOid) {
+				stale.push(pr.id);
+			}
+
 			row.pr = pr;
 			// Without details the summary has no slow fields, so a refreshed row keeps its old ones until they arrive
 			fill(row, { ...row.summary, ...summarize(pr, user, role) });
 			return row;
 		});
-		sort();
-		showSummary({ ...view, user });
+		showQueue({ ...view, user });
 
-		table.parentElement.hidden = rows.length === 0;
-		repoForm.hidden = true;
-		narrow.hidden = false;
-		// The status names the progress bar, so it says “Loading” until there is nothing left to load
-		if (rows.length === 0) {
-			let matching = filter ? ` matching “${filter}”` : "";
-			status.textContent = role === "author"
-				? `${user} has no open pull requests${matching} in ${repo}.`
-				: `Nothing${matching} awaits ${user}’s review in ${repo}.`;
-		}
-		status.hidden = rows.length > 0;
-
-		await Promise.all([updating, update(rows.map(row => row.pr.id).filter(id => !early.includes(id)))]);
+		// A PR the search no longer finds may still be open, e.g. reviewed meanwhile. Without its state it counts as just off the list
+		let gone = [...seen?.keys() ?? []].filter(id => !rows.some(row => row.pr.id === id));
+		let [, { nodes: ends = [] }] = await Promise.all([update(stale), gone.length ? graphql(outcomes(gone)).catch(() => ({})) : {}]);
 		signal.throwIfAborted();
 		// Firefox before 144 has no view transitions: the rows then sort without moving
 		document.startViewTransition?.(sort) ?? sort();
 		showSummary({ ...view, user });
 
 		let now = new Date();
-		updated.dateTime = now.toISOString();
-		updated.textContent = now.toLocaleTimeString("en", { timeStyle: "short" });
+		showUpdated(now);
+		store(view, { user, at: now, rows: rows.map(({ pr, summary }) => ({ pr, summary })) });
 
 		let last = seen;
 		seen = new Map(rows.map(row => [row.pr.id, row.tr.cloneNode(true)]));
 		if (last) {
-			// A PR the search no longer finds may still be open, e.g. reviewed meanwhile. Without its state it counts as just off the list
-			let gone = [...last.keys()].filter(id => !seen.has(id));
-			let { nodes } = gone.length ? await graphql(outcomes(gone)).catch(() => ({ nodes: [] })) : { nodes: [] };
-			signal.throwIfAborted();
-			changes.textContent = mark(last, gone.map((id, i) => nodes[i]?.state));
-		}
-		else {
-			changes.textContent = "";
+			changes.textContent = mark(last, gone.map((id, i) => ends[i]?.state));
 		}
 	}
 	catch (error) {
@@ -379,6 +375,64 @@ async function load () {
 
 	progress.hidden = true;
 	refresh.ariaDisabled = null;
+}
+
+/** Show the rows, sorted, with what goes around them: the strip above them, or why there are none. */
+function showQueue ({ repo, user, role, filter }) {
+	// An author sees their own PRs, so some names change with the rows, e.g. “Awaiting review” becomes “Open”
+	for (let element of document.querySelectorAll("[data-author]")) {
+		element.textContent = role === "author" ? element.dataset.author : element.dataset.reviewer;
+	}
+
+	sort();
+	showSummary({ repo, user, role, filter });
+
+	table.parentElement.hidden = rows.length === 0;
+	repoForm.hidden = true;
+	narrow.hidden = false;
+	// The status names the progress bar, so it says “Loading” until there is nothing left to load
+	if (rows.length === 0) {
+		let matching = filter ? ` matching “${filter}”` : "";
+		status.textContent = role === "author"
+			? `${user} has no open pull requests${matching} in ${repo}.`
+			: `Nothing${matching} awaits ${user}’s review in ${repo}.`;
+	}
+	status.hidden = rows.length > 0;
+}
+
+function showUpdated (date) {
+	updated.dateTime = date.toISOString();
+	updated.textContent = date.toLocaleTimeString("en", { timeStyle: "short" });
+}
+
+/**
+ * The key a view’s queue is stored under, e.g. `review-queue:queue:repo=foo%2Fbar&role=author`.
+ * @param {View} view
+ */
+function queueKey (view) {
+	return `review-queue:queue:${new URLSearchParams(Object.entries(view).filter(([, value]) => value))}`;
+}
+
+/**
+ * What a view showed after its last full load, with when and for which user.
+ * @param {View} view
+ * @returns {{ user: string, at: string, rows: { pr: object, summary: Summary }[] } | undefined}
+ */
+function restore (view) {
+	// JSON has no dates
+	let revive = (key, value) => key === "waitingSince" && value ? new Date(value) : value;
+	return JSON.parse(localStorage.getItem(queueKey(view)), revive) ?? undefined;
+}
+
+function store (view, queue) {
+	try {
+		localStorage.setItem(queueKey(view), JSON.stringify(queue));
+	}
+	catch (error) {
+		// A full storage only costs the next visit its head start
+		// NOTE: Queues of past views stay until sign-out
+		console.warn("Couldn’t store the queue.", error);
+	}
 }
 
 /** Fill the strip above the table: where, for whom, how many, since when. */
@@ -530,9 +584,9 @@ function fill (row, summary) {
 /**
  * Mark what changed since the last load: the PRs it didn’t show, and the cells that differ from it. Say it, e.g. “1 new, 2 changed, 1 merged”.
  * @param {Map<string, HTMLTableRowElement>} last - The rows it showed, by PR id
- * @param {(string | undefined)[]} gone - The state of each PR it showed and this load doesn’t, e.g. `"MERGED"`
+ * @param {(string | undefined)[]} states - The state of each PR it showed and this load doesn’t, e.g. `"MERGED"`
  */
-function mark (last, gone) {
+function mark (last, states) {
 	let counts = { new: 0, changed: 0, merged: 0, closed: 0, off: 0 };
 
 	for (let { pr, tr } of rows) {
@@ -554,7 +608,7 @@ function mark (last, gone) {
 		counts[old ? "changed" : "new"]++;
 	}
 
-	for (let state of gone) {
+	for (let state of states) {
 		counts[{ MERGED: "merged", CLOSED: "closed" }[state] ?? "off"]++;
 	}
 
