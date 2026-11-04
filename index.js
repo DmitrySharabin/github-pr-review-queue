@@ -317,10 +317,10 @@ async function load () {
 		signal.throwIfAborted();
 		controls.inert = false;
 
-		// Madata signs in without a user when GitHub fails to answer anything but a 401, e.g. offline
+		// Madata signs in without a user when GitHub fails to answer anything but a 401, e.g. offline, so this is a failure to connect too
 		let user = view.user || github.user?.username;
 		if (!user) {
-			throw new Error("GitHub didn’t say who is signed in.");
+			throw new Error(GithubAPI.phrase("something_went_wrong_while_connecting", GithubAPI.name));
 		}
 
 		// A queue stored without a `user` parameter is that of whoever was signed in then
@@ -415,7 +415,7 @@ async function load () {
 
 		showDelta();
 		// Most failures come from the repo or the user, so the form lets the user check and fix them
-		showNotice(repoForm, `Couldn’t load the pull requests in ${repo}`, `${describe(error)} Check the repository and the user, then try again.`);
+		showNotice(repoForm, `Couldn’t load the pull requests in ${repo}`, describe(error, "Check the repository and the user, then try again."));
 	}
 
 	progress.hidden = true;
@@ -635,19 +635,53 @@ function showNotice (card, title, reason) {
 	status.textContent = "";
 }
 
-function describe (error) {
-	// On an HTTP error, Madata throws GitHub’s response body, e.g. { message: "Bad credentials", status: "401" }
-	if (!(error instanceof Error)) {
-		return `GitHub answered: “${error.message ?? error}”.`;
-	}
+/**
+ * Say in the user’s words what went wrong and what to do, e.g. “You’re offline. Check your connection, then try again.”
+ * @param {unknown} error - What Madata threw
+ * @param {string} [advice] - What to do about an error not known here, which shows GitHub’s own words
+ */
+function describe (error, advice = "Try again.") {
+	// On an HTTP error, Madata throws GitHub’s response body: JSON, e.g. { message: "Bad credentials" }, or text, e.g. a 502’s HTML page.
+	// Its own errors and GitHub’s GraphQL errors, e.g. a repo that doesn’t exist, are told apart by their messages
+	let message = error?.message;
+	let slow = "GitHub took too long to respond. Try again in a minute.";
 
 	// Madata drops the failed fetch’s error, so only its own message tells a network failure apart
-	if (error.message === GithubAPI.phrase("something_went_wrong_while_connecting", GithubAPI.name)) {
-		return navigator.onLine ? "GitHub’s API sent no readable response, which usually means it timed out." : "You’re offline.";
+	if (message === GithubAPI.phrase("something_went_wrong_while_connecting", GithubAPI.name)) {
+		return navigator.onLine ? slow : "You’re offline. Check your connection, then try again.";
 	}
 
-	// A GraphQL error, e.g. a repo that does not exist
-	return error.message;
+	if (message === undefined) {
+		return slow;
+	}
+
+	// GitHub answers the same for a private repo the user can’t access, e.g. with a token for other repos
+	if (message.includes("Could not resolve to a Repository")) {
+		return "GitHub can’t find this repository, or your account or token can’t access it. Check the name, then try again.";
+	}
+
+	if (message.includes("Could not resolve to a User")) {
+		return "GitHub can’t find this user. Check the name, or leave User empty to see your own queue.";
+	}
+
+	// The primary limit, e.g. “API rate limit exceeded for user ID 1”, and the secondary one, for too many requests at once
+	if (/rate limit/i.test(message)) {
+		return "GitHub is getting too many requests from this page. Wait a few minutes, then try again.";
+	}
+
+	if (message === "Bad credentials") {
+		return "Your GitHub session has expired. Sign out, then sign in again.";
+	}
+
+	if (message === GithubAPI.phrase("invalid_access_token")) {
+		return "GitHub didn’t accept this token. Check that you copied all of it and that it hasn’t expired.";
+	}
+
+	if (message === GithubAPI.phrase("popup_blocked")) {
+		return "Your browser blocked the GitHub sign-in window. Allow pop-ups for this page, then try again.";
+	}
+
+	return `GitHub answered: “${message}”. ${advice}`;
 }
 
 /** Mark the column the table sorts by. */
