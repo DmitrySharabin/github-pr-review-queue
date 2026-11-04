@@ -686,6 +686,10 @@ time:empty {
 	outline-offset: 2px;
 	transition: scale 160ms var(--ease-out), outline-color 150ms ease;
 
+	&:hover {
+		outline-color: var(--border);
+	}
+
 	&:focus-visible {
 		outline-color: var(--text);
 	}
@@ -694,10 +698,6 @@ time:empty {
 		&:active {
 			scale: 0.95;
 		}
-	}
-
-	&:hover {
-		outline-color: var(--border);
 	}
 }
 
