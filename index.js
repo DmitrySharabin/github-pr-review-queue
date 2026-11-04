@@ -610,9 +610,10 @@ function sort ({ animate } = {}) {
 	};
 
 	// A transition styles 4 pseudo-elements per row, e.g. 400 for 100 rows, and blocks clicks while it runs,
-	// so it runs only when a row moves. Firefox before 144 has no view transitions: the rows then sort without moving
+	// so it runs only when a row moves where someone sees it: a hidden tab, e.g. switched away from during a load, skips it with an error.
+	// Firefox before 144 has no view transitions: the rows then sort without moving
 	let moves = body.rows.length !== rows.length || rows.some(({ tr }, i) => tr !== body.rows[i]);
-	if (animate && moves && document.startViewTransition) {
+	if (animate && moves && !document.hidden && document.startViewTransition) {
 		document.startViewTransition(place);
 	}
 	else {
