@@ -1,6 +1,6 @@
 /** @import { Summary } from "./pull-request.js" */
 import GithubAPI from "https://cdn.jsdelivr.net/gh/madatajs/madata@063fc247b1a03924c836d74ea2f3d8fdc86ded2c/backends/github/api/github-api.js";
-import { details, query, search, summarize, sum, withLabel } from "./pull-request.js";
+import { details, outcomes, query, search, summarize, sum, withLabel } from "./pull-request.js";
 
 let github = new GithubAPI("https://api.github.com/graphql");
 let table = document.querySelector("#queue");
@@ -344,7 +344,16 @@ async function load () {
 
 		let last = seen;
 		seen = new Map(rows.map(row => [row.pr.id, row.tr.cloneNode(true)]));
-		changes.textContent = last ? mark(last) : "";
+		if (last) {
+			// A PR the search no longer finds may still be open, e.g. reviewed meanwhile. Without its state it counts as just off the list
+			let gone = [...last.keys()].filter(id => !seen.has(id));
+			let { nodes } = gone.length ? await graphql(outcomes(gone)).catch(() => ({ nodes: [] })) : { nodes: [] };
+			signal.throwIfAborted();
+			changes.textContent = mark(last, gone.map((id, i) => nodes[i]?.state));
+		}
+		else {
+			changes.textContent = "";
+		}
 	}
 	catch (error) {
 		// The newer load shows its own outcome
@@ -519,11 +528,12 @@ function fill (row, summary) {
 }
 
 /**
- * Mark what changed since the last load: the PRs it didn’t show, and the cells that differ from it. Say it, e.g. “1 new, 2 changed”.
+ * Mark what changed since the last load: the PRs it didn’t show, and the cells that differ from it. Say it, e.g. “1 new, 2 changed, 1 merged”.
  * @param {Map<string, HTMLTableRowElement>} last - The rows it showed, by PR id
+ * @param {(string | undefined)[]} gone - The state of each PR it showed and this load doesn’t, e.g. `"MERGED"`
  */
-function mark (last) {
-	let counts = { new: 0, changed: 0 };
+function mark (last, gone) {
+	let counts = { new: 0, changed: 0, merged: 0, closed: 0, off: 0 };
 
 	for (let { pr, tr } of rows) {
 		let old = last.get(pr.id);
@@ -544,9 +554,11 @@ function mark (last) {
 		counts[old ? "changed" : "new"]++;
 	}
 
-	// The PRs the last load showed and this one doesn’t, e.g. merged meanwhile
-	counts.gone = last.size - (rows.length - counts.new);
-	// A wrapped summary breaks between counts, never between “1” and “gone”
+	for (let state of gone) {
+		counts[{ MERGED: "merged", CLOSED: "closed" }[state] ?? "off"]++;
+	}
+
+	// A wrapped summary breaks between counts, never between “1” and “merged”
 	return Object.entries(counts).filter(([, count]) => count).map(([name, count]) => `${count}\u00a0${name}`).join(", ") || "No changes";
 }
 
