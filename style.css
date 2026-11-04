@@ -154,8 +154,6 @@ caption,
 		font-weight: 500;
 		font-variant-numeric: tabular-nums;
 		white-space: nowrap;
-		/* Lets the fades below show only while there is more to scroll to */
-		container-type: scroll-state;
 
 		> * {
 			display: inline-flex;
@@ -164,44 +162,6 @@ caption,
 			&[hidden] {
 				display: none;
 			}
-
-			/* Fades over the clipped edge */
-			&::before,
-			&::after {
-				content: "";
-				position: sticky;
-				z-index: 1;
-				align-self: stretch;
-				flex: none;
-				inline-size: 2rem;
-				opacity: 0;
-				transition: opacity 200ms ease;
-				pointer-events: none;
-			}
-
-			&::before {
-				inset-inline-start: 0;
-				margin-inline-end: -2rem;
-				background: linear-gradient(to right, var(--surface), transparent);
-			}
-
-			&::after {
-				inset-inline-end: 0;
-				margin-inline-start: -2rem;
-				background: linear-gradient(to left, var(--surface), transparent);
-			}
-		}
-	}
-
-	@container scroll-state(scrollable: inline-start) {
-		dd > ::before {
-			opacity: 1;
-		}
-	}
-
-	@container scroll-state(scrollable: inline-end) {
-		dd > ::after {
-			opacity: 1;
 		}
 	}
 
@@ -603,14 +563,20 @@ progress {
 	.scroller {
 		overflow-x: auto;
 		border-radius: var(--radius);
+	}
+}
 
-		/* Fades an edge while there is more to scroll to. The frame’s own mask, moved by its scroll, needs no element to draw it.
-		   Without scroll timelines the animation would end at once, fading the start for good */
-		@supports (animation-timeline: scroll()) {
-			mask: linear-gradient(to right, transparent, black var(--fade-start), black calc(100% - var(--fade-end)), transparent);
-			animation: scroll-fades linear both;
-			animation-timeline: scroll(self inline);
-		}
+/* Fades an edge while there is more to scroll to, e.g. a long repository name, or the table on a phone.
+   Each fade grows with the distance from its edge, up to `--fade`, and stays off while nothing scrolls.
+   Without scroll timelines the animations would end at once, fading the start for good */
+@supports (animation-timeline: scroll()) {
+	#summary dd,
+	.scroller {
+		--fade: 2rem;
+		mask: linear-gradient(to right, transparent, black var(--fade-start), black calc(100% - var(--fade-end)), transparent);
+		animation: fade-start linear both, fade-end linear both;
+		animation-timeline: scroll(self inline);
+		animation-range: 0 var(--fade), calc(100% - var(--fade)) 100%;
 	}
 }
 
@@ -627,21 +593,15 @@ progress {
 	initial-value: 0px;
 }
 
-@keyframes scroll-fades {
-	from {
-		--fade-start: 0px;
-		--fade-end: 2rem;
-	}
-
-	10%,
-	90% {
-		--fade-start: 2rem;
-		--fade-end: 2rem;
-	}
-
+@keyframes fade-start {
 	to {
-		--fade-start: 2rem;
-		--fade-end: 0px;
+		--fade-start: var(--fade);
+	}
+}
+
+@keyframes fade-end {
+	from {
+		--fade-end: var(--fade);
 	}
 }
 
@@ -762,10 +722,8 @@ tbody {
 	}
 }
 
-/* A value still loading leaves its cell or time empty: a flat bar holds its place.
-   An empty time draws the bar itself, since its ::before is a scroll fade in the summary */
-td:empty::before,
-time:empty {
+/* A value still loading leaves its cell or time empty: a flat bar holds its place */
+:is(td, time):empty::before {
 	content: "";
 	display: inline-block;
 	inline-size: 3em;
