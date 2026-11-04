@@ -775,13 +775,10 @@ tbody {
 	font-weight: 500;
 	line-height: 1.6;
 
+	/* Black or white, whichever reads better by APCA: white from a lightness of 0.7 down, e.g. on GitHub’s red “bug”.
+	   contrast-color() goes by WCAG 2.1 and picks black there. The link inherits the color */
 	li {
-		/* The link inherits the color */
-		color: oklch(from var(--color) max(0, sign(0.623 - l)) 0 h);
-
-		@supports (color: contrast-color(red)) {
-			color: contrast-color(var(--color));
-		}
+		color: oklch(from var(--color) max(0, sign(0.7 - l)) 0 h);
 	}
 
 	:is(a, .more) {
