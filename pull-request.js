@@ -81,11 +81,13 @@ export function details ({ user, role, ids }) {
 	// A reviewer needs only their own reviews, an author everyone else’s
 	let byUser = role === "author" ? "" : `author: ${JSON.stringify(user)}, `;
 
+	// The size too, since an unreviewed or force-pushed PR’s diff since review is the whole PR.
+	// A refresh asks for details before the search, so the size it has then may be old
 	// NOTE: Gets only the last 100 commits, reviews and review requests of each PR, and 20 other reviewers
 	return batches.map(batch => `query {
 	nodes(ids: ${JSON.stringify(batch)}) {
 		... on PullRequest {
-			id
+			id additions deletions
 			reviews(${byUser}states: [APPROVED, CHANGES_REQUESTED, COMMENTED, DISMISSED], last: 100) {
 				nodes { submittedAt author { login } commit { oid } }
 			}
