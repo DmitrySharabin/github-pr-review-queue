@@ -1,4 +1,5 @@
 /** @import { Summary, View } from "./pull-request.js" */
+// The commit is also in index.html, which preloads the modules this one imports
 import GithubAPI from "https://cdn.jsdelivr.net/gh/madatajs/madata@063fc247b1a03924c836d74ea2f3d8fdc86ded2c/backends/github/api/github-api.js";
 import { addedLabel, details, outcomes, query, search, summarize, sum, withLabel } from "./pull-request.js";
 
@@ -58,7 +59,7 @@ let rows = [];
 /** What the rows show: the URL parameters of their load, e.g. `{ repo: "foo/bar", filter: "label:baz" }` */
 let shown;
 /** Whose queue the rows show, e.g. the signed-in user’s when the URL names no `user` */
-let owner;
+let shownUser;
 /** @type {AbortController | undefined} Aborts the load in flight */
 let loading;
 /** @type {Map<string, HTMLTableRowElement> | undefined} The rows the last finished load of this view showed, by PR id, for the next to mark what changed */
@@ -254,10 +255,9 @@ async function load () {
 	let label = sameQueue && rows.length < 100 ? addedLabel(shown.filter, filter) : undefined;
 	if (label !== undefined) {
 		rows = rows.filter(({ pr }) => pr.labels.nodes.some(({ name }) => name.toLowerCase() === label.toLowerCase()));
-		// The load marks what changed against the last finished load’s rows with the label. Before the first load finishes there are none to mark against
+		// The load marks what changed against the last finished load’s rows that stay on screen. Before the first load finishes there are none
+		// NOTE: A PR that a refresh in flight already dropped isn’t among them, so it doesn’t count as merged or off
 		seen &&= new Map([...seen].filter(([id]) => rows.some(row => row.pr.id === id)));
-		shown = view;
-		showQueue({ ...view, user: owner });
 	}
 	// A load of another view, e.g. a new filter, finds PRs that aren’t new, so it compares with nothing
 	else if (!sameView) {
@@ -273,11 +273,14 @@ async function load () {
 			fill(row, summary);
 			return row;
 		});
-		shown = view;
-		owner = stored.user;
-		showQueue({ ...view, user: owner });
+		shownUser = stored.user;
 		showUpdated(new Date(stored.at));
 		seen = new Map(rows.map(row => [row.pr.id, row.tr.cloneNode(true)]));
+	}
+
+	if (stored || label !== undefined) {
+		shown = view;
+		showQueue({ ...view, user: shownUser });
 	}
 
 	// Keeps the line the last load’s changes took, so the time above it doesn’t move
@@ -337,7 +340,7 @@ async function load () {
 		let { search: found } = await graphql(query({ ...view, user }));
 		signal.throwIfAborted();
 		shown = view;
-		owner = user;
+		shownUser = user;
 
 		let previous = new Map(kept.map(row => [row.pr.id, row]));
 		let stale = [];

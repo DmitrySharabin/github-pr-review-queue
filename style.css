@@ -176,7 +176,7 @@ caption {
 	}
 
 	/* Room for the times up to “99 days ago”, which arrive after the rest: the cells before it share what it leaves, so a wider one would move them */
-	dd:has(.latest) {
+	.latest {
 		min-inline-size: 9ch;
 	}
 
