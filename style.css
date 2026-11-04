@@ -104,7 +104,7 @@ header:has(progress[hidden]) #updated:has(time:empty) {
 	visibility: hidden;
 }
 
-/* Said on screen by other means: the caption by the summary above the table, the changes of a refresh by the marks in it */
+/* Said on screen by other means: the caption by the summary above the table, the new and changed PRs by the marks in it */
 caption,
 #updated .changes {
 	position: absolute;
@@ -602,8 +602,7 @@ tbody {
 		border-block-start: 1px solid var(--rule);
 	}
 
-	/* What a refresh changed stays marked until the next load or a click on a link in its row.
-	   From 18%, the green figures drop below 4.5:1 */
+	/* From 18%, the green figures drop below 4.5:1 */
 	:is(.new > *, .changed) {
 		background: color-mix(in oklch, var(--attention) 12%, var(--surface));
 	}

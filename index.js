@@ -368,6 +368,7 @@ async function compare (repo, diff) {
 	}
 	catch (error) {
 		// One failed comparison should not hide the queue: the estimate stays
+		// NOTE: A refresh whose comparison fails, or succeeds after one that failed, marks the cell as changed
 		console.warn(`Couldn’t compare ${diff.range}, showing the estimate.`, error);
 	}
 }
@@ -476,7 +477,7 @@ function mark (last) {
 
 	for (let { pr, tr } of rows) {
 		let old = last.get(pr.id);
-		let cells = [...tr.cells].filter(cell => old && !same(cell, old.cells[cell.cellIndex]));
+		let cells = old ? [...tr.cells].filter(cell => !same(cell, old.cells[cell.cellIndex])) : [];
 		if (old && cells.length === 0) {
 			continue;
 		}
@@ -484,7 +485,9 @@ function mark (last) {
 		let label = tr.querySelector("mark");
 		label.textContent = old ? "Changed" : "New";
 		label.hidden = false;
-		tr.classList.toggle("new", !old);
+		if (!old) {
+			tr.classList.add("new");
+		}
 		for (let cell of cells) {
 			cell.classList.add("changed");
 		}
@@ -512,8 +515,8 @@ function unmark (tr) {
 
 /** Whether two cells show the same thing. A time compares by its date, since its text, e.g. “5 min. ago”, changes as time passes. */
 function same (cell, other) {
-	let [x, y] = [cell, other].map(cell => {
-		let clone = cell.cloneNode(true);
+	let [x, y] = [cell, other].map(element => {
+		let clone = element.cloneNode(true);
 		for (let time of clone.querySelectorAll("time")) {
 			time.textContent = time.dateTime;
 		}
