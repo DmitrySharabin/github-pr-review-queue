@@ -17,6 +17,8 @@
 	/* A strong ease-out: motion that answers the user starts at once */
 	--ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 	--inset: 1rem;
+	/* Points right. Turned, it points down */
+	--chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 4l4 4-4 4'/%3E%3C/svg%3E");
 }
 
 /* The footer starts at the bottom of the window, so the queue arriving above it doesn’t push it down */
@@ -471,10 +473,29 @@ form {
 	display: grid;
 	gap: 0.375em;
 
-	/* A chevron, as on a combo box, shows there are values to pick */
-	&.offers input {
-		padding-inline-end: var(--control-size);
-		background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23757575' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E") no-repeat right 0.75em center / 0.875rem;
+	/* A chevron, as on a combo box, shows there are values to pick. A click on it lands on the field */
+	&.offers {
+		/* The chevron shares the field’s cell. Placed alone, it would push the field to the next row */
+		input,
+		&::after {
+			grid-area: 2 / 1;
+		}
+
+		input {
+			padding-inline-end: var(--control-size);
+		}
+
+		&::after {
+			content: "";
+			place-self: center end;
+			inline-size: 0.875rem;
+			aspect-ratio: 1;
+			margin-inline-end: 0.75em;
+			background-color: var(--muted);
+			mask: var(--chevron) no-repeat center / contain;
+			rotate: 90deg;
+			pointer-events: none;
+		}
 	}
 }
 
@@ -630,7 +651,7 @@ form {
 			aspect-ratio: 1;
 			margin-inline: calc(-3.25em / 16);
 			background-color: currentColor;
-			mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 4l4 4-4 4'/%3E%3C/svg%3E") no-repeat center / contain;
+			mask: var(--chevron) no-repeat center / contain;
 
 			@media (prefers-reduced-motion: no-preference) {
 				transition: rotate 150ms var(--ease-out);
