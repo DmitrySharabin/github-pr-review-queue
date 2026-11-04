@@ -91,8 +91,8 @@ small {
 #updated {
 	margin: 0;
 	color: var(--muted);
-	/* Its two lines fit in the buttons’ height, so the header keeps its own */
-	line-height: 1.4;
+	/* Half the buttons’ height */
+	line-height: 1.25rem;
 
 	/* As wide as the longest time, e.g. “12:59 PM”, so the buttons next to it stay put when it arrives */
 	time {
@@ -109,6 +109,17 @@ header:has(progress[hidden]) #updated:has(time:empty) {
 /* On its own line, so its words don’t push the buttons next to it onto another line on a phone */
 #updated .changes {
 	display: block;
+
+	/* Pauses a screen reader after the time, e.g. “Updated at 5:44 PM, 1 new” */
+	&:not(:empty)::before {
+		content: "" / ", ";
+	}
+
+	/* As wide as the time above it, wrapping a long summary, e.g. “2 new, 1 changed, 1 gone”, rather than widening the line */
+	@container (width < 36rem) {
+		inline-size: 0;
+		min-inline-size: 100%;
+	}
 }
 
 /* Fades in as each load ends, so even a refresh that changes nothing shows it finished */
