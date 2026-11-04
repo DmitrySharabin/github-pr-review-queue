@@ -147,7 +147,12 @@ caption,
 	}
 
 	dd {
-		margin: 0.15em 0 0;
+		/* As tall as its value, e.g. a field or a name with an avatar, not as a line of text around it, so a form in its place moves nothing */
+		display: flex;
+		/* Room for a focus ring, which the scrolling cell would clip, e.g. around the field that edits it. The margin cancels it,
+		   and below the value leaves 0.25em more air than the cell’s padding */
+		padding: 0.25rem;
+		margin: calc(0.15em - 0.25rem) -0.25rem calc(0.25em - 0.25rem);
 		overflow-x: auto;
 		scrollbar-width: thin;
 		font-size: 1.25rem;
