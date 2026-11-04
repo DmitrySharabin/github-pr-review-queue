@@ -91,6 +91,8 @@ small {
 #updated {
 	margin: 0;
 	color: var(--muted);
+	/* Its two lines fit in the buttons’ height, so the header keeps its own */
+	line-height: 1.4;
 
 	/* As wide as the longest time, e.g. “12:59 PM”, so the buttons next to it stay put when it arrives */
 	time {
@@ -104,9 +106,24 @@ header:has(progress[hidden]) #updated:has(time:empty) {
 	visibility: hidden;
 }
 
-/* Said on screen by other means: the caption by the summary above the table, the new and changed PRs by the marks in it */
-caption,
+/* On its own line, so its words don’t push the buttons next to it onto another line on a phone.
+   Comes back after every load, so even a refresh that changes nothing shows it finished */
 #updated .changes {
+	display: block;
+
+	&:not(:empty) {
+		animation: appear 200ms var(--ease-out);
+	}
+}
+
+@keyframes appear {
+	from {
+		opacity: 0;
+	}
+}
+
+/* Said on screen by the summary above the table */
+caption {
 	position: absolute;
 	clip-path: inset(50%);
 	white-space: nowrap;

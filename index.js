@@ -343,8 +343,8 @@ async function load () {
 
 		let last = seen;
 		seen = new Map(rows.map(row => [row.pr.id, row.tr.cloneNode(true)]));
-		// Screen readers hear what the marks show, e.g. “Updated at 1:05 PM, 2 new, 1 changed”
-		changes.textContent = last ? `, ${mark(last)}` : "";
+		// Sums up the marks, e.g. “2 new, 1 changed”, and says “No changes” when there are none, so a refresh never looks idle
+		changes.textContent = last ? mark(last) : "";
 	}
 	catch (error) {
 		// The newer load shows its own outcome
@@ -545,7 +545,7 @@ function mark (last) {
 
 	// The PRs the last load showed and this one doesn’t, e.g. merged meanwhile
 	counts.gone = last.size - (rows.length - counts.new);
-	return Object.entries(counts).filter(([, count]) => count).map(([name, count]) => `${count} ${name}`).join(", ") || "no changes";
+	return Object.entries(counts).filter(([, count]) => count).map(([name, count]) => `${count} ${name}`).join(", ") || "No changes";
 }
 
 /** Remove the marks, leaving the row as {@link render} makes it, e.g. no `class=""`, so that it equals its next render. */
