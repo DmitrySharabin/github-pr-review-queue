@@ -56,6 +56,11 @@ h1 {
 	text-wrap: balance;
 }
 
+small {
+	color: var(--muted);
+	font-size: 0.85em;
+}
+
 /* The summary replaces the status, so both keep the same gap below the header */
 #status {
 	margin-block: var(--block-gap);
@@ -288,8 +293,6 @@ form button,
 	}
 
 	small {
-		color: var(--muted);
-		font-size: 0.85em;
 		text-wrap: pretty;
 	}
 
@@ -437,8 +440,6 @@ form {
 
 	small {
 		flex-basis: 100%;
-		color: var(--muted);
-		font-size: 0.85em;
 	}
 
 	a {
@@ -594,11 +595,6 @@ tbody {
 
 	:is(th, td) {
 		border-block-start: 1px solid var(--rule);
-	}
-
-	small {
-		color: var(--muted);
-		font-size: 0.85em;
 	}
 }
 
