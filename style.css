@@ -114,6 +114,15 @@ header:has(progress[hidden]) #updated:has(time:empty) {
 	content: "" / ", ";
 }
 
+/* The delta is about the last load, so it dims while the next one runs, e.g. a refresh */
+:root:has(#refresh[aria-disabled]) #summary .delta > * {
+	color: var(--muted);
+}
+
+#summary .delta > * {
+	transition: color 150ms ease;
+}
+
 /* Fades in as each load ends, so even a refresh in the same minute shows it finished */
 #controls:has(#refresh:not([aria-disabled])) time {
 	animation: appear 200ms var(--ease-out);
@@ -214,6 +223,11 @@ caption,
 
 	.down {
 		color: var(--positive);
+	}
+
+	/* A zero, e.g. “−0” under “+3”, keeps its place but says nothing changed */
+	.delta .zero {
+		color: var(--muted);
 	}
 
 	img {

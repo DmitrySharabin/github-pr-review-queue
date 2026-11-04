@@ -10,6 +10,7 @@ An author’s avatar opens their profile, and another reviewer’s opens their l
 The figure columns sort, and the page remembers the last sort.
 After a refresh, the PRs it found and the cells it changed stay marked until the next load, or until a link in that row is opened.
 Next to the count above the table, “+3” in red over “−2” in green says how many PRs the refresh found and how many left the list, e.g. once merged or reviewed.
+A zero shows in gray, e.g. “−0” under “+3”, and a refresh that changes neither shows nothing. During the next refresh both dim.
 
 The page keeps the last queue of each view on this device and shows it at once on the next visit, while it loads again.
 A load asks GitHub for the slow details only of the PRs that changed since, and signing out forgets the stored queues.

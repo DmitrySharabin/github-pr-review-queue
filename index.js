@@ -298,8 +298,10 @@ async function load () {
 		showQueue({ ...view, user: shownUser });
 	}
 
-	// The count it was about may change before the load ends, e.g. narrowed by a label
-	showDelta();
+	// A load that compares with nothing, e.g. of another view, has no delta. A refresh keeps the last one, dimmed, until it ends
+	if (!seen) {
+		showDelta();
+	}
 	// A screen reader hears that a refresh started and how it ended, e.g. “Updated at 5:44 PM, No changes”, even within one minute
 	changes.textContent = seen ? "Refreshing…" : "";
 
@@ -326,6 +328,7 @@ async function load () {
 			shown = undefined;
 			rows = [];
 			seen = undefined;
+			showDelta();
 			changes.textContent = "";
 		}
 
@@ -411,6 +414,7 @@ async function load () {
 			updated.textContent = "";
 		}
 
+		showDelta();
 		changes.textContent = "";
 		status.textContent = `Couldn’t load pull requests. ${describe(error)}`;
 		status.hidden = false;
@@ -554,11 +558,17 @@ function showSummary ({ repo, user, role, filter }) {
 	strip.hidden = false;
 }
 
-/** Show next to the count how many PRs the last load added and how many are gone, e.g. “+3” over “−2”, or nothing when neither. A screen reader hears them in {@link changes}. */
-function showDelta ({ added, left } = {}) {
-	let delta = strip.querySelector(".delta");
-	delta.querySelector(".up").textContent = added ? `+${added}` : "";
-	delta.querySelector(".down").textContent = left ? `−${left}` : "";
+/**
+ * Show next to the count how many PRs the last load added and how many are gone, e.g. “+3” over “−2”.
+ * Both or neither, so each keeps its place, e.g. “+3” over a gray “−0”. A screen reader hears them in {@link changes}.
+ */
+function showDelta ({ added = 0, left = 0 } = {}) {
+	let changed = added + left > 0;
+	for (let [name, text, count] of [["up", "+", added], ["down", "−", left]]) {
+		let line = strip.querySelector(`.delta .${name}`);
+		line.textContent = changed ? text + count : "";
+		line.classList.toggle("zero", count === 0);
+	}
 }
 
 function graphql (text) {
