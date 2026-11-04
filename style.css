@@ -773,7 +773,10 @@ tbody {
 	margin: 0;
 	padding: 0;
 	list-style: none;
-	font-size: 0.75em;
+	--scale: 0.75;
+	font-size: calc(var(--scale) * 1em);
+	/* Centered on the title’s capitals, not its lowercase: raised by half the gap between the title’s cap height and x-height */
+	vertical-align: calc((1cap - 1ex) / 2 / var(--scale));
 	font-weight: 500;
 	/* Fits the pills in the title’s line, so a row with labels is as tall as one without */
 	line-height: 1.4;
