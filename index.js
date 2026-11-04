@@ -268,8 +268,11 @@ async function load () {
 	// Its rows then count as the last load’s, so the load marks what changed since
 	let stored = sameView || label !== undefined ? undefined : restore(view);
 	if (stored) {
+		// A row on screen of the same PR stays while it shows the same, e.g. with focus on the label just clicked
+		let previous = new Map(rows.map(row => [row.pr.id, row]));
 		rows = stored.rows.map(({ pr, summary }) => {
-			let row = { pr };
+			let row = previous.get(pr.id) ?? {};
+			row.pr = pr;
 			fill(row, summary);
 			return row;
 		});
