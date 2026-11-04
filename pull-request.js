@@ -63,6 +63,23 @@ export function withLabel (filter, name) {
 }
 
 /**
+ * The label that `next` adds to `filter`, when it changes nothing else, e.g. `bug` from `-label:wip` to `-label:wip label:"bug"`.
+ * The PRs of `next` are then those of `filter` that have the label.
+ * @param {string | null} [filter]
+ * @param {string | null} [next]
+ * @returns {string | undefined}
+ */
+export function addedLabel (filter, next) {
+	let name = next?.match(/label:"([^"]*)"$/)?.[1];
+	let narrowed = `${filter ?? ""} label:"${name}"`.trim();
+
+	// withLabel() drops the labels `filter` asks for, which widens it, e.g. from `label:a` to `label:"b"`
+	if (name !== undefined && next === narrowed && withLabel(filter, name) === narrowed) {
+		return name;
+	}
+}
+
+/**
  * GraphQL query for the PRs {@link search} finds, with the fields that are cheap to get.
  * @param {View} options
  * @returns {string}

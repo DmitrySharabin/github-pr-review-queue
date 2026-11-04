@@ -1,6 +1,6 @@
 /** @import { Summary, View } from "./pull-request.js" */
 import GithubAPI from "https://cdn.jsdelivr.net/gh/madatajs/madata@063fc247b1a03924c836d74ea2f3d8fdc86ded2c/backends/github/api/github-api.js";
-import { details, outcomes, query, search, summarize, sum, withLabel } from "./pull-request.js";
+import { addedLabel, details, outcomes, query, search, summarize, sum, withLabel } from "./pull-request.js";
 
 let github = new GithubAPI("https://api.github.com/graphql");
 let table = document.querySelector("#queue");
@@ -73,7 +73,7 @@ table.addEventListener("command", event => {
 	let sorted = { column: event.source.value, direction: th.ariaSort === "descending" ? "ascending" : "descending" };
 	markSort(sorted);
 	localStorage.setItem("review-queue:sort", JSON.stringify(sorted));
-	document.startViewTransition(sort);
+	sort({ animate: true });
 });
 
 // Opening a link in a marked row, e.g. its PR, is seeing what changed in it. A middle click opens it too, a right click opens a menu
@@ -251,18 +251,28 @@ async function load () {
 		seen = undefined;
 	}
 
-	// Another view shows at once what it showed last, e.g. on the last visit, while it loads again.
-	// Its rows then count as the last load’s, so the load marks what changed since
-	let stored = sameView ? undefined : restore(view);
+	// A label added to the filter, e.g. by a click on it, keeps the rows on screen that have it: the search would find just those.
+	// Unless the search found its maximum of 100 PRs: then others with the label may be past them
+	let label = sameQueue && rows.length < 100 ? addedLabel(shown.filter, filter) : undefined;
+	if (label !== undefined) {
+		rows = rows.filter(({ pr }) => pr.labels.nodes.some(({ name }) => name.toLowerCase() === label.toLowerCase()));
+	}
+
+	// Another view shows at once what it showed last, e.g. on the last visit, while it loads again
+	let stored = sameView || label !== undefined ? undefined : restore(view);
 	if (stored) {
 		rows = stored.rows.map(({ pr, summary }) => {
 			let row = { pr };
 			fill(row, summary);
 			return row;
 		});
-		shown = view;
-		showQueue({ ...view, user: stored.user });
 		showUpdated(new Date(stored.at));
+	}
+
+	// Those rows then count as the last load’s, so the load marks what changed since
+	if (stored || label !== undefined) {
+		shown = view;
+		showQueue({ ...view, user: stored?.user ?? (view.user || github.user.username) });
 		seen = new Map(rows.map(row => [row.pr.id, row.tr.cloneNode(true)]));
 	}
 
@@ -345,8 +355,7 @@ async function load () {
 		let gone = [...seen?.keys() ?? []].filter(id => !rows.some(row => row.pr.id === id));
 		let [, { nodes: ends = [] }] = await Promise.all([update(stale), gone.length ? graphql(outcomes(gone)).catch(() => ({})) : {}]);
 		signal.throwIfAborted();
-		// Firefox before 144 has no view transitions: the rows then sort without moving
-		document.startViewTransition?.(sort) ?? sort();
+		sort({ animate: true });
 		showSummary({ ...view, user });
 
 		let now = new Date();
@@ -552,7 +561,11 @@ function markSort ({ column, direction }) {
 	th.ariaSort = direction;
 }
 
-function sort () {
+/**
+ * Sort the rows on screen by the sorted column.
+ * @param {{ animate?: boolean }} [options] - Whether moved rows slide to their new places
+ */
+function sort ({ animate } = {}) {
 	let th = table.tHead.querySelector("[aria-sort]");
 	let key = sortKeys[th.querySelector("button").value];
 	let sign = th.ariaSort === "ascending" ? 1 : -1;
@@ -567,26 +580,38 @@ function sort () {
 		return sign * (x - y);
 	});
 
-	// A row already at its place stays, e.g. every row on a refresh that changes no order.
-	// moveBefore() keeps a moved row’s focus and selected text, which insertBefore() drops. A new row isn’t on the page yet
 	let body = table.tBodies[0];
-	rows.forEach(({ tr }, i) => {
-		let next = body.rows[i] ?? null;
-		if (tr === next) {
-			return;
-		}
+	let place = () => {
+		// A row already at its place stays, e.g. every row on a refresh that changes no order.
+		// moveBefore() keeps a moved row’s focus and selected text, which insertBefore() drops. A new row isn’t on the page yet
+		rows.forEach(({ tr }, i) => {
+			let next = body.rows[i] ?? null;
+			if (tr === next) {
+				return;
+			}
 
-		if (tr.isConnected && body.moveBefore) {
-			body.moveBefore(tr, next);
-		}
-		else {
-			body.insertBefore(tr, next);
-		}
-	});
+			if (tr.isConnected && body.moveBefore) {
+				body.moveBefore(tr, next);
+			}
+			else {
+				body.insertBefore(tr, next);
+			}
+		});
 
-	// Left after the sorted rows: those of PRs the search no longer finds
-	while (body.rows.length > rows.length) {
-		body.rows[rows.length].remove();
+		// Left after the sorted rows: those of PRs the search no longer finds
+		while (body.rows.length > rows.length) {
+			body.rows[rows.length].remove();
+		}
+	};
+
+	// A transition styles 4 pseudo-elements per row, e.g. 400 for 100 rows, and blocks clicks while it runs,
+	// so it runs only when a row moves. Firefox before 144 has no view transitions: the rows then sort without moving
+	let moves = body.rows.length !== rows.length || rows.some(({ tr }, i) => tr !== body.rows[i]);
+	if (animate && moves && document.startViewTransition) {
+		document.startViewTransition(place);
+	}
+	else {
+		place();
 	}
 }
 
