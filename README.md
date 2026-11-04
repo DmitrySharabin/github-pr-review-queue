@@ -5,7 +5,7 @@ Each one shows its diff size, the diff since that person’s last review, how ma
 When that person has not reviewed it yet, or a force push removed the reviewed commit, the column shows the whole diff, grayed out.
 GitHub’s push icon marks a PR whose reviewed commit a force push removed.
 A PR’s labels follow its title, up to five before a button for the rest. A label filters the queue by it, in place of the labels the filter asked for.
-When the filter asked for no labels, the queue narrows at once to the PRs that have it, while it loads again.
+When the filter asked for no labels, the queue narrows at once to the PRs with that label, while the queue loads again.
 An author’s avatar opens their profile, and another reviewer’s opens their latest review, or their profile while it is awaited.
 The figure columns sort, and the page remembers the last sort.
 After a refresh, the PRs it found and the cells it changed stay marked until the next load, or until a link in that row is opened.

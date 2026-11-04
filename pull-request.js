@@ -74,7 +74,7 @@ export function addedLabel (filter, next) {
 	let narrowed = `${filter ?? ""} label:"${name}"`.trim();
 
 	// withLabel() drops the labels `filter` asks for, which widens it, e.g. from `label:a` to `label:"b"`
-	if (name !== undefined && next === narrowed && withLabel(filter, name) === narrowed) {
+	if (next === narrowed && withLabel(filter, name) === narrowed) {
 		return name;
 	}
 }

@@ -57,6 +57,8 @@ const relative = new Intl.RelativeTimeFormat("en", { numeric: "auto", style: "sh
 let rows = [];
 /** What the rows show: the URL parameters of their load, e.g. `{ repo: "foo/bar", filter: "label:baz" }` */
 let shown;
+/** Whose queue the rows show, e.g. the signed-in user’s when the URL names no `user` */
+let owner;
 /** @type {AbortController | undefined} Aborts the load in flight */
 let loading;
 /** @type {Map<string, HTMLTableRowElement> | undefined} The rows the last finished load of this view showed, by PR id, for the next to mark what changed */
@@ -242,13 +244,9 @@ async function load () {
 	let sameQueue = ["repo", "user", "role"].every(name => view[name] === shown?.[name]);
 	let sameView = sameQueue && filter === shown.filter;
 
-	// Without the marks, a row with nothing new equals its next render, so it stays and keeps focus.
-	// A load of another view, e.g. a new filter, finds PRs that aren’t new, so it compares with nothing
+	// Without the marks, a row with nothing new equals its next render, so it stays and keeps focus
 	for (let { tr } of rows) {
 		unmark(tr);
-	}
-	if (!sameView) {
-		seen = undefined;
 	}
 
 	// A label added to the filter, e.g. by a click on it, keeps the rows on screen that have it: the search would find just those.
@@ -256,9 +254,18 @@ async function load () {
 	let label = sameQueue && rows.length < 100 ? addedLabel(shown.filter, filter) : undefined;
 	if (label !== undefined) {
 		rows = rows.filter(({ pr }) => pr.labels.nodes.some(({ name }) => name.toLowerCase() === label.toLowerCase()));
+		// The load marks what changed against the last finished load’s rows with the label. Before the first load finishes there are none to mark against
+		seen &&= new Map([...seen].filter(([id]) => rows.some(row => row.pr.id === id)));
+		shown = view;
+		showQueue({ ...view, user: owner });
+	}
+	// A load of another view, e.g. a new filter, finds PRs that aren’t new, so it compares with nothing
+	else if (!sameView) {
+		seen = undefined;
 	}
 
-	// Another view shows at once what it showed last, e.g. on the last visit, while it loads again
+	// Another view shows at once what it showed last, e.g. on the last visit, while it loads again.
+	// Its rows then count as the last load’s, so the load marks what changed since
 	let stored = sameView || label !== undefined ? undefined : restore(view);
 	if (stored) {
 		rows = stored.rows.map(({ pr, summary }) => {
@@ -266,13 +273,10 @@ async function load () {
 			fill(row, summary);
 			return row;
 		});
-		showUpdated(new Date(stored.at));
-	}
-
-	// Those rows then count as the last load’s, so the load marks what changed since
-	if (stored || label !== undefined) {
 		shown = view;
-		showQueue({ ...view, user: stored?.user ?? (view.user || github.user.username) });
+		owner = stored.user;
+		showQueue({ ...view, user: owner });
+		showUpdated(new Date(stored.at));
 		seen = new Map(rows.map(row => [row.pr.id, row.tr.cloneNode(true)]));
 	}
 
@@ -333,6 +337,7 @@ async function load () {
 		let { search: found } = await graphql(query({ ...view, user }));
 		signal.throwIfAborted();
 		shown = view;
+		owner = user;
 
 		let previous = new Map(kept.map(row => [row.pr.id, row]));
 		let stale = [];
