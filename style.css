@@ -9,6 +9,8 @@
 	--negative: oklch(53% 0.19 25);
 	--attention: oklch(72% 0.15 75);
 	--radius: 0.5rem;
+	/* Buttons and text fields */
+	--control-size: 2.5rem;
 	--gutter: clamp(1rem, 3vw, 1.5rem);
 	/* Between the header, the summary and what follows */
 	--block-gap: 1.5rem;
@@ -91,8 +93,7 @@ small {
 #updated {
 	margin: 0;
 	color: var(--muted);
-	/* Half the buttons’ height */
-	line-height: 1.25rem;
+	line-height: calc(var(--control-size) / 2);
 
 	/* As wide as the longest time, e.g. “12:59 PM”, so the buttons next to it stay put when it arrives */
 	time {
@@ -301,7 +302,7 @@ caption {
 #sign-out,
 form button,
 #sign-in > button {
-	min-block-size: 2.5rem;
+	min-block-size: var(--control-size);
 	padding-inline: 1em;
 	border: none;
 	border-radius: calc(var(--radius) * 0.75);
@@ -388,7 +389,7 @@ form {
 	}
 
 	input {
-		min-block-size: 2.5rem;
+		min-block-size: var(--control-size);
 		padding-inline: 0.75em;
 		border: 1px solid color-mix(in oklch, var(--text) 20%, var(--surface));
 		border-radius: calc(var(--radius) * 0.75);
