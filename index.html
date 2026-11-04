@@ -58,9 +58,30 @@
 				<button>Use token</button>
 			</form>
 		</div>
-		<form id="repo-form" hidden>
-			<label>Repository <input name="repo" placeholder="owner/name" pattern="[\w.\-]+/[\w.\-]+" required autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go"></label>
-			<label>User <input name="user" placeholder="you" pattern="[\w\-]+" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go"></label>
+		<form id="repo-form" aria-labelledby="repo-form-title" hidden>
+			<hgroup>
+				<h2 id="repo-form-title">Choose a repository</h2>
+				<p>See the pull requests that await a review in it.</p>
+			</hgroup>
+			<div class="field">
+				<label for="repo">Repository</label>
+				<input id="repo" name="repo" placeholder="owner/name" pattern="[\w.\-]+/[\w.\-]+" required autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go"
+					role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="recent-repos">
+				<div class="recent" popover="manual">
+					<ul id="recent-repos" role="listbox" aria-label="Recent repositories"></ul>
+					<button type="button">Clear recent repositories</button>
+				</div>
+			</div>
+			<div class="field">
+				<label for="user">User <span class="optional">(optional)</span></label>
+				<input id="user" name="user" pattern="[\w\-]+" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" aria-describedby="user-note"
+					role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="recent-users">
+				<div class="recent" popover="manual">
+					<ul id="recent-users" role="listbox" aria-label="Recent users"></ul>
+					<button type="button">Clear recent users</button>
+				</div>
+				<small id="user-note">Whose queue to show. Empty means yours.</small>
+			</div>
 			<input type="hidden" name="role">
 			<input type="hidden" name="filter">
 			<button>Show queue</button>

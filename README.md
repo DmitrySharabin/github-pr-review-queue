@@ -41,6 +41,8 @@ Use URL parameters:
 
 For example: `?repo=foo/bar&user=baz&filter=-label:bar`.
 Without `repo`, or after an error, the page shows a form that opens that URL, so it can be copied and reused.
+Its fields offer the repos and users of the stored queues, the latest first: a click or ↓ opens them, and typing narrows them.
+Removing one, with its × or Shift+Delete, forgets its stored queues too.
 The pencil next to the repository or the user above the table changes it in place, keeping the other parameters.
 
 Sign-in goes through [Madata](https://madata.dev) and its auth server, `auth.madata.dev`.
@@ -57,4 +59,4 @@ The page keeps the token in `localStorage`.
 
 The page uses features that reached every browser in 2025–2026.
 It needs Chrome or Edge 135, Firefox 144, or Safari 26.2. In older browsers the column headers do not sort the table.
-Before Firefox 147, a filter or a role switch reloads the page instead of updating it in place.
+Before Firefox 147, a filter or a role switch reloads the page instead of updating it in place, and the recent repos and users open away from their field.

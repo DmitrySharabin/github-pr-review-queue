@@ -297,10 +297,11 @@ caption {
 			display: none;
 		}
 	}
+}
 
-	.cancel {
-		--icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round'%3E%3Cpath d='M4 4l8 8M12 4l-8 8'/%3E%3C/svg%3E");
-	}
+/* In the summary’s forms and on each recent value */
+.cancel {
+	--icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round'%3E%3Cpath d='M4 4l8 8M12 4l-8 8'/%3E%3C/svg%3E");
 }
 
 #refresh,
@@ -325,7 +326,7 @@ form button,
 }
 
 #sign-in > button,
-#repo-form button {
+#repo-form > button {
 	background: var(--text);
 	color: white;
 
@@ -405,24 +406,173 @@ form {
 }
 
 #repo-form {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 0.75em 1.5em;
-	align-items: center;
+	display: grid;
+	gap: 1.25em;
+	max-inline-size: 24rem;
+	margin-block: var(--block-gap);
+	padding: 1.5rem;
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	background: var(--surface);
 
 	&[hidden] {
 		display: none;
 	}
 
-	label {
-		align-items: center;
+	/* The intro belongs to the heading more than to the fields */
+	hgroup {
+		display: grid;
+		gap: 0.5em;
+
+		h2 {
+			margin: 0;
+			font-size: 1rem;
+		}
+
+		p {
+			margin: 0;
+			color: var(--muted);
+		}
 	}
 
-	/* Grows with the name, so a long one is never cut off */
-	input {
-		field-sizing: content;
-		min-inline-size: 12ch;
-		max-inline-size: 100%;
+	.optional {
+		color: var(--muted);
+		font-weight: 400;
+	}
+
+	> button {
+		justify-self: start;
+	}
+
+	/* A phone’s thumb reaches a full-width button anywhere */
+	@container (width < 36rem) {
+		max-inline-size: none;
+		padding: 1rem;
+
+		> button {
+			justify-self: stretch;
+		}
+	}
+}
+
+/* A label above its field, and a note under it */
+.field {
+	display: grid;
+	gap: 0.375em;
+
+	/* A chevron, as on a combo box, shows there are values to pick */
+	&.offers input {
+		padding-inline-end: var(--control-size);
+		background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23757575' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E") no-repeat right 0.75em center / 0.875rem;
+	}
+}
+
+/* The values a field had before, under it */
+.recent {
+	position-area: block-end span-inline-end;
+	position-try-fallbacks: flip-block;
+	inline-size: anchor-size(inline);
+	/* No taller than the room on its side, e.g. on a phone held sideways, so its list scrolls instead of covering the field.
+	   With its margin it is 0.25rem taller than that room, so a list too long for the room below tries the room above */
+	max-block-size: calc(100% - 0.25rem);
+	box-sizing: border-box;
+	margin: 0.25rem 0;
+	padding: 0.25rem;
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	background: var(--surface);
+	color: var(--text);
+	box-shadow: 0 0.5rem 1.5rem color-mix(in oklch, var(--text) 12%, transparent);
+
+	/* A column whose list shrinks, unlike a grid row, when the popover can’t be as tall as it */
+	&:popover-open {
+		display: flex;
+		flex-direction: column;
+	}
+
+	ul {
+		/* Half a row shows under the shadow, so a long list reads as one that scrolls */
+		max-block-size: calc(var(--control-size) * 6.5);
+		margin: 0;
+		padding: 0;
+		overflow-y: auto;
+		overscroll-behavior: contain;
+		scrollbar-width: thin;
+		list-style: none;
+	}
+
+	li {
+		display: flex;
+		align-items: center;
+		min-block-size: var(--control-size);
+		padding-inline-start: 0.5rem;
+		border-radius: calc(var(--radius) * 0.75);
+		cursor: pointer;
+		overflow-wrap: anywhere;
+
+		&:hover {
+			background: color-mix(in oklch, var(--text) 4%, var(--surface));
+		}
+
+		&[aria-selected="true"] {
+			background: color-mix(in oklch, var(--text) 8%, var(--surface));
+		}
+
+		span {
+			flex: 1;
+		}
+	}
+
+	mark {
+		background: none;
+		color: inherit;
+		font-weight: 700;
+	}
+
+	/* Light, and on a mouse only on the row it would remove */
+	li button {
+		flex: none;
+		inline-size: 2rem;
+		padding: 0;
+		background: transparent;
+		color: color-mix(in oklch, var(--muted) 70%, var(--surface));
+
+		&::before {
+			content: "";
+			display: block;
+			block-size: 0.625rem;
+			background-color: currentColor;
+			mask: var(--icon) no-repeat center / contain;
+		}
+
+		&:hover {
+			color: var(--text);
+		}
+
+		@media (hover: hover) and (pointer: fine) {
+			li:not(:hover, [aria-selected="true"]) > & {
+				opacity: 0;
+			}
+		}
+	}
+
+	/* Names what it clears, so it reads apart from the rows above */
+	> button {
+		min-block-size: 2rem;
+		margin-block-start: 0.25rem;
+		padding-inline: 0.5rem;
+		border-block-start: 1px solid var(--rule);
+		border-radius: 0;
+		text-align: start;
+		background: none;
+		color: var(--muted);
+		font-size: 0.85em;
+		text-decoration: underline;
+		text-underline-offset: 0.15em;
+
+		&:hover {
+			color: var(--text);
+		}
 	}
 }
 
@@ -622,6 +772,36 @@ progress {
 		animation-timeline: scroll(self inline);
 		animation-range: 0 var(--fade), calc(100% - var(--fade)) 100%;
 	}
+
+	/* A list of recent values casts a shadow at an edge with more rows past it.
+	   A fade would gray out half of a row as tall as these */
+	.recent ul {
+		&::before,
+		&::after {
+			content: "";
+			display: block;
+			position: sticky;
+			z-index: 1;
+			block-size: 0;
+			box-shadow: 0 0 0.625rem 0.25rem color-mix(in oklch, var(--text) 20%, transparent);
+			/* Off while nothing scrolls, when the timeline is inactive */
+			opacity: 0;
+			animation: linear both;
+			animation-timeline: scroll(nearest block);
+		}
+
+		&::before {
+			inset-block-start: 0;
+			animation-name: shadow-in;
+			animation-range: 0 1.5rem;
+		}
+
+		&::after {
+			inset-block-end: 0;
+			animation-name: shadow-out;
+			animation-range: calc(100% - 1.5rem) 100%;
+		}
+	}
 }
 
 /* Registered, so the fades grow and shrink rather than jump */
@@ -646,6 +826,18 @@ progress {
 @keyframes fade-end {
 	from {
 		--fade-end: var(--fade);
+	}
+}
+
+@keyframes shadow-in {
+	to {
+		opacity: 1;
+	}
+}
+
+@keyframes shadow-out {
+	from {
+		opacity: 1;
 	}
 }
 

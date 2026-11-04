@@ -2,6 +2,7 @@
 // The commit is also in index.html, which preloads the modules this one imports
 import GithubAPI from "https://cdn.jsdelivr.net/gh/madatajs/madata@063fc247b1a03924c836d74ea2f3d8fdc86ded2c/backends/github/api/github-api.js";
 import { addedLabel, details, hasLabel, outcomes, outdated, query, search, summarize, sum, withLabel } from "./pull-request.js";
+import { offerRecent } from "./recent.js";
 
 let github = new GithubAPI("https://api.github.com/graphql");
 let table = document.querySelector("#queue");
@@ -116,6 +117,16 @@ for (let form of forms) {
 	});
 }
 
+// The repos and users of the stored queues, e.g. those opened yesterday. Forgetting one forgets its queues
+// NOTE: The same repo in another case, e.g. `Foo/Bar`, shows twice.
+// Clearing the repos forgets every queue, but the user field shows its chevron until it is opened
+for (let name of ["repo", "user"]) {
+	offerRecent(repoForm.elements[name], {
+		values: () => [...new Set(storedQueues().map(({ view }) => view.get(name)).filter(Boolean))],
+		remove: value => forget(view => view.get(name) === value),
+	});
+}
+
 // A value in the summary turns into its form in place. Enter or ✓ opens the queue it names, Esc, ✕ or the pencil again goes back
 for (let form of strip.querySelectorAll("form")) {
 	let value = form.previousElementSibling;
@@ -224,7 +235,8 @@ function showView () {
 		return load();
 	}
 
-	status.textContent = "Choose a repository to see its review queue.";
+	// The form’s heading says what to do
+	status.hidden = true;
 	progress.hidden = true;
 	repoForm.hidden = false;
 }
@@ -457,10 +469,35 @@ function restore (view) {
 	return JSON.parse(localStorage.getItem(queueKey(view)), revive) ?? undefined;
 }
 
-/** Remove every stored queue, e.g. the titles of private repos, when the signed-in user may change. */
-function forget () {
-	for (let key of Object.keys(localStorage).filter(key => key.startsWith(queuePrefix))) {
-		localStorage.removeItem(key);
+/**
+ * The keys of the stored queues, with the view each is of, e.g. `repo=foo%2Fbar` for `?repo=foo/bar`.
+ * @returns {{ key: string, view: URLSearchParams }[]}
+ */
+function storedViews () {
+	return Object.keys(localStorage)
+		.filter(key => key.startsWith(queuePrefix))
+		.map(key => ({ key, view: new URLSearchParams(key.slice(queuePrefix.length)) }));
+}
+
+/**
+ * The stored queues, the latest first. Each read parses a whole queue, so it is slower than {@link storedViews}.
+ * @returns {{ key: string, view: URLSearchParams, at: string }[]}
+ */
+function storedQueues () {
+	return storedViews()
+		.map(queue => ({ ...queue, at: JSON.parse(localStorage.getItem(queue.key)).at }))
+		.sort((a, b) => b.at.localeCompare(a.at));
+}
+
+/**
+ * Remove the stored queues, e.g. the titles of private repos when the signed-in user may change, or those of one repo.
+ * @param {(view: URLSearchParams) => boolean} [test] - Which ones, e.g. `view => view.get("repo") === "foo/bar"`
+ */
+function forget (test = () => true) {
+	for (let { key, view } of storedViews()) {
+		if (test(view)) {
+			localStorage.removeItem(key);
+		}
 	}
 }
 
@@ -478,10 +515,7 @@ function store (view, queue) {
 		catch (error) {
 			// Newest first, so the last one is the oldest
 			// NOTE: Storage full of other data, e.g. of another app on the origin, loses every queue before this one gives up
-			others ??= error.name === "QuotaExceededError" ? Object.keys(localStorage)
-				.filter(other => other.startsWith(queuePrefix) && other !== key)
-				.map(other => ({ key: other, at: JSON.parse(localStorage.getItem(other)).at }))
-				.sort((a, b) => b.at.localeCompare(a.at)) : [];
+			others ??= error.name === "QuotaExceededError" ? storedQueues().filter(other => other.key !== key) : [];
 
 			if (others.length === 0) {
 				// Only the next visit’s head start is lost
