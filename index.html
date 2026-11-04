@@ -44,7 +44,12 @@
 			}
 		</script>
 		<p id="status" role="status">Loading pull requests…</p>
-		<div id="sign-in" hidden>
+		<section id="sign-in" aria-labelledby="sign-in-title" hidden>
+			<hgroup>
+				<h2 id="sign-in-title">Sign in to GitHub</h2>
+				<p>To see the pull requests in <span class="repo"></span>.</p>
+			</hgroup>
+			<p class="notice" tabindex="-1" hidden><strong></strong> <span></span></p>
 			<button aria-describedby="sign-in-note">Sign in with GitHub</button>
 			<small id="sign-in-note">For now, signing in grants this page full access to your profile and to every repo you can reach, private ones included.</small>
 			<p class="or">or</p>
@@ -57,12 +62,13 @@
 				</small>
 				<button>Use token</button>
 			</form>
-		</div>
+		</section>
 		<form id="repo-form" aria-labelledby="repo-form-title" hidden>
 			<hgroup>
 				<h2 id="repo-form-title">Choose a repository</h2>
 				<p>See the pull requests that await a review in it.</p>
 			</hgroup>
+			<p class="notice" tabindex="-1" hidden><strong></strong> <span></span></p>
 			<div class="field">
 				<label for="repo">Repository</label>
 				<input id="repo" name="repo" placeholder="owner/name" pattern="[\w.\-]+/[\w.\-]+" required autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go"

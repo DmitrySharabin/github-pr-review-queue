@@ -90,12 +90,12 @@ for (let type of ["click", "auxclick"]) {
 	});
 }
 
-signIn.querySelector("button").addEventListener("click", () => github.login().catch(error => status.textContent = describe(error)));
+signIn.querySelector("button").addEventListener("click", () => github.login().catch(error => showNotice(signIn, "Couldn’t sign in", describe(error))));
 
 tokenForm.addEventListener("submit", event => {
 	event.preventDefault();
 	// Madata stores and validates the token as it does after the popup, then fires mv-login, which login() waits for
-	github.login({ accessToken: tokenForm.elements.token.value }).catch(error => status.textContent = describe(error));
+	github.login({ accessToken: tokenForm.elements.token.value }).catch(error => showNotice(signIn, "Couldn’t sign in", describe(error)));
 });
 
 // A token that works but can’t read the repo keeps the sign-in hidden, so signing out is the way to replace it
@@ -414,10 +414,8 @@ async function load () {
 		}
 
 		showDelta();
-		status.textContent = `Couldn’t load pull requests. ${describe(error)}`;
-		status.hidden = false;
 		// Most failures come from the repo or the user, so the form lets the user check and fix them
-		repoForm.hidden = false;
+		showNotice(repoForm, `Couldn’t load the pull requests in ${repo}`, `${describe(error)} Check the repository and the user, then try again.`);
 	}
 
 	progress.hidden = true;
@@ -611,6 +609,7 @@ async function login (repo) {
 		showDelta();
 		status.hidden = false;
 		status.textContent = `Sign in to see the pull requests in ${repo}.`;
+		signIn.querySelector(".repo").textContent = repo;
 		progress.hidden = true;
 		signIn.hidden = false;
 		// Waits for the sign-in, not the click: Madata’s login() never settles if the popup is closed, so the button stays to try again
@@ -621,10 +620,25 @@ async function login (repo) {
 	}
 }
 
+/**
+ * Show a card that says what went wrong, e.g. the form after a failed load: a bold line, then the reason.
+ * Focus moves to it, so a screen reader reads it even when the card was hidden until now, and focus doesn’t drop to the page, e.g. from Refresh, which hides.
+ */
+function showNotice (card, title, reason) {
+	let notice = card.querySelector(".notice");
+	notice.querySelector("strong").textContent = title;
+	notice.querySelector("span").textContent = reason;
+	notice.hidden = false;
+	card.hidden = false;
+	notice.focus();
+	// The card says it instead, and the status, hidden while a card shows, says nothing stale, e.g. “Loading”
+	status.textContent = "";
+}
+
 function describe (error) {
 	// On an HTTP error, Madata throws GitHub’s response body, e.g. { message: "Bad credentials", status: "401" }
 	if (!(error instanceof Error)) {
-		return `GitHub answered: ${error.message ?? error}`;
+		return `GitHub answered: “${error.message ?? error}”.`;
 	}
 
 	// Madata drops the failed fetch’s error, so only its own message tells a network failure apart

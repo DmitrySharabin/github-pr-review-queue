@@ -109,6 +109,12 @@ header:has(progress[hidden]) #updated:has(time:empty) {
 	visibility: hidden;
 }
 
+/* Nothing on screen to refresh, e.g. after a failed first load, where Show queue tries again, or before the sign-in.
+   The time hides only on screen, so a screen reader still hears when a load from the card ends */
+main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #refresh {
+	display: none;
+}
+
 /* Pauses a screen reader after the time, e.g. “Updated at 5:44 PM, 1 new” */
 #updated .changes:not(:empty)::before {
 	content: "" / ", ";
@@ -125,10 +131,16 @@ header:has(progress[hidden]) #updated:has(time:empty) {
 	}
 }
 
-/* Said on screen by the summary above the table, and by the delta next to its count, e.g. “+3” for “3 new” */
+/* Said on screen by the summary above the table, by the delta next to its count, e.g. “+3” for “3 new”,
+   and by the card that shows, e.g. the sign-in, whose changes a screen reader hears from the status */
 caption,
-#updated .changes {
+#updated .changes,
+main:has(> :is(#repo-form, #sign-in):not([hidden])) > #status,
+main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #updated {
 	position: absolute;
+	/* One pixel wide, so a long one, e.g. an error, doesn’t widen the page */
+	inline-size: 1px;
+	overflow: hidden;
 	clip-path: inset(50%);
 	white-space: nowrap;
 }
@@ -379,14 +391,58 @@ form button,
 	}
 }
 
-#sign-in {
-	display: grid;
-	gap: 0.75em;
-	max-inline-size: 24rem;
-
-	&[hidden] {
-		display: none;
+/* A phone: the title next to Sign out, and under them the time next to Refresh.
+   The controls span both rows and share the header’s grid, so they still fade in as one.
+   After the buttons’ own sizes, which it overrides */
+@container (width < 36rem) {
+	/* The first row is as tall as Sign out on every page, so the title stays put, e.g. on the page that asks for a repo */
+	header {
+		display: grid;
+		grid-template: minmax(2rem, auto) / 1fr auto;
+		gap: 0 1em;
 	}
+
+	h1 {
+		grid-area: 1 / 1;
+		/* Above the controls, which span its cell too, so a pointer still selects the title */
+		z-index: 1;
+		font-size: 1.25rem;
+	}
+
+	#controls {
+		display: grid;
+		grid-area: 1 / 1 / 3 / 3;
+		grid-template: subgrid / subgrid;
+		gap: inherit;
+	}
+
+	#sign-out {
+		grid-area: 1 / 2;
+	}
+
+	/* Spaced by a margin, not a gap, so the row takes no room while they hide, e.g. on the sign-in */
+	#updated,
+	#refresh {
+		margin-block-start: 0.5em;
+	}
+
+	#updated {
+		grid-area: 2 / 1;
+	}
+
+	#refresh {
+		grid-area: 2 / 2;
+	}
+
+	#refresh,
+	#sign-out {
+		min-block-size: 2rem;
+		padding-inline: 0.75em;
+	}
+}
+
+#sign-in {
+	gap: 0.75em;
 
 	small {
 		text-wrap: pretty;
@@ -431,9 +487,9 @@ form {
 	}
 }
 
-#repo-form {
+#repo-form,
+#sign-in {
 	display: grid;
-	gap: 1.25em;
 	max-inline-size: 24rem;
 	margin-block: var(--block-gap);
 	padding: 1.5rem;
@@ -445,21 +501,56 @@ form {
 		display: none;
 	}
 
-	/* The intro belongs to the heading more than to the fields */
-	hgroup {
-		display: grid;
-		gap: 0.5em;
-
-		h2 {
-			margin: 0;
-			font-size: 1rem;
-		}
-
-		p {
-			margin: 0;
-			color: var(--muted);
-		}
+	@container (width < 36rem) {
+		max-inline-size: none;
+		padding: 1rem;
 	}
+}
+
+/* The page that asks for a repo, the sign-in, and why the queue didn’t load: one card in the middle, lower than the summary that replaces it */
+main:has(> #summary[hidden]) > :is(#repo-form, #sign-in) {
+	margin: clamp(var(--block-gap), 12vh, 7rem) auto var(--block-gap);
+}
+
+/* The intro belongs to the heading more than to what follows */
+hgroup {
+	display: grid;
+	gap: 0.5em;
+
+	h2 {
+		margin: 0;
+		font-size: 1rem;
+	}
+
+	p {
+		margin: 0;
+		color: var(--muted);
+	}
+}
+
+/* What went wrong, in the card that can fix it. Amber, as the marks of what changed: worth a look, not alarming */
+.notice {
+	margin: 0;
+	padding: 0.75em 1em;
+	border: 1px solid color-mix(in oklch, var(--attention) 35%, var(--surface));
+	border-radius: calc(var(--radius) * 0.75);
+	background: color-mix(in oklch, var(--attention) 14%, var(--surface));
+	color: color-mix(in oklch, var(--text) 75%, var(--surface));
+	text-wrap: pretty;
+
+	strong {
+		display: block;
+		color: var(--text);
+	}
+
+	/* Focused by a script, so a screen reader reads it. Nothing to operate in it, so no ring */
+	&:focus {
+		outline: none;
+	}
+}
+
+#repo-form {
+	gap: 1.25em;
 
 	.optional {
 		color: var(--muted);
@@ -472,9 +563,6 @@ form {
 
 	/* A phone’s thumb reaches a full-width button anywhere */
 	@container (width < 36rem) {
-		max-inline-size: none;
-		padding: 1rem;
-
 		> button {
 			justify-self: stretch;
 		}
@@ -736,7 +824,7 @@ form {
 	}
 }
 
-/* Centered in the gap below the header, so showing it moves nothing */
+/* In the gap below the header, centered in the queue’s, so showing it moves nothing */
 progress {
 	--duration: 1.5s;
 
@@ -1264,8 +1352,12 @@ footer {
 	padding-block: 1.5rem 2.25rem;
 	color: var(--muted);
 	font-size: 0.85em;
+	text-align: center;
+	text-wrap: balance;
 
+	/* A name stays on one line, e.g. when the credits wrap on a phone */
 	a {
+		white-space: nowrap;
 		color: inherit;
 	}
 }
