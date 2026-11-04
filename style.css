@@ -355,11 +355,13 @@ form {
 			color: var(--text);
 		}
 
-		/* A chevron that turns down while open */
+		/* A chevron that turns down while open. Turned, its stroke starts 3.25 of 16 units in, so this margin puts it on the edge of the boxes around it.
+		   Closed, it starts 5.25 in, too little inside to see */
 		&::before {
 			content: "";
 			inline-size: 1em;
 			aspect-ratio: 1;
+			margin-inline: calc(-3.25em / 16);
 			background-color: currentColor;
 			mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 4l4 4-4 4'/%3E%3C/svg%3E") no-repeat center / contain;
 			transition: rotate 0.2s;
@@ -736,20 +738,21 @@ th button {
 		color: var(--text);
 	}
 
-	/* The arrow keeps its space while hidden, so headers do not shift on sort */
-	&::after {
+	/* The arrow keeps its space while hidden, so headers do not shift on sort.
+	   It comes before the label, since the sortable columns align to the end: after it, its space would keep the label off the figures’ edge */
+	&::before {
 		content: "";
 		display: inline-block;
 		inline-size: 1em;
 		aspect-ratio: 1;
-		margin-inline-start: 0.3em;
+		margin-inline-end: 0.3em;
 		vertical-align: -0.1em;
 		background-color: currentColor;
 		mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 3v10M4 9l4 4 4-4'/%3E%3C/svg%3E") no-repeat center / contain;
 	}
 }
 
-th:not([aria-sort]) button::after {
+th:not([aria-sort]) button::before {
 	visibility: hidden;
 }
 
@@ -757,7 +760,7 @@ th[aria-sort] button {
 	color: var(--text);
 }
 
-th[aria-sort="ascending"] button::after {
+th[aria-sort="ascending"] button::before {
 	scale: 1 -1;
 }
 
