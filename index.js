@@ -244,10 +244,11 @@ async function load () {
 	for (let { tr } of rows) {
 		unmark(tr);
 	}
-	changes.textContent = "";
 	if (!sameView) {
 		seen = undefined;
 	}
+	// Keeps the line the last load’s changes took, so the time above it doesn’t move
+	changes.textContent = seen ? "Refreshing…" : "";
 
 	// aria-disabled, unlike disabled, keeps focus on the button while it waits
 	refresh.ariaDisabled = "true";
@@ -361,6 +362,7 @@ async function load () {
 			updated.textContent = "";
 		}
 
+		changes.textContent = "";
 		status.textContent = `Couldn’t load pull requests. ${describe(error)}`;
 		status.hidden = false;
 		// Most failures come from the repo or the user, so the form lets the user check and fix them

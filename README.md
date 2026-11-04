@@ -8,7 +8,7 @@ A PR’s labels follow its title, up to five before a button for the rest. A lab
 An author’s avatar opens their profile, and another reviewer’s opens their latest review, or their profile while it is awaited.
 The figure columns sort, and the page remembers the last sort.
 After a refresh, the PRs it found and the cells it changed stay marked until the next load, or until a link in that row is opened.
-The line under the update time sums them up, e.g. “1 new, 2 changed”, or says “No changes”.
+The line under the update time says “Refreshing…” during a refresh, then sums them up, e.g. “1 new, 2 changed”, or says “No changes”.
 
 The author view lists someone’s own open PRs instead.
 There, the columns count everyone else’s reviews and requests, and the switch above the table goes back.

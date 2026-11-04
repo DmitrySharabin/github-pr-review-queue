@@ -106,14 +106,14 @@ header:has(progress[hidden]) #updated:has(time:empty) {
 	visibility: hidden;
 }
 
-/* On its own line, so its words don’t push the buttons next to it onto another line on a phone.
-   Comes back after every load, so even a refresh that changes nothing shows it finished */
+/* On its own line, so its words don’t push the buttons next to it onto another line on a phone */
 #updated .changes {
 	display: block;
+}
 
-	&:not(:empty) {
-		animation: appear 200ms var(--ease-out);
-	}
+/* Fades in as each load ends, so even a refresh that changes nothing shows it finished */
+#controls:has(#refresh:not([aria-disabled])) .changes {
+	animation: appear 200ms var(--ease-out);
 }
 
 @keyframes appear {
