@@ -298,12 +298,14 @@ async function load () {
 		showQueue({ ...view, user: shownUser });
 	}
 
-	// A load that compares with nothing, e.g. of another view, has no delta. A refresh keeps the last one, dimmed, until it ends
-	if (!seen) {
+	// A refresh keeps the last delta, dimmed, until it ends. Another view has another count, e.g. one narrowed by a label
+	if (!sameView) {
 		showDelta();
 	}
 	// A screen reader hears that a refresh started and how it ended, e.g. “Updated at 5:44 PM, No changes”, even within one minute
-	changes.textContent = seen ? "Refreshing…" : "";
+	if (seen) {
+		changes.textContent = "Refreshing…";
+	}
 
 	// aria-disabled, unlike disabled, keeps focus on the button while it waits
 	refresh.ariaDisabled = "true";
@@ -329,7 +331,6 @@ async function load () {
 			rows = [];
 			seen = undefined;
 			showDelta();
-			changes.textContent = "";
 		}
 
 		/** Fill in the slow fields of these PRs’ rows, a few PRs per query. */
@@ -394,9 +395,7 @@ async function load () {
 		let last = seen;
 		seen = new Map(rows.map(row => [row.pr.id, row.tr.cloneNode(true)]));
 		if (last) {
-			let delta = mark(last);
-			showDelta(delta);
-			changes.textContent = [delta.added && `${delta.added} new`, delta.left && `${delta.left} gone`].filter(Boolean).join(", ") || "No changes";
+			showDelta(mark(last));
 		}
 	}
 	catch (error) {
@@ -415,7 +414,6 @@ async function load () {
 		}
 
 		showDelta();
-		changes.textContent = "";
 		status.textContent = `Couldn’t load pull requests. ${describe(error)}`;
 		status.hidden = false;
 		// Most failures come from the repo or the user, so the form lets the user check and fix them
@@ -559,16 +557,20 @@ function showSummary ({ repo, user, role, filter }) {
 }
 
 /**
- * Show next to the count how many PRs the last load added and how many are gone, e.g. “+3” over “−2”.
- * Both or neither, so each keeps its place, e.g. “+3” over a gray “−0”. A screen reader hears them in {@link changes}.
+ * Show next to the count how many PRs the last load added and how many are gone, e.g. “+3” over “−2”, and say it after the update time.
+ * Both or neither, so each keeps its place, e.g. “+3” over a gray “−0”. Without a delta, it clears both.
+ * @param {{ added: number, left: number }} [delta]
  */
-function showDelta ({ added = 0, left = 0 } = {}) {
+function showDelta (delta) {
+	let { added = 0, left = 0 } = delta ?? {};
 	let changed = added + left > 0;
 	for (let [name, text, count] of [["up", "+", added], ["down", "−", left]]) {
 		let line = strip.querySelector(`.delta .${name}`);
 		line.textContent = changed ? text + count : "";
 		line.classList.toggle("zero", count === 0);
 	}
+
+	changes.textContent = delta ? [added && `${added} new`, left && `${left} gone`].filter(Boolean).join(", ") || "No changes" : "";
 }
 
 function graphql (text) {
@@ -606,7 +608,7 @@ async function login (repo) {
 		strip.hidden = true;
 		table.parentElement.hidden = true;
 		narrow.hidden = true;
-		changes.textContent = "";
+		showDelta();
 		status.hidden = false;
 		status.textContent = `Sign in to see the pull requests in ${repo}.`;
 		progress.hidden = true;

@@ -110,17 +110,8 @@ header:has(progress[hidden]) #updated:has(time:empty) {
 }
 
 /* Pauses a screen reader after the time, e.g. “Updated at 5:44 PM, 1 new” */
-#updated .changes::before {
+#updated .changes:not(:empty)::before {
 	content: "" / ", ";
-}
-
-/* The delta is about the last load, so it dims while the next one runs, e.g. a refresh */
-:root:has(#refresh[aria-disabled]) #summary .delta > * {
-	color: var(--muted);
-}
-
-#summary .delta > * {
-	transition: color 150ms ease;
 }
 
 /* Fades in as each load ends, so even a refresh in the same minute shows it finished */
@@ -215,6 +206,15 @@ caption,
 		padding-inline-start: 0.3em;
 		font-size: 0.55em;
 		line-height: 0.95;
+
+		> * {
+			transition: color 150ms ease;
+
+			/* About the last load, so it dims while the next one runs, e.g. a refresh */
+			:root:has(#refresh[aria-disabled]) & {
+				color: var(--muted);
+			}
+		}
 	}
 
 	.up {
@@ -561,11 +561,15 @@ form {
 
 		/* Ringed like a focused control. Inside its row, since the list that scrolls would clip it outside */
 		&[aria-selected="true"] {
-			outline: auto;
-			/* The browser’s own ring color, as on the field. Chrome draws `auto` alone in the text color, Firefox in its own and has no keyword for it */
-			outline-color: -webkit-focus-ring-color;
-			outline-offset: -2px;
 			background: color-mix(in oklch, var(--text) 8%, var(--surface));
+
+			/* Only while focus is in the field: Tab on to the clear button rings that instead */
+			.field:has(> input:focus) & {
+				outline: auto;
+				/* The browser’s own ring color, as on the field. Chrome draws `auto` alone in the text color, Firefox in its own and has no keyword for it */
+				outline-color: -webkit-focus-ring-color;
+				outline-offset: -2px;
+			}
 		}
 
 		span {
