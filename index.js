@@ -17,6 +17,7 @@ let repoForm = document.querySelector("#repo-form");
 let narrow = document.querySelector("#narrow");
 let strip = document.querySelector("#summary");
 let updated = document.querySelector("#updated time");
+let changes = document.querySelector("#updated .changes");
 let filterForm = narrow.querySelector("form");
 
 /** Sort value of each column. `null` and `undefined` (still loading) sort last in both directions. */
@@ -65,6 +66,22 @@ table.addEventListener("command", event => {
 	localStorage.setItem("review-queue:sort", JSON.stringify(sorted));
 	document.startViewTransition(sort);
 });
+
+// Opening a link in a marked row, e.g. its PR, is seeing what changed in it. The row stays, and so does focus on the link
+for (let type of ["click", "auxclick"]) {
+	table.tBodies[0].addEventListener(type, event => {
+		let tr = event.target.closest("a")?.closest("tr");
+		let row = rows.find(row => row.tr === tr);
+		if (!row) {
+			return;
+		}
+
+		row.before = undefined;
+		for (let element of [tr, ...tr.cells]) {
+			element.classList.remove("new", "changed");
+		}
+	});
+}
 
 signIn.querySelector("button").addEventListener("click", () => github.login().catch(error => status.textContent = describe(error)));
 
@@ -224,6 +241,10 @@ async function load () {
 
 		// Rows of another queue, e.g. before a role switch, stay on screen until the search replaces them, but don’t update
 		let kept = sameQueue ? rows : [];
+		// A refresh marks what it changes against the rows as they were. Any other load clears the marks, e.g. a new filter
+		for (let row of kept) {
+			row.before = sameView ? render(row.summary) : undefined;
+		}
 
 		// A refresh updates the rows on screen while the search looks for new ones, so it doesn’t wait for the search first.
 		// A new filter may drop some of them, so it waits for the search to know which to update
@@ -243,7 +264,8 @@ async function load () {
 
 		let previous = new Map(kept.map(row => [row.pr.id, row]));
 		rows = found.nodes.map(pr => {
-			let row = previous.get(pr.id) ?? {};
+			// `before: null` marks a PR the refresh found
+			let row = previous.get(pr.id) ?? (sameView ? { before: null } : {});
 			row.pr = pr;
 			// Without details the summary has no slow fields, so a refreshed row keeps its old ones until they arrive
 			fill(row, { ...row.summary, ...summarize(pr, user, role) });
@@ -273,6 +295,13 @@ async function load () {
 		let now = new Date();
 		updated.dateTime = now.toISOString();
 		updated.textContent = now.toLocaleTimeString("en", { timeStyle: "short" });
+
+		// Screen readers hear what the marks show, e.g. “Updated at 1:05 PM, 2 new, 1 changed”
+		let body = table.tBodies[0];
+		let added = body.querySelectorAll(".new").length;
+		let changed = body.querySelectorAll("tr:has(.changed)").length;
+		let said = [added && `${added} new`, changed && `${changed} changed`].filter(Boolean).join(", ") || "no changes";
+		changes.textContent = sameView ? `, ${said}` : "";
 	}
 	catch (error) {
 		// The newer load shows its own outcome
@@ -287,6 +316,7 @@ async function load () {
 			table.parentElement.hidden = true;
 			narrow.hidden = true;
 			updated.textContent = "";
+			changes.textContent = "";
 		}
 
 		status.textContent = `Couldn’t load pull requests. ${describe(error)}`;
@@ -430,6 +460,7 @@ function sort () {
 /** Show a summary in its row, replacing the row only when it shows something new. */
 function fill (row, summary) {
 	let tr = render(summary);
+	mark(tr, row.before);
 	// An unchanged row stays, e.g. on a refresh, so a focused link or selected text in it stays too
 	if (!row.tr?.isEqualNode(tr)) {
 		row.tr?.replaceWith(tr);
@@ -437,6 +468,33 @@ function fill (row, summary) {
 	}
 
 	row.summary = summary;
+}
+
+/** Mark what a refresh changed in a row: the whole row when `before` is `null`, a PR it found, else the cells that differ from `before`. */
+function mark (tr, before) {
+	if (before === null) {
+		tr.classList.add("new");
+		return;
+	}
+
+	for (let [i, cell] of [...tr.cells].entries()) {
+		if (before && !same(cell, before.cells[i])) {
+			cell.classList.add("changed");
+		}
+	}
+}
+
+/** Whether two cells show the same thing. A time compares by its date, since its text, e.g. “5 min. ago”, changes as time passes. */
+function same (cell, other) {
+	let [x, y] = [cell, other].map(cell => {
+		let clone = cell.cloneNode(true);
+		for (let time of clone.querySelectorAll("time")) {
+			time.textContent = time.dateTime;
+		}
+		return clone;
+	});
+
+	return x.isEqualNode(y);
 }
 
 function render ({ number, title, url, author, avatar, diff, diffSinceReview, iterations, waitingSince, reviewers }) {

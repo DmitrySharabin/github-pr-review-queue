@@ -6,6 +6,7 @@ When that person has not reviewed it yet, or a force push removed the reviewed c
 GitHub’s push icon marks a PR whose reviewed commit a force push removed.
 An author’s avatar opens their profile, and another reviewer’s opens their latest review, or their profile while it is awaited.
 The figure columns sort, and the page remembers the last sort.
+After a refresh, the PRs it found and the cells it changed stay marked until the next load, or until a link in that row is opened.
 
 The author view lists someone’s own open PRs instead.
 There, the columns count everyone else’s reviews and requests, and the switch above the table goes back.

@@ -104,8 +104,9 @@ header:has(progress[hidden]) #updated:has(time:empty) {
 	visibility: hidden;
 }
 
-/* The summary above the table says it on screen; the caption names the table for screen readers */
-caption {
+/* Said on screen by other means: the caption by the summary above the table, the changes of a refresh by the marks in it */
+caption,
+#updated .changes {
 	position: absolute;
 	clip-path: inset(50%);
 	white-space: nowrap;
@@ -599,6 +600,29 @@ tbody {
 
 	:is(th, td) {
 		border-block-start: 1px solid var(--rule);
+	}
+
+	/* What a refresh changed stays marked until the next load or a click in its row, and arrives brighter to catch the eye */
+	:is(.new > *, .changed) {
+		background: color-mix(in oklch, var(--attention) 12%, var(--surface));
+		animation: arrive 2s ease-out;
+	}
+
+	/* The last row’s marks keep the table’s rounded corners */
+	tr:last-child {
+		> :first-child {
+			border-end-start-radius: var(--radius);
+		}
+
+		> :last-child {
+			border-end-end-radius: var(--radius);
+		}
+	}
+}
+
+@keyframes arrive {
+	from {
+		background-color: color-mix(in oklch, var(--attention) 45%, var(--surface));
 	}
 }
 
