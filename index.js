@@ -52,6 +52,8 @@ let rows = [];
 let shown;
 /** @type {AbortController | undefined} Aborts the load in flight */
 let loading;
+/** @type {Map<string, HTMLTableRowElement> | undefined} The rows the last finished load of this view showed, by PR id, for the next to mark what changed */
+let seen;
 
 // The last sort survives a reload, e.g. { column: "diff", direction: "ascending" }
 let saved = JSON.parse(localStorage.getItem("review-queue:sort"));
@@ -67,18 +69,12 @@ table.addEventListener("command", event => {
 	document.startViewTransition(sort);
 });
 
-// Opening a link in a marked row, e.g. its PR, is seeing what changed in it. The row stays, and so does focus on the link
+// Opening a link in a marked row, e.g. its PR, is seeing what changed in it. A middle click opens it too, a right click opens a menu
 for (let type of ["click", "auxclick"]) {
 	table.tBodies[0].addEventListener(type, event => {
 		let tr = event.target.closest("a")?.closest("tr");
-		let row = rows.find(row => row.tr === tr);
-		if (!row) {
-			return;
-		}
-
-		row.before = undefined;
-		for (let element of [tr, ...tr.cells]) {
-			element.classList.remove("new", "changed");
+		if (tr && event.button < 2) {
+			unmark(tr);
 		}
 	});
 }
@@ -199,6 +195,16 @@ async function load () {
 	let sameQueue = ["repo", "user", "role"].every(name => view[name] === shown?.[name]);
 	let sameView = sameQueue && filter === shown.filter;
 
+	// Without the marks, a row with nothing new equals its next render, so it stays and keeps focus.
+	// A load of another view, e.g. a new filter, finds PRs that aren’t new, so it compares with nothing
+	for (let { tr } of rows) {
+		unmark(tr);
+	}
+	changes.textContent = "";
+	if (!sameView) {
+		seen = undefined;
+	}
+
 	// aria-disabled, unlike disabled, keeps focus on the button while it waits
 	refresh.ariaDisabled = "true";
 	status.textContent = "Loading pull requests…";
@@ -241,10 +247,6 @@ async function load () {
 
 		// Rows of another queue, e.g. before a role switch, stay on screen until the search replaces them, but don’t update
 		let kept = sameQueue ? rows : [];
-		// A refresh marks what it changes against the rows as they were. Any other load clears the marks, e.g. a new filter
-		for (let row of kept) {
-			row.before = sameView ? render(row.summary) : undefined;
-		}
 
 		// A refresh updates the rows on screen while the search looks for new ones, so it doesn’t wait for the search first.
 		// A new filter may drop some of them, so it waits for the search to know which to update
@@ -264,8 +266,7 @@ async function load () {
 
 		let previous = new Map(kept.map(row => [row.pr.id, row]));
 		rows = found.nodes.map(pr => {
-			// `before: null` marks a PR the refresh found
-			let row = previous.get(pr.id) ?? (sameView ? { before: null } : {});
+			let row = previous.get(pr.id) ?? {};
 			row.pr = pr;
 			// Without details the summary has no slow fields, so a refreshed row keeps its old ones until they arrive
 			fill(row, { ...row.summary, ...summarize(pr, user, role) });
@@ -296,12 +297,10 @@ async function load () {
 		updated.dateTime = now.toISOString();
 		updated.textContent = now.toLocaleTimeString("en", { timeStyle: "short" });
 
+		let last = seen;
+		seen = new Map(rows.map(row => [row.pr.id, row.tr.cloneNode(true)]));
 		// Screen readers hear what the marks show, e.g. “Updated at 1:05 PM, 2 new, 1 changed”
-		let body = table.tBodies[0];
-		let added = body.querySelectorAll(".new").length;
-		let changed = body.querySelectorAll("tr:has(.changed)").length;
-		let said = [added && `${added} new`, changed && `${changed} changed`].filter(Boolean).join(", ") || "no changes";
-		changes.textContent = sameView ? `, ${said}` : "";
+		changes.textContent = last ? `, ${mark(last)}` : "";
 	}
 	catch (error) {
 		// The newer load shows its own outcome
@@ -316,7 +315,6 @@ async function load () {
 			table.parentElement.hidden = true;
 			narrow.hidden = true;
 			updated.textContent = "";
-			changes.textContent = "";
 		}
 
 		status.textContent = `Couldn’t load pull requests. ${describe(error)}`;
@@ -460,7 +458,6 @@ function sort () {
 /** Show a summary in its row, replacing the row only when it shows something new. */
 function fill (row, summary) {
 	let tr = render(summary);
-	mark(tr, row.before);
 	// An unchanged row stays, e.g. on a refresh, so a focused link or selected text in it stays too
 	if (!row.tr?.isEqualNode(tr)) {
 		row.tr?.replaceWith(tr);
@@ -470,16 +467,45 @@ function fill (row, summary) {
 	row.summary = summary;
 }
 
-/** Mark what a refresh changed in a row: the whole row when `before` is `null`, a PR it found, else the cells that differ from `before`. */
-function mark (tr, before) {
-	if (before === null) {
-		tr.classList.add("new");
-		return;
+/**
+ * Mark what changed since the last load: the PRs it didn’t show, and the cells that differ from it. Say it, e.g. “1 new, 2 changed”.
+ * @param {Map<string, HTMLTableRowElement>} last - The rows it showed, by PR id
+ */
+function mark (last) {
+	let counts = { new: 0, changed: 0 };
+
+	for (let { pr, tr } of rows) {
+		let old = last.get(pr.id);
+		let cells = [...tr.cells].filter(cell => old && !same(cell, old.cells[cell.cellIndex]));
+		if (old && cells.length === 0) {
+			continue;
+		}
+
+		let label = tr.querySelector("mark");
+		label.textContent = old ? "Changed" : "New";
+		label.hidden = false;
+		tr.classList.toggle("new", !old);
+		for (let cell of cells) {
+			cell.classList.add("changed");
+		}
+		counts[old ? "changed" : "new"]++;
 	}
 
-	for (let [i, cell] of [...tr.cells].entries()) {
-		if (before && !same(cell, before.cells[i])) {
-			cell.classList.add("changed");
+	// The PRs the last load showed and this one doesn’t, e.g. merged meanwhile
+	counts.gone = last.size - (rows.length - counts.new);
+	return Object.entries(counts).filter(([, count]) => count).map(([name, count]) => `${count} ${name}`).join(", ") || "no changes";
+}
+
+/** Remove the marks, leaving the row as {@link render} makes it, e.g. no `class=""`, so that it equals its next render. */
+function unmark (tr) {
+	let label = tr.querySelector("mark");
+	label.hidden = true;
+	label.textContent = "";
+
+	for (let element of [tr, ...tr.cells]) {
+		element.classList.remove("new", "changed");
+		if (element.classList.length === 0) {
+			element.removeAttribute("class");
 		}
 	}
 }

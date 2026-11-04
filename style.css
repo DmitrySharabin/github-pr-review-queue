@@ -602,10 +602,18 @@ tbody {
 		border-block-start: 1px solid var(--rule);
 	}
 
-	/* What a refresh changed stays marked until the next load or a click in its row, and arrives brighter to catch the eye */
+	/* What a refresh changed stays marked until the next load or a click on a link in its row.
+	   From 18%, the green figures drop below 4.5:1 */
 	:is(.new > *, .changed) {
 		background: color-mix(in oklch, var(--attention) 12%, var(--surface));
-		animation: arrive 2s ease-out;
+	}
+
+	/* Says in words what the color says, also in forced colors, where the color goes */
+	mark {
+		padding-inline: 0.4em;
+		border-radius: 0.25em;
+		background: color-mix(in oklch, var(--attention) 30%, var(--surface));
+		color: var(--text);
 	}
 
 	/* The last row’s marks keep the table’s rounded corners */
@@ -617,12 +625,6 @@ tbody {
 		> :last-child {
 			border-end-end-radius: var(--radius);
 		}
-	}
-}
-
-@keyframes arrive {
-	from {
-		background-color: color-mix(in oklch, var(--attention) 45%, var(--surface));
 	}
 }
 

@@ -16,7 +16,7 @@
 		<header>
 			<h1>GitHub PR review queue</h1>
 			<div id="controls" inert>
-				<p id="updated" role="status">Updated at <time></time><span class="changes"></span></p>
+				<p id="updated" role="status" aria-atomic="true">Updated at <time></time><span class="changes"></span></p>
 				<button id="refresh" aria-disabled="true">Refresh</button>
 				<button id="sign-out">Sign out</button>
 			</div>
@@ -112,7 +112,7 @@
 					<div class="pull-request">
 						<a class="avatar" target="_blank" tabindex="-1" aria-hidden="true"><img alt="" width="32" height="32"></a>
 						<a class="title" target="_blank"></a>
-						<small><span class="number"></span> by <a class="author" target="_blank"></a></small>
+						<small><span class="number"></span> by <a class="author" target="_blank"></a> <mark hidden></mark></small>
 					</div>
 				</th>
 				<td class="diff"><a target="_blank"><span class="added"></span> <span class="deleted"></span> <span class="diffstat" aria-hidden="true"></span></a></td>
