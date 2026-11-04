@@ -130,7 +130,7 @@ for (let form of strip.querySelectorAll("form")) {
 		}
 	});
 
-	// Also on every view, which resets the forms to its URL
+	// showView() resets every form to the URL, which closes this one on a new view
 	form.addEventListener("reset", () => {
 		// Hiding the form would drop focus to the page
 		if (form.contains(document.activeElement)) {
@@ -377,8 +377,6 @@ function showSummary ({ repo, user, role, filter }) {
 	person.href = `https://github.com/${user}`;
 	person.querySelector("img").src = `https://github.com/${user}.png?size=48`;
 	person.querySelector("span").textContent = user;
-	// An empty field opens the queue of the signed-in user
-	strip.querySelector("#user-edit [name=user]").placeholder = github.user?.username;
 
 	let count = strip.querySelector(".count");
 	count.href = `https://github.com/pulls?q=${encodeURIComponent(search({ repo, user, role, filter }))}`;

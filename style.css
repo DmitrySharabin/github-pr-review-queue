@@ -157,8 +157,7 @@ caption,
 		/* Lets the fades below show only while there is more to scroll to */
 		container-type: scroll-state;
 
-		/* A value’s form among them, so it takes the value’s place at its height and the strip doesn’t move */
-		> :is(a, time, form) {
+		> * {
 			display: inline-flex;
 			align-items: center;
 
@@ -243,7 +242,6 @@ caption,
 	/* As wide as the cell, so the field shrinks to fit it rather than the cell scrolling */
 	form {
 		inline-size: 100%;
-		gap: 0.25em;
 
 		input {
 			/* Grows with the name, and shrinks so that ✓ and ✕ fit a phone’s cell */
@@ -254,6 +252,11 @@ caption,
 			block-size: 1lh;
 			padding: 0 0.25em;
 			font-weight: 500;
+		}
+
+		/* Not a gap, which would also space the fade before the field */
+		button {
+			margin-inline-start: 0.25em;
 		}
 	}
 
@@ -284,7 +287,6 @@ caption,
 	}
 
 	.edit {
-		margin-inline-start: auto;
 		--icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10.5 2.5l3 3L6 13H3v-3z'/%3E%3C/svg%3E");
 	}
 

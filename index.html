@@ -45,8 +45,8 @@
 			</form>
 		</div>
 		<form id="repo-form" hidden>
-			<label>Repository <input name="repo" placeholder="owner/name" pattern="[\w.\-]+/[\w.\-]+" required autocomplete="off" spellcheck="false"></label>
-			<label>User <input name="user" placeholder="you" pattern="[\w\-]+" autocomplete="off" spellcheck="false"></label>
+			<label>Repository <input name="repo" placeholder="owner/name" pattern="[\w.\-]+/[\w.\-]+" required autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go"></label>
+			<label>User <input name="user" placeholder="you" pattern="[\w\-]+" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go"></label>
 			<input type="hidden" name="role">
 			<input type="hidden" name="filter">
 			<button>Show queue</button>
@@ -78,7 +78,7 @@
 				<dd>
 					<a class="user" target="_blank"><img alt="" width="24" height="24"> <span></span></a>
 					<form id="user-edit" hidden>
-						<input name="user" aria-label="User" pattern="[\w\-]+" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go">
+						<input name="user" aria-label="User" placeholder="you" pattern="[\w\-]+" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go">
 						<input type="hidden" name="repo">
 						<input type="hidden" name="role">
 						<input type="hidden" name="filter">
