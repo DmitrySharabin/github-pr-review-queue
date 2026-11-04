@@ -771,20 +771,13 @@ time:empty {
 
 /* GitHub’s diffstat: five squares split by the share of added, then deleted lines */
 .diffstat {
-	--added: round(5 * var(--additions) / max(var(--additions) + var(--deletions), 1));
-	/* An empty diff gets five grey squares, not five red ones */
-	--deleted: min(5 - var(--added), 5 * var(--deletions));
+	--added: round(5 * var(--additions) / (var(--additions) + var(--deletions)));
 
 	display: inline-block;
 	inline-size: calc(5 * 0.6em + 4px);
 	block-size: 0.6em;
 	margin-inline-start: 0.3em;
-	background: linear-gradient(
-		to right,
-		var(--positive) calc(var(--added) * 20%),
-		var(--negative) 0 calc((var(--added) + var(--deleted)) * 20%),
-		var(--border) 0
-	);
+	background: linear-gradient(to right, var(--positive) calc(var(--added) * 20%), var(--negative) 0);
 	/* Cuts the strip into squares with 1px gaps */
 	mask: repeating-linear-gradient(to right, black 0 calc(20% - 1px), transparent 0 20%);
 }

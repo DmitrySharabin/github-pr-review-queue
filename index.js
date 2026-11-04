@@ -56,10 +56,6 @@ if (saved) {
 }
 
 table.addEventListener("command", event => {
-	if (event.command !== "--sort") {
-		return;
-	}
-
 	let th = event.source.closest("th");
 	let sorted = { column: event.source.value, direction: th.ariaSort === "descending" ? "ascending" : "descending" };
 	markSort(sorted);
@@ -333,7 +329,7 @@ function graphql (text) {
 
 /** Replace a diff’s estimate with GitHub’s exact count, when it has a range to compare. */
 async function compare (repo, diff) {
-	if (!diff?.range) {
+	if (!diff.range) {
 		return;
 	}
 
