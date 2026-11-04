@@ -201,7 +201,7 @@ form button,
 }
 
 #sign-in > button,
-#choose button {
+#repo-form button {
 	background: var(--text);
 	color: white;
 
@@ -213,7 +213,7 @@ form button,
 /* Secondary to the table it updates or filters, or to the sign-in */
 #refresh,
 #sign-out,
-#token button,
+#token-form button,
 #narrow button {
 	background: color-mix(in oklch, var(--text) 8%, var(--surface));
 	color: var(--text);
@@ -282,7 +282,7 @@ form {
 	}
 }
 
-#choose {
+#repo-form {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 0.75em 1.5em;
@@ -383,7 +383,7 @@ form {
 	}
 }
 
-#token {
+#token-form {
 	display: grid;
 	gap: 0.5em;
 

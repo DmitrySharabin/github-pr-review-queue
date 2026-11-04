@@ -14,10 +14,10 @@ let progress = document.querySelector("progress");
 let signIn = document.querySelector("#sign-in");
 let refresh = document.querySelector("#refresh");
 let signOut = document.querySelector("#sign-out");
-let token = document.querySelector("#token");
-let template = document.querySelector("#row");
+let tokenForm = document.querySelector("#token-form");
+let rowTemplate = document.querySelector("#row");
 let reviewerTemplate = document.querySelector("#reviewer");
-let choose = document.querySelector("#choose");
+let repoForm = document.querySelector("#repo-form");
 let narrow = document.querySelector("#narrow");
 
 /** Sort value of each column. `null` and `undefined` (still loading) sort last in both directions. */
@@ -69,10 +69,10 @@ table.addEventListener("command", event => {
 
 signIn.querySelector("button").addEventListener("click", () => github.login().catch(error => status.textContent = describe(error)));
 
-token.addEventListener("submit", event => {
+tokenForm.addEventListener("submit", event => {
 	event.preventDefault();
 	// Madata stores and validates the token as it does after the popup, then fires mv-login, which login() waits for
-	github.login({ accessToken: token.elements.token.value }).catch(error => status.textContent = describe(error));
+	github.login({ accessToken: tokenForm.elements.token.value }).catch(error => status.textContent = describe(error));
 });
 
 // A token that works but can’t read the repo keeps the sign-in hidden, so signing out is the way to replace it
@@ -82,7 +82,7 @@ signOut.addEventListener("click", async () => {
 });
 
 // The forms submit their fields as URL parameters, so the URL they open can be copied and reused
-for (let form of [choose, narrow.querySelector("form")]) {
+for (let form of [repoForm, narrow.querySelector("form")]) {
 	for (let field of form.elements) {
 		if (field.name) {
 			field.value = params.get(field.name);
@@ -141,7 +141,7 @@ if (repo) {
 else {
 	status.textContent = "Choose a repository to see its review queue.";
 	progress.hidden = true;
-	choose.hidden = false;
+	repoForm.hidden = false;
 }
 
 /** Load the queue. A refresh keeps the current rows on screen until the new ones arrive. */
@@ -201,7 +201,7 @@ async function load () {
 		showSummary(user);
 
 		table.parentElement.hidden = rows.length === 0;
-		choose.hidden = true;
+		repoForm.hidden = true;
 		narrow.hidden = false;
 		// The status names the progress bar, so it says “Loading” until there is nothing left to load
 		if (rows.length === 0) {
@@ -226,7 +226,7 @@ async function load () {
 		status.textContent = `Couldn’t load pull requests. ${describe(error)}`;
 		status.hidden = false;
 		// Most failures come from the repo or the user, so the form lets the user check and fix them
-		choose.hidden = false;
+		repoForm.hidden = false;
 	}
 	finally {
 		progress.hidden = true;
@@ -237,28 +237,28 @@ async function load () {
 
 /** Fill the strip above the table: where, for whom, how many, since when. */
 function showSummary (user) {
-	let summary = document.querySelector("#summary");
+	let strip = document.querySelector("#summary");
 
-	let link = summary.querySelector(".repo");
+	let link = strip.querySelector(".repo");
 	link.href = `https://github.com/${repo}`;
 	link.textContent = repo;
 
-	let person = summary.querySelector(".user");
+	let person = strip.querySelector(".user");
 	person.href = `https://github.com/${user}`;
 	person.querySelector("img").src = `https://github.com/${user}.png?size=48`;
 	person.querySelector("span").textContent = user;
 
-	let awaiting = summary.querySelector(".count");
-	awaiting.href = `https://github.com/pulls?q=${encodeURIComponent(search({ repo, user, role, filter }))}`;
-	awaiting.textContent = rows.length;
+	let count = strip.querySelector(".count");
+	count.href = `https://github.com/pulls?q=${encodeURIComponent(search({ repo, user, role, filter }))}`;
+	count.textContent = rows.length;
 
 	// Requests to a team have no date for the user
 	let dates = rows.map(row => row.summary.waitingSince);
 	let known = dates.filter(Boolean);
 	let latest = known.length > 0 ? new Date(Math.max(...known)) : null;
 	// Unknown until every row has its details
-	showTime(summary.querySelector(".latest"), dates.includes(undefined) ? undefined : latest);
-	summary.hidden = false;
+	showTime(strip.querySelector(".latest"), dates.includes(undefined) ? undefined : latest);
+	strip.hidden = false;
 }
 
 function graphql (text) {
@@ -353,7 +353,7 @@ function fill (row, summary) {
 }
 
 function render ({ number, title, url, author, avatar, diff, diffSinceReview, iterations, waitingSince, reviewers }) {
-	let tr = template.content.firstElementChild.cloneNode(true);
+	let tr = rowTemplate.content.firstElementChild.cloneNode(true);
 
 	tr.querySelector("img").src = avatar;
 	let link = tr.querySelector("a");
