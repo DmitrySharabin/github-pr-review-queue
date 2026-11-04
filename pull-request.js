@@ -56,6 +56,7 @@ export function search ({ repo, user, role, filter }) {
  * @param {string} name
  * @returns {string}
  */
+// NOTE: A name with `"` in it makes a broken term
 export function withLabel (filter, name) {
 	let rest = (filter ?? "").replace(/(^|\s)label:("[^"]*"|\S+)/g, "").trim();
 	return `${rest} label:"${name}"`.trim();

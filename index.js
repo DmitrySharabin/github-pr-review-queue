@@ -504,7 +504,7 @@ function sort () {
 function fill (row, summary) {
 	let tr = render(summary);
 	// Labels the user showed stay shown, so the row only changes when they do
-	if (row.tr && !row.tr.querySelector(".labels .more")) {
+	if (row.tr?.querySelector(`.labels > :nth-child(${labelLimit + 1}):not([hidden])`)) {
 		showAllLabels(tr);
 	}
 
@@ -632,7 +632,7 @@ function showLabels (headline, labels) {
 		let button = document.createElement("button");
 		button.className = "more";
 		button.textContent = `+${rest}`;
-		button.ariaLabel = `Show ${rest} more labels`;
+		button.ariaLabel = `+${rest} more labels`;
 		button.addEventListener("click", () => {
 			let first = list.querySelector("li[hidden] a");
 			showAllLabels(list);
