@@ -828,13 +828,13 @@ progress {
 
 		&::before {
 			inset-block-start: 0;
-			animation-name: shadow-in;
+			animation-name: shadow-start;
 			animation-range: 0 1.5rem;
 		}
 
 		&::after {
 			inset-block-end: 0;
-			animation-name: shadow-out;
+			animation-name: shadow-end;
 			animation-range: calc(100% - 1.5rem) 100%;
 		}
 	}
@@ -865,13 +865,13 @@ progress {
 	}
 }
 
-@keyframes shadow-in {
+@keyframes shadow-start {
 	to {
 		opacity: 1;
 	}
 }
 
-@keyframes shadow-out {
+@keyframes shadow-end {
 	from {
 		opacity: 1;
 	}
