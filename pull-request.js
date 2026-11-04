@@ -167,15 +167,6 @@ export function details ({ user, role, ids }) {
 }
 
 /**
- * GraphQL query for whether PRs are open, merged or closed, e.g. ones the search no longer finds.
- * @param {string[]} ids
- * @returns {string}
- */
-export function outcomes (ids) {
-	return `query { nodes(ids: ${JSON.stringify(ids)}) { ... on PullRequest { state } } }`;
-}
-
-/**
  * Summarize a PR from the point of view of its reviewer or its author.
  * @param {object} pr - A node from {@link query}, with the fields from {@link details} once they arrive
  * @param {string} user - The reviewer’s or the author’s login

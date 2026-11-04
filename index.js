@@ -1,7 +1,7 @@
 /** @import { Summary, View } from "./pull-request.js" */
 // The commit is also in index.html, which preloads the modules this one imports
 import GithubAPI from "https://cdn.jsdelivr.net/gh/madatajs/madata@063fc247b1a03924c836d74ea2f3d8fdc86ded2c/backends/github/api/github-api.js";
-import { addedLabel, details, hasLabel, outcomes, outdated, query, search, summarize, sum, withLabel } from "./pull-request.js";
+import { addedLabel, details, hasLabel, outdated, query, search, summarize, sum, withLabel } from "./pull-request.js";
 import { offerRecent } from "./recent.js";
 
 let github = new GithubAPI("https://api.github.com/graphql");
@@ -20,7 +20,6 @@ let repoForm = document.querySelector("#repo-form");
 let narrow = document.querySelector("#narrow");
 let strip = document.querySelector("#summary");
 let updated = document.querySelector("#updated time");
-let changes = document.querySelector("#updated .changes");
 let filterForm = narrow.querySelector("form");
 let forms = [repoForm, filterForm, ...strip.querySelectorAll("form")];
 
@@ -268,7 +267,7 @@ async function load () {
 	if (label !== undefined) {
 		rows = rows.filter(({ pr }) => hasLabel(pr, label));
 		// The load marks what changed against the last finished load’s rows that stay on screen. Before the first load finishes there are none
-		// NOTE: A PR that a refresh in flight already dropped isn’t among them, so it doesn’t count as merged or off
+		// NOTE: A PR that a refresh in flight already dropped isn’t among them, so it doesn’t count as left
 		seen &&= new Map([...seen].filter(([id]) => rows.some(row => row.pr.id === id)));
 	}
 	// A load of another view, e.g. a new filter, finds PRs that aren’t new, so it compares with nothing
@@ -298,8 +297,8 @@ async function load () {
 		showQueue({ ...view, user: shownUser });
 	}
 
-	// Keeps the line the last load’s changes took, so the time above it doesn’t move
-	changes.textContent = seen ? "Refreshing…" : "";
+	// The count it was about may change before the load ends, e.g. narrowed by a label
+	showDelta();
 
 	// aria-disabled, unlike disabled, keeps focus on the button while it waits
 	refresh.ariaDisabled = "true";
@@ -324,7 +323,6 @@ async function load () {
 			shown = undefined;
 			rows = [];
 			seen = undefined;
-			changes.textContent = "";
 		}
 
 		/** Fill in the slow fields of these PRs’ rows, a few PRs per query. */
@@ -377,9 +375,7 @@ async function load () {
 		});
 		showQueue({ ...view, user });
 
-		// A PR the search no longer finds may still be open, e.g. reviewed meanwhile. Without its state it counts as just off the list
-		let gone = [...seen?.keys() ?? []].filter(id => !rows.some(row => row.pr.id === id));
-		let [, { nodes: ends = [] }] = await Promise.all([update(stale), gone.length ? graphql(outcomes(gone)).catch(() => ({})) : {}]);
+		await update(stale);
 		signal.throwIfAborted();
 		sort({ animate: true });
 		showSummary({ ...view, user });
@@ -391,7 +387,7 @@ async function load () {
 		let last = seen;
 		seen = new Map(rows.map(row => [row.pr.id, row.tr.cloneNode(true)]));
 		if (last) {
-			changes.textContent = mark(last, gone.map((id, i) => ends[i]?.state));
+			showDelta(mark(last));
 		}
 	}
 	catch (error) {
@@ -409,7 +405,6 @@ async function load () {
 			updated.textContent = "";
 		}
 
-		changes.textContent = "";
 		status.textContent = `Couldn’t load pull requests. ${describe(error)}`;
 		status.hidden = false;
 		// Most failures come from the repo or the user, so the form lets the user check and fix them
@@ -552,6 +547,16 @@ function showSummary ({ repo, user, role, filter }) {
 	strip.hidden = false;
 }
 
+/** Show next to the count how many PRs the last load added and how many left, e.g. “+3” over “−2”, or nothing when neither. */
+function showDelta ({ added, left } = {}) {
+	let delta = strip.querySelector(".delta");
+	delta.querySelector(".up").textContent = added ? `+${added}` : "";
+	delta.querySelector(".down").textContent = left ? `−${left}` : "";
+
+	let said = [added && `${added} new`, left && `${left} left`].filter(Boolean).join(", ");
+	delta.querySelector(".said").textContent = said && `${said} since the last load`;
+}
+
 function graphql (text) {
 	return github.load(`https://api.github.com/graphql#${text}`);
 }
@@ -587,7 +592,6 @@ async function login (repo) {
 		strip.hidden = true;
 		table.parentElement.hidden = true;
 		narrow.hidden = true;
-		changes.textContent = "";
 		status.hidden = false;
 		status.textContent = `Sign in to see the pull requests in ${repo}.`;
 		progress.hidden = true;
@@ -701,12 +705,12 @@ function fill (row, summary) {
 }
 
 /**
- * Mark what changed since the last load: the PRs it didn’t show, and the cells that differ from it. Say it, e.g. “1 new, 2 changed, 1 merged”.
+ * Mark what changed since the last load: the PRs it didn’t show, and the cells that differ from it.
  * @param {Map<string, HTMLTableRowElement>} last - The rows it showed, by PR id
- * @param {(string | undefined)[]} states - The state of each PR it showed and this load doesn’t, e.g. `"MERGED"`
+ * @returns {{ added: number, left: number }} How many PRs it didn’t show, and how many it showed that are gone, e.g. merged or reviewed
  */
-function mark (last, states) {
-	let counts = { new: 0, changed: 0, merged: 0, closed: 0, off: 0 };
+function mark (last) {
+	let added = 0;
 
 	for (let { pr, tr } of rows) {
 		let old = last.get(pr.id);
@@ -720,19 +724,15 @@ function mark (last, states) {
 		label.hidden = false;
 		if (!old) {
 			tr.classList.add("new");
+			added++;
 		}
 		for (let cell of cells) {
 			cell.classList.add("changed");
 		}
-		counts[old ? "changed" : "new"]++;
 	}
 
-	for (let state of states) {
-		counts[{ MERGED: "merged", CLOSED: "closed" }[state] ?? "off"]++;
-	}
-
-	// A wrapped summary breaks between counts, never between “1” and “merged”
-	return Object.entries(counts).filter(([, count]) => count).map(([name, count]) => `${count}\u00a0${name}`).join(", ") || "No changes";
+	let left = [...last.keys()].filter(id => !rows.some(row => row.pr.id === id)).length;
+	return { added, left };
 }
 
 /** Remove the marks, leaving the row as {@link render} makes it, e.g. no `class=""`, so that it equals its next render. */

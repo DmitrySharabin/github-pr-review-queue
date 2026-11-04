@@ -107,24 +107,8 @@ header:has(progress[hidden]) #updated:has(time:empty) {
 	visibility: hidden;
 }
 
-/* On its own line, so its words don’t push the buttons next to it onto another line on a phone */
-#updated .changes {
-	display: block;
-
-	/* Pauses a screen reader after the time, e.g. “Updated at 5:44 PM, 1 new” */
-	&:not(:empty)::before {
-		content: "" / ", ";
-	}
-
-	/* As wide as the time above it, wrapping a long summary, e.g. “2 new, 1 changed, 1 merged”, rather than widening the line */
-	@container (width < 36rem) {
-		inline-size: 0;
-		min-inline-size: 100%;
-	}
-}
-
-/* Fades in as each load ends, so even a refresh that changes nothing shows it finished */
-#controls:has(#refresh:not([aria-disabled])) .changes {
+/* Fades in as each load ends, so even a refresh in the same minute shows it finished */
+#controls:has(#refresh:not([aria-disabled])) time {
 	animation: appear 200ms var(--ease-out);
 }
 
@@ -134,8 +118,9 @@ header:has(progress[hidden]) #updated:has(time:empty) {
 	}
 }
 
-/* Said on screen by the summary above the table */
-caption {
+/* Said on screen by the summary above the table, and by the signs of the delta, e.g. “+3” for “3 new” */
+caption,
+.delta .said {
 	position: absolute;
 	clip-path: inset(50%);
 	white-space: nowrap;
@@ -202,6 +187,27 @@ caption {
 				display: none;
 			}
 		}
+	}
+
+	/* Each line box centers on its figures about as the count’s does, so the two center on each other */
+	.delta {
+		flex-direction: column;
+		align-items: end;
+		align-self: center;
+		font-size: 0.55em;
+		line-height: 0.95;
+
+		span:not(:empty) {
+			padding-inline-start: 0.3em;
+		}
+	}
+
+	.up {
+		color: var(--negative);
+	}
+
+	.down {
+		color: var(--positive);
 	}
 
 	img {
