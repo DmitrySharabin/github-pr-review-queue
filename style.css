@@ -157,9 +157,14 @@ caption,
 		/* Lets the fades below show only while there is more to scroll to */
 		container-type: scroll-state;
 
-		> * {
+		/* A value’s form among them, so it takes the value’s place at its height and the strip doesn’t move */
+		> :is(a, time, form) {
 			display: inline-flex;
 			align-items: center;
+
+			&[hidden] {
+				display: none;
+			}
 
 			/* Fades over the clipped edge */
 			&::before,
@@ -233,6 +238,62 @@ caption,
 				color: var(--text);
 			}
 		}
+	}
+
+	/* As wide as the cell, so the field shrinks to fit it rather than the cell scrolling */
+	form {
+		inline-size: 100%;
+		gap: 0.25em;
+
+		input {
+			/* Grows with the name, and shrinks so that ✓ and ✕ fit a phone’s cell */
+			field-sizing: content;
+			min-inline-size: 4ch;
+			box-sizing: border-box;
+			min-block-size: auto;
+			block-size: 1lh;
+			padding: 0 0.25em;
+			font-weight: 500;
+		}
+	}
+
+	/* Icon buttons as big as the role switch: the smallest target WCAG allows */
+	button {
+		flex: none;
+		inline-size: 1.5rem;
+		min-block-size: 1.5rem;
+		padding: 0;
+		border: none;
+		border-radius: calc(var(--radius) * 0.75);
+		background: transparent;
+		color: var(--muted);
+		cursor: pointer;
+
+		&::before {
+			content: "";
+			display: block;
+			block-size: 1rem;
+			background-color: currentColor;
+			mask: var(--icon) no-repeat center / contain;
+		}
+
+		&:hover {
+			background: var(--rule);
+			color: var(--text);
+		}
+	}
+
+	.edit {
+		margin-inline-start: auto;
+		--icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10.5 2.5l3 3L6 13H3v-3z'/%3E%3C/svg%3E");
+	}
+
+	.apply {
+		--icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 8.5l3 3 7-7'/%3E%3C/svg%3E");
+	}
+
+	.cancel {
+		--icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round'%3E%3Cpath d='M4 4l8 8M12 4l-8 8'/%3E%3C/svg%3E");
 	}
 }
 

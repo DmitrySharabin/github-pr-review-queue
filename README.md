@@ -34,6 +34,7 @@ Use URL parameters:
 
 For example: `?repo=foo/bar&user=baz&filter=-label:bar`.
 Without `repo`, or after an error, the page shows a form that opens that URL, so it can be copied and reused.
+The pencil next to the repository or the user above the table changes it in place, keeping the other parameters.
 
 Sign-in goes through [Madata](https://madata.dev) and its auth server, `auth.madata.dev`.
 GitHub’s GraphQL API needs a token even for public repos.

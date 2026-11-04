@@ -54,8 +54,18 @@
 
 		<dl id="summary" hidden>
 			<div>
-				<dt>Repository</dt>
-				<dd><a class="repo" target="_blank"></a></dd>
+				<dt>Repository <button class="edit" commandfor="repo-edit" command="--edit" aria-label="Change repository" aria-expanded="false"></button></dt>
+				<dd>
+					<a class="repo" target="_blank"></a>
+					<form id="repo-edit" hidden>
+						<input name="repo" aria-label="Repository" placeholder="owner/name" pattern="[\w.\-]+/[\w.\-]+" required autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go">
+						<input type="hidden" name="user">
+						<input type="hidden" name="role">
+						<input type="hidden" name="filter">
+						<button class="apply" aria-label="Show queue"></button>
+						<button class="cancel" type="reset" aria-label="Cancel"></button>
+					</form>
+				</dd>
 			</div>
 			<div>
 				<dt>
@@ -63,8 +73,19 @@
 						<a>Reviewer</a>
 						<a data-role="author">Author</a>
 					</span>
+					<button class="edit" commandfor="user-edit" command="--edit" aria-label="Change user" aria-expanded="false"></button>
 				</dt>
-				<dd><a class="user" target="_blank"><img alt="" width="24" height="24"> <span></span></a></dd>
+				<dd>
+					<a class="user" target="_blank"><img alt="" width="24" height="24"> <span></span></a>
+					<form id="user-edit" hidden>
+						<input name="user" aria-label="User" pattern="[\w\-]+" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go">
+						<input type="hidden" name="repo">
+						<input type="hidden" name="role">
+						<input type="hidden" name="filter">
+						<button class="apply" aria-label="Show queue"></button>
+						<button class="cancel" type="reset" aria-label="Cancel"></button>
+					</form>
+				</dd>
 			</div>
 			<div>
 				<dt data-author="Open" data-reviewer="Awaiting review"></dt>

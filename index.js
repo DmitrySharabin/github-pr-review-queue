@@ -19,6 +19,7 @@ let strip = document.querySelector("#summary");
 let updated = document.querySelector("#updated time");
 let changes = document.querySelector("#updated .changes");
 let filterForm = narrow.querySelector("form");
+let forms = [repoForm, filterForm, ...strip.querySelectorAll("form")];
 
 /** Sort value of each column. `null` and `undefined` (still loading) sort last in both directions. */
 const sortKeys = {
@@ -94,7 +95,7 @@ signOut.addEventListener("click", async () => {
 });
 
 // The forms submit their fields as URL parameters, so the URL they open can be copied and reused
-for (let form of [repoForm, filterForm]) {
+for (let form of forms) {
 	form.addEventListener("formdata", ({ formData }) => {
 		// An empty field means its default, e.g. the signed-in user: ?repo=foo/bar, not ?repo=foo/bar&user=
 		for (let [name, value] of [...formData]) {
@@ -102,6 +103,43 @@ for (let form of [repoForm, filterForm]) {
 				formData.delete(name);
 			}
 		}
+	});
+}
+
+// A value in the summary turns into its form in place. Enter or ✓ opens the queue it names, Esc, ✕ or the pencil again goes back
+for (let form of strip.querySelectorAll("form")) {
+	let value = form.previousElementSibling;
+	let button = strip.querySelector(`[commandfor="${form.id}"]`);
+
+	form.addEventListener("command", () => {
+		if (!form.hidden) {
+			form.reset();
+			return;
+		}
+
+		form.hidden = false;
+		value.hidden = true;
+		button.ariaExpanded = "true";
+		form.elements[0].focus();
+		form.elements[0].select();
+	});
+
+	form.addEventListener("keydown", event => {
+		if (event.key === "Escape") {
+			form.reset();
+		}
+	});
+
+	// Also on every view, which resets the forms to its URL
+	form.addEventListener("reset", () => {
+		// Hiding the form would drop focus to the page
+		if (form.contains(document.activeElement)) {
+			button.focus();
+		}
+
+		form.hidden = true;
+		value.hidden = false;
+		button.ariaExpanded = "false";
 	});
 }
 
@@ -139,12 +177,14 @@ function showView () {
 	let role = params.get("role");
 	let filter = params.get("filter");
 
-	for (let form of [repoForm, filterForm]) {
+	// As defaults, so a reset, e.g. Esc in a summary form, goes back to what the URL says
+	for (let form of forms) {
 		for (let field of form.elements) {
 			if (field.name) {
-				field.value = params.get(field.name);
+				field.defaultValue = params.get(field.name) ?? "";
 			}
 		}
+		form.reset();
 	}
 
 	// Each role opens the same queue, filter and all, from the other side
@@ -337,6 +377,8 @@ function showSummary ({ repo, user, role, filter }) {
 	person.href = `https://github.com/${user}`;
 	person.querySelector("img").src = `https://github.com/${user}.png?size=48`;
 	person.querySelector("span").textContent = user;
+	// An empty field opens the queue of the signed-in user
+	strip.querySelector("#user-edit [name=user]").placeholder = github.user?.username;
 
 	let count = strip.querySelector(".count");
 	count.href = `https://github.com/pulls?q=${encodeURIComponent(search({ repo, user, role, filter }))}`;
