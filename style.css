@@ -603,6 +603,45 @@ progress {
 	.scroller {
 		overflow-x: auto;
 		border-radius: var(--radius);
+
+		/* Fades an edge while there is more to scroll to. The frame’s own mask, moved by its scroll, needs no element to draw it.
+		   Without scroll timelines the animation would end at once, fading the start for good */
+		@supports (animation-timeline: scroll()) {
+			mask: linear-gradient(to right, transparent, black var(--fade-start), black calc(100% - var(--fade-end)), transparent);
+			animation: scroll-fades linear both;
+			animation-timeline: scroll(self inline);
+		}
+	}
+}
+
+/* Registered, so the fades grow and shrink rather than jump */
+@property --fade-start {
+	syntax: "<length>";
+	inherits: false;
+	initial-value: 0px;
+}
+
+@property --fade-end {
+	syntax: "<length>";
+	inherits: false;
+	initial-value: 0px;
+}
+
+@keyframes scroll-fades {
+	from {
+		--fade-start: 0px;
+		--fade-end: 2rem;
+	}
+
+	10%,
+	90% {
+		--fade-start: 2rem;
+		--fade-end: 2rem;
+	}
+
+	to {
+		--fade-start: 2rem;
+		--fade-end: 0px;
 	}
 }
 
