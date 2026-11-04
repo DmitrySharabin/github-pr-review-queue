@@ -20,6 +20,7 @@ let repoForm = document.querySelector("#repo-form");
 let narrow = document.querySelector("#narrow");
 let strip = document.querySelector("#summary");
 let updated = document.querySelector("#updated time");
+let changes = document.querySelector("#updated .changes");
 let filterForm = narrow.querySelector("form");
 let forms = [repoForm, filterForm, ...strip.querySelectorAll("form")];
 
@@ -299,6 +300,8 @@ async function load () {
 
 	// The count it was about may change before the load ends, e.g. narrowed by a label
 	showDelta();
+	// A screen reader hears that a refresh started and how it ended, e.g. “Updated at 5:44 PM, No changes”, even within one minute
+	changes.textContent = seen ? "Refreshing…" : "";
 
 	// aria-disabled, unlike disabled, keeps focus on the button while it waits
 	refresh.ariaDisabled = "true";
@@ -323,6 +326,7 @@ async function load () {
 			shown = undefined;
 			rows = [];
 			seen = undefined;
+			changes.textContent = "";
 		}
 
 		/** Fill in the slow fields of these PRs’ rows, a few PRs per query. */
@@ -387,7 +391,9 @@ async function load () {
 		let last = seen;
 		seen = new Map(rows.map(row => [row.pr.id, row.tr.cloneNode(true)]));
 		if (last) {
-			showDelta(mark(last));
+			let delta = mark(last);
+			showDelta(delta);
+			changes.textContent = [delta.added && `${delta.added} new`, delta.left && `${delta.left} gone`].filter(Boolean).join(", ") || "No changes";
 		}
 	}
 	catch (error) {
@@ -405,6 +411,7 @@ async function load () {
 			updated.textContent = "";
 		}
 
+		changes.textContent = "";
 		status.textContent = `Couldn’t load pull requests. ${describe(error)}`;
 		status.hidden = false;
 		// Most failures come from the repo or the user, so the form lets the user check and fix them
@@ -547,14 +554,11 @@ function showSummary ({ repo, user, role, filter }) {
 	strip.hidden = false;
 }
 
-/** Show next to the count how many PRs the last load added and how many left, e.g. “+3” over “−2”, or nothing when neither. */
+/** Show next to the count how many PRs the last load added and how many are gone, e.g. “+3” over “−2”, or nothing when neither. A screen reader hears them in {@link changes}. */
 function showDelta ({ added, left } = {}) {
 	let delta = strip.querySelector(".delta");
 	delta.querySelector(".up").textContent = added ? `+${added}` : "";
 	delta.querySelector(".down").textContent = left ? `−${left}` : "";
-
-	let said = [added && `${added} new`, left && `${left} left`].filter(Boolean).join(", ");
-	delta.querySelector(".said").textContent = said && `${said} since the last load`;
 }
 
 function graphql (text) {
@@ -592,6 +596,7 @@ async function login (repo) {
 		strip.hidden = true;
 		table.parentElement.hidden = true;
 		narrow.hidden = true;
+		changes.textContent = "";
 		status.hidden = false;
 		status.textContent = `Sign in to see the pull requests in ${repo}.`;
 		progress.hidden = true;

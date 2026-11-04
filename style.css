@@ -107,6 +107,11 @@ header:has(progress[hidden]) #updated:has(time:empty) {
 	visibility: hidden;
 }
 
+/* Pauses a screen reader after the time, e.g. “Updated at 5:44 PM, 1 new” */
+#updated .changes::before {
+	content: "" / ", ";
+}
+
 /* Fades in as each load ends, so even a refresh in the same minute shows it finished */
 #controls:has(#refresh:not([aria-disabled])) time {
 	animation: appear 200ms var(--ease-out);
@@ -118,9 +123,9 @@ header:has(progress[hidden]) #updated:has(time:empty) {
 	}
 }
 
-/* Said on screen by the summary above the table, and by the signs of the delta, e.g. “+3” for “3 new” */
+/* Said on screen by the summary above the table, and by the delta next to its count, e.g. “+3” for “3 new” */
 caption,
-.delta .said {
+#updated .changes {
 	position: absolute;
 	clip-path: inset(50%);
 	white-space: nowrap;

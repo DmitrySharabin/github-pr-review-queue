@@ -30,7 +30,7 @@
 		<header>
 			<h1>GitHub PR review queue</h1>
 			<div id="controls" inert>
-				<p id="updated" role="status" aria-atomic="true">Updated at <time></time></p>
+				<p id="updated" role="status" aria-atomic="true">Updated at <time></time><span class="changes"></span></p>
 				<button id="refresh" aria-disabled="true">Refresh</button>
 				<button id="sign-out">Sign out</button>
 			</div>
@@ -124,7 +124,7 @@
 			</div>
 			<div>
 				<dt data-author="Open" data-reviewer="Awaiting review"></dt>
-				<dd><a class="count" target="_blank"></a><span class="delta" role="status"><span class="up" aria-hidden="true"></span><span class="down" aria-hidden="true"></span><span class="said"></span></span></dd>
+				<dd><a class="count" target="_blank"></a><span class="delta" aria-hidden="true"><span class="up"></span><span class="down"></span></span></dd>
 			</div>
 			<div>
 				<dt>Latest request</dt>
