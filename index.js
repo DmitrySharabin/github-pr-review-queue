@@ -1,6 +1,6 @@
 /** @import { Summary } from "./pull-request.js" */
 import GithubAPI from "https://cdn.jsdelivr.net/gh/madatajs/madata@063fc247b1a03924c836d74ea2f3d8fdc86ded2c/backends/github/api/github-api.js";
-import { details, query, search, summarize, sum } from "./pull-request.js";
+import { details, query, search, summarize, sum, withLabel } from "./pull-request.js";
 
 let github = new GithubAPI("https://api.github.com/graphql");
 let table = document.querySelector("#queue");
@@ -13,6 +13,7 @@ let controls = document.querySelector("#controls");
 let tokenForm = document.querySelector("#token-form");
 let rowTemplate = document.querySelector("#row");
 let reviewerTemplate = document.querySelector("#reviewer");
+let labelTemplate = document.querySelector("#label");
 let repoForm = document.querySelector("#repo-form");
 let narrow = document.querySelector("#narrow");
 let strip = document.querySelector("#summary");
@@ -42,6 +43,9 @@ const reviewerPhrases = {
 	"changes-requested": "requested changes",
 	"commented": "commented",
 };
+
+/** How many labels a row shows before a button for the rest */
+const labelLimit = 5;
 
 const units = [["day", 864e5], ["hour", 36e5], ["minute", 6e4]];
 // Short units, e.g. “11 min. ago”, keep the latest request on one line in the summary
@@ -499,6 +503,11 @@ function sort () {
 /** Show a summary in its row, replacing the row only when it shows something new. */
 function fill (row, summary) {
 	let tr = render(summary);
+	// Labels the user showed stay shown, so the row only changes when they do
+	if (row.tr && !row.tr.querySelector(".labels .more")) {
+		showAllLabels(tr);
+	}
+
 	// An unchanged row stays, e.g. on a refresh, so a focused link or selected text in it stays too
 	if (!row.tr?.isEqualNode(tr)) {
 		row.tr?.replaceWith(tr);
@@ -553,25 +562,30 @@ function unmark (tr) {
 	}
 }
 
-/** Whether two cells show the same thing. A time compares by its date, since its text, e.g. “5 min. ago”, changes as time passes. */
+/**
+ * Whether two cells show the same thing. A time compares by its date, since its text, e.g. “5 min. ago”, changes as time passes.
+ * Labels compare all of them, shown or not, since the user may have shown them after the last load.
+ */
 function same (cell, other) {
 	let [x, y] = [cell, other].map(element => {
 		let clone = element.cloneNode(true);
 		for (let time of clone.querySelectorAll("time")) {
 			time.textContent = time.dateTime;
 		}
+		showAllLabels(clone);
 		return clone;
 	});
 
 	return x.isEqualNode(y);
 }
 
-function render ({ number, title, url, author, avatar, diff, diffSinceReview, iterations, waitingSince, reviewers }) {
+function render ({ number, title, url, author, avatar, labels, diff, diffSinceReview, iterations, waitingSince, reviewers }) {
 	let tr = rowTemplate.content.firstElementChild.cloneNode(true);
 
 	let link = tr.querySelector(".title");
 	link.href = url;
 	link.textContent = title;
+	showLabels(tr.querySelector(".headline"), labels);
 	tr.querySelector(".number").textContent = `#${number}`;
 	tr.querySelector(".author").textContent = author;
 	tr.querySelector(".avatar img").src = avatar;
@@ -587,6 +601,56 @@ function render ({ number, title, url, author, avatar, diff, diffSinceReview, it
 	showReviewers(tr.querySelector(".reviewers"), reviewers);
 
 	return tr;
+}
+
+/** Links to the queue of each label, e.g. `?repo=foo/bar&filter=label:"bug"`, the ones past {@link labelLimit} behind a button */
+function showLabels (headline, labels) {
+	if (!labels.length) {
+		return;
+	}
+
+	let list = document.createElement("ul");
+	list.className = "labels";
+	list.ariaLabel = "Labels";
+	list.append(...labels.map(({ name, color, description }, i) => {
+		let item = labelTemplate.content.firstElementChild.cloneNode(true);
+		let link = item.querySelector("a");
+		let params = new URLSearchParams(location.search);
+		params.set("filter", withLabel(params.get("filter"), name));
+		link.href = `?${params}`;
+		link.textContent = name;
+		link.ariaLabel = `Filter by label ${name}`;
+		link.title = description ?? "";
+		item.style.setProperty("--color", `#${color}`);
+		item.hidden = i >= labelLimit;
+		return item;
+	}));
+
+	let rest = labels.length - labelLimit;
+	if (rest > 0) {
+		let item = document.createElement("li");
+		let button = document.createElement("button");
+		button.className = "more";
+		button.textContent = `+${rest}`;
+		button.ariaLabel = `Show ${rest} more labels`;
+		button.addEventListener("click", () => {
+			let first = list.querySelector("li[hidden] a");
+			showAllLabels(list);
+			first.focus();
+		});
+		item.append(button);
+		list.append(item);
+	}
+
+	headline.append(" ", list);
+}
+
+function showAllLabels (element) {
+	for (let item of element.querySelectorAll(".labels li[hidden]")) {
+		item.hidden = false;
+	}
+
+	element.querySelector(".labels .more")?.parentElement.remove();
 }
 
 function showReviewers (cell, reviewers) {

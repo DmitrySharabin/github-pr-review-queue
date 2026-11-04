@@ -732,6 +732,58 @@ tbody {
 	}
 }
 
+/* Pills in each label’s own color. They start on the title’s last line, or all move to the next when they don’t fit there */
+.labels {
+	display: inline-flex;
+	flex-wrap: wrap;
+	gap: 0.3em;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	font-size: 0.75em;
+	font-weight: 500;
+	line-height: 1.6;
+
+	li {
+		/* The link inherits the color */
+		color: oklch(from var(--color, var(--surface)) max(0, sign(0.623 - l)) 0 h);
+
+		@supports (color: contrast-color(red)) {
+			color: contrast-color(var(--color, var(--surface)));
+		}
+	}
+
+	:is(a, .more) {
+		display: block;
+		padding-inline: 0.6em;
+		border: 1px solid color-mix(in oklch, var(--color, var(--surface)), var(--text) 12%);
+		border-radius: 2em;
+		outline-offset: 1px;
+		transition: scale 160ms var(--ease-out);
+
+		@media (prefers-reduced-motion: no-preference) {
+			&:active {
+				scale: 0.97;
+			}
+		}
+	}
+
+	a {
+		background: var(--color);
+	}
+
+	.more {
+		background: var(--surface);
+		color: var(--muted);
+		font: inherit;
+		cursor: pointer;
+
+		&:hover {
+			color: var(--text);
+		}
+	}
+}
+
 /* A value still loading leaves its cell or time empty: a flat bar holds its place */
 :is(td, time):empty::before {
 	content: "";
@@ -878,7 +930,7 @@ tbody {
 	mask: repeating-linear-gradient(to right, black 0 calc(20% - 1px), transparent 0 20%);
 }
 
-th button {
+thead button {
 	padding: 0;
 	border: none;
 	background: none;
@@ -909,7 +961,7 @@ th button {
 	}
 }
 
-th:not([aria-sort]) button::before {
+thead th:not([aria-sort]) button::before {
 	visibility: hidden;
 }
 

@@ -20,12 +20,18 @@
  * @property {"awaiting" | "approved" | "changes-requested" | "commented"} state
  * @property {string} url - Their latest review, or their profile while their review is awaited
  *
+ * @typedef {object} Label
+ * @property {string} name
+ * @property {string} color - A hex color without `#`, e.g. `d73a4a`
+ * @property {string | null} description
+ *
  * @typedef {object} Summary
  * @property {number} number
  * @property {string} title
  * @property {string} url
  * @property {string} author
  * @property {string} avatar - The author’s avatar URL
+ * @property {Label[]} labels
  * @property {Diff} diff - The whole PR
  * @property {Diff} [diffSinceReview] - What the user has left to review, or the whole PR when that is unknown
  * @property {number} [iterations] - How many times review was asked for again after a review
@@ -45,6 +51,17 @@ export function search ({ repo, user, role, filter }) {
 }
 
 /**
+ * The filter for PRs with the label `name` instead of the labels it asks for, keeping the rest, e.g. `-label:wip label:"needs review"`.
+ * @param {string | null} [filter]
+ * @param {string} name
+ * @returns {string}
+ */
+export function withLabel (filter, name) {
+	let rest = (filter ?? "").replace(/(^|\s)label:("[^"]*"|\S+)/g, "").trim();
+	return `${rest} label:"${name}"`.trim();
+}
+
+/**
  * GraphQL query for the PRs {@link search} finds, with the fields that are cheap to get.
  * @param {View} options
  * @returns {string}
@@ -53,7 +70,7 @@ export function query ({ repo, user, role, filter }) {
 	let [owner, name] = repo.split("/");
 
 	// The search finds nothing for a repo or a user that does not exist, `repository` and `user` fail with an error instead
-	// NOTE: Gets only the first 100 PRs
+	// NOTE: Gets only the first 100 PRs and their first 100 labels
 	return `query {
 	repository(owner: ${JSON.stringify(owner)}, name: ${JSON.stringify(name)}) { id }
 	user(login: ${JSON.stringify(user)}) { id }
@@ -62,6 +79,7 @@ export function query ({ repo, user, role, filter }) {
 			... on PullRequest {
 				id number title url additions deletions
 				author { login avatarUrl(size: 64) }
+				labels(first: 100) { nodes { name color description } }
 			}
 		}
 	}
@@ -125,6 +143,7 @@ export function summarize (pr, user, role) {
 		url: pr.url,
 		author: pr.author?.login ?? "ghost",
 		avatar: pr.author?.avatarUrl ?? "https://github.com/ghost.png",
+		labels: pr.labels.nodes,
 		diff: { additions: pr.additions, deletions: pr.deletions, url: `${pr.url}/changes` },
 	};
 
