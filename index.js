@@ -405,14 +405,39 @@ function sort () {
 		return sign * (x - y);
 	});
 
-	table.tBodies[0].replaceChildren(...rows.map(row => row.tr));
+	// A row already at its place stays, e.g. every row on a refresh that changes no order.
+	// moveBefore() keeps a moved row’s focus and selected text, which insertBefore() drops. A new row isn’t on the page yet
+	let body = table.tBodies[0];
+	rows.forEach(({ tr }, i) => {
+		let next = body.rows[i] ?? null;
+		if (tr === next) {
+			return;
+		}
+
+		if (tr.isConnected && body.moveBefore) {
+			body.moveBefore(tr, next);
+		}
+		else {
+			body.insertBefore(tr, next);
+		}
+	});
+
+	// Left after the sorted rows: those of PRs the search no longer finds
+	while (body.rows.length > rows.length) {
+		body.rows[rows.length].remove();
+	}
 }
 
-/** Show a summary in its row, replacing what the row showed before. */
+/** Show a summary in its row, replacing the row only when it shows something new. */
 function fill (row, summary) {
 	let tr = render(summary);
-	row.tr?.replaceWith(tr);
-	Object.assign(row, { summary, tr });
+	// An unchanged row stays, e.g. on a refresh, so a focused link or selected text in it stays too
+	if (!row.tr?.isEqualNode(tr)) {
+		row.tr?.replaceWith(tr);
+		row.tr = tr;
+	}
+
+	row.summary = summary;
 }
 
 function render ({ number, title, url, author, avatar, diff, diffSinceReview, iterations, waitingSince, reviewers }) {
