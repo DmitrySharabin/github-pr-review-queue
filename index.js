@@ -54,7 +54,7 @@ const units = [["day", 864e5], ["hour", 36e5], ["minute", 6e4]];
 // Short units, e.g. “11 min. ago”, keep the latest request on one line in the summary
 const relative = new Intl.RelativeTimeFormat("en", { numeric: "auto", style: "short" });
 
-/** @type {{ pr: object, summary: Summary, tr: HTMLTableRowElement }[]} */
+/** @type {{ pr: object, detailed?: object, summary: Summary, tr: HTMLTableRowElement }[]} `detailed` is the copy of `pr` the summary’s details were asked for */
 let rows = [];
 /** What the rows show: the URL parameters of their load, e.g. `{ repo: "foo/bar", filter: "label:baz" }` */
 let shown;
@@ -272,7 +272,7 @@ async function load () {
 		let previous = new Map(rows.map(row => [row.pr.id, row]));
 		rows = stored.rows.map(({ pr, summary }) => {
 			let row = previous.get(pr.id) ?? {};
-			row.pr = pr;
+			row.pr = row.detailed = pr;
 			fill(row, summary);
 			return row;
 		});
@@ -334,6 +334,7 @@ async function load () {
 
 				// The search may have refreshed the cheap fields during the comparison, e.g. a new title
 				fill(row, { ...summary, ...summarize(row.pr, user, role) });
+				row.detailed = row.pr;
 			}));
 		}));
 
@@ -349,8 +350,9 @@ async function load () {
 		let stale = [];
 		rows = found.nodes.map(pr => {
 			let row = previous.get(pr.id) ?? {};
-			// A range left means its comparison failed, so the next load tries again
-			if (!row.summary?.reviewers || row.summary.diffSinceReview.range || outdated(row.pr, pr)) {
+			// A range left means its comparison failed, so the next load tries again.
+			// The details are checked against their own copy: a load stopped before they came, e.g. by a label click, already replaced `pr`
+			if (!row.detailed || row.summary.diffSinceReview.range || outdated(row.detailed, pr)) {
 				stale.push(pr.id);
 			}
 
