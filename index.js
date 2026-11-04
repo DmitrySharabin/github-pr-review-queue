@@ -597,7 +597,7 @@ function mark (last, states) {
 		}
 
 		let label = tr.querySelector("mark");
-		label.textContent = old ? "Changed" : "New";
+		label.textContent = old ? "changed" : "new";
 		label.hidden = false;
 		if (!old) {
 			tr.classList.add("new");

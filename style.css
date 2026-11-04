@@ -710,10 +710,14 @@ tbody {
 
 	/* Says in words what the color says, also in forced colors, where the color goes */
 	mark {
-		padding-inline: 0.4em;
-		border-radius: 0.25em;
-		background: color-mix(in oklch, var(--attention) 30%, var(--surface));
+		background: none;
 		color: var(--text);
+		font-weight: 500;
+
+		/* Seen, not read aloud */
+		&::before {
+			content: "· " / "";
+		}
 	}
 
 	/* The last row’s marks keep the table’s rounded corners */
