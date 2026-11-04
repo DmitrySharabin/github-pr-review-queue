@@ -220,6 +220,7 @@ caption {
 			min-block-size: 1.5rem;
 			padding-inline: 0.5em;
 			border-radius: 1e5px;
+			color: inherit;
 			text-decoration: none;
 			transition: background-color 150ms ease, color 150ms ease;
 
@@ -602,7 +603,7 @@ tbody {
 	}
 }
 
-:is(#summary, tbody) a {
+:is(#summary dd, tbody) a {
 	color: inherit;
 	text-decoration: none;
 
