@@ -230,6 +230,8 @@ async function load () {
 		// A new filter may drop some of them, so it waits for the search to know which to update
 		let early = sameView ? kept.map(row => row.pr.id) : [];
 		let updating = update(early);
+		// Awaited after the search, which may fail first and skip that await
+		updating.catch(() => {});
 
 		let { search: found } = await graphql(query({ ...view, user }));
 		signal.throwIfAborted();
