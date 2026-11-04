@@ -75,12 +75,11 @@ small {
 	flex-wrap: wrap;
 	gap: 1em;
 	align-items: center;
+	transition: opacity 150ms var(--ease-out), visibility 150ms;
 
 	&[hidden] {
 		display: none;
 	}
-
-	transition: opacity 150ms var(--ease-out), visibility 150ms;
 
 	/* Until the sign-in check passes: unseen, but in place, so they appear without moving the page */
 	&[inert] {
@@ -171,7 +170,7 @@ caption {
 				flex: none;
 				inline-size: 2rem;
 				opacity: 0;
-				transition: opacity 0.2s;
+				transition: opacity 200ms ease;
 				pointer-events: none;
 			}
 
@@ -263,7 +262,7 @@ form button,
 	color: white;
 
 	&:hover {
-		background: color-mix(in oklch, var(--text), white 20%);
+		background: color-mix(in oklch, var(--text) 80%, var(--surface));
 	}
 }
 
@@ -476,7 +475,7 @@ progress {
 	translate: 0 -50%;
 	block-size: 0.25rem;
 	appearance: none;
-	border: 0 solid;
+	border: none;
 	border-radius: 1e5px;
 	overflow: clip;
 	background: var(--border);
@@ -522,7 +521,7 @@ progress {
 	from,
 	to {
 		inline-size: 30%;
-		margin-right: auto;
+		margin-inline-end: auto;
 	}
 
 	from {
@@ -681,7 +680,8 @@ time:empty {
 }
 
 /* Avatar links: a ring on hover and focus, a press on click */
-:is(.pull-request .avatar, .reviewers a) {
+.pull-request .avatar,
+.reviewers a {
 	border-radius: 50%;
 	outline: 2px solid transparent;
 	outline-offset: 2px;

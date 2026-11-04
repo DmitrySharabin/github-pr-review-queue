@@ -324,7 +324,7 @@ function showSummary ({ repo, user, role, filter }) {
 }
 
 function graphql (text) {
-	return github.load("https://api.github.com/graphql#" + text);
+	return github.load(`https://api.github.com/graphql#${text}`);
 }
 
 /** Replace a diff’s estimate with GitHub’s exact count, when it has a range to compare. */
