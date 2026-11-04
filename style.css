@@ -765,10 +765,9 @@ tbody {
 .labels {
 	display: inline-flex;
 	flex-wrap: wrap;
-	/* Wrapped rows stay 24px apart, the smallest target spacing WCAG allows. The line below keeps the same distance */
-	--row-gap: 0.5em;
-	gap: var(--row-gap) 0.3em;
-	margin: 0 0 var(--row-gap);
+	/* Wrapped rows, and the author link on the line below, stay 24px apart center to center, the smallest target spacing WCAG allows */
+	gap: 0.5em 0.3em;
+	margin: 0 0 0.625em;
 	padding: 0;
 	list-style: none;
 	font-size: 0.75em;
