@@ -506,7 +506,7 @@ function showDiff (cell, diff) {
 		cell.classList.add("whole");
 		// On the link, so keyboard focus reaches it too
 		link.title = wholeTitles[diff.whole];
-		cell.querySelector(".tag").hidden = diff.whole !== "force-pushed";
+		cell.querySelector(".force-pushed").hidden = diff.whole !== "force-pushed";
 	}
 }
 

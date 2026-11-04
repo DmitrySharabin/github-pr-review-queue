@@ -606,14 +606,34 @@ time:empty {
 }
 
 /* The whole PR, standing in for a diff since a review */
-.whole {
+.whole :is(.added, .deleted, .diffstat) {
 	filter: grayscale(1);
 }
 
-.tag {
-	padding: 0.1em 0.5em;
-	border-radius: 1e5px;
-	background: var(--rule);
+/* GitHub’s push icon, in a slot every cell of the column keeps, so its figures, “No changes”, the loading bar and the header share one edge.
+   In rem, so the smaller header keeps the same slot */
+.since-review {
+	--icon-size: 1rem;
+	--icon-gap: 0.5rem;
+
+	&:not(:has(.force-pushed)) {
+		padding-inline-end: calc(1.15em + var(--icon-gap) + var(--icon-size));
+	}
+}
+
+/* Lowered below the digits’ middle by the icon’s own imbalance: its mass sits above its center, at 7.46 of 16 units */
+.force-pushed {
+	display: inline-block;
+	inline-size: var(--icon-size);
+	aspect-ratio: 1;
+	margin-inline-start: var(--icon-gap);
+	vertical-align: -0.3em;
+	background-color: var(--attention);
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0V1.5h-8a1 1 0 0 0-1 1v6.708A2.493 2.493 0 0 1 4.5 9h2.25a.75.75 0 0 1 0 1.5H4.5a1 1 0 0 0 0 2h4.75a.75.75 0 0 1 0 1.5H4.5A2.5 2.5 0 0 1 2 11.5Zm12.23 7.79h-.001l-1.224-1.224v6.184a.75.75 0 0 1-1.5 0V9.066L10.28 10.29a.75.75 0 0 1-1.06-1.061l2.505-2.504a.75.75 0 0 1 1.06 0L15.29 9.23a.751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018Z'/%3E%3C/svg%3E") no-repeat center / contain;
+
+	&[hidden] {
+		visibility: hidden;
+	}
 }
 
 /* Avatars with a badge for what each did */
