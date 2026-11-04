@@ -15,12 +15,21 @@
 	<main>
 		<header>
 			<h1>GitHub PR review queue</h1>
-			<p id="updated" hidden>Updated at <time></time></p>
-			<button id="refresh" hidden>Refresh</button>
-			<button id="sign-out" hidden>Sign out</button>
+			<div id="controls" inert>
+				<p id="updated">Updated at <time></time></p>
+				<button id="refresh" aria-disabled="true">Refresh</button>
+				<button id="sign-out">Sign out</button>
+			</div>
+			<progress aria-labelledby="status"></progress>
 		</header>
+		<script>
+			// The page that asks for a repo has nothing to refresh or sign out of.
+			// Hidden before the first paint, so the header doesn’t shrink after it
+			if (!new URLSearchParams(location.search).get("repo")) {
+				document.querySelector("#controls").hidden = true;
+			}
+		</script>
 		<p id="status" role="status">Loading pull requests…</p>
-		<progress aria-labelledby="status"></progress>
 		<div id="sign-in" hidden>
 			<button aria-describedby="sign-in-note">Sign in with GitHub</button>
 			<small id="sign-in-note">For now, signing in grants this page full access to your profile and to every repo you can reach, private ones included.</small>
@@ -58,7 +67,7 @@
 				<dd><a class="user" target="_blank"><img alt="" width="24" height="24"> <span></span></a></dd>
 			</div>
 			<div>
-				<dt data-author="Open">Awaiting review</dt>
+				<dt data-author="Open" data-reviewer="Awaiting review"></dt>
 				<dd><a class="count" target="_blank"></a></dd>
 			</div>
 			<div>
@@ -82,7 +91,7 @@
 
 		<div class="scroller" role="region" aria-labelledby="caption" hidden>
 			<table id="queue">
-				<caption id="caption" data-author="Open pull requests">Pull requests awaiting review</caption>
+				<caption id="caption" data-author="Open pull requests" data-reviewer="Pull requests awaiting review"></caption>
 				<thead>
 					<tr>
 						<th scope="col">Pull request</th>
@@ -90,7 +99,7 @@
 						<th scope="col"><button commandfor="queue" command="--sort" value="diffSinceReview">Changes since last review</button></th>
 						<th scope="col"><button commandfor="queue" command="--sort" value="iterations">Iterations</button></th>
 						<th scope="col" aria-sort="descending"><button commandfor="queue" command="--sort" value="waitingSince">Requested</button></th>
-						<th scope="col" data-author="Reviewers">Other reviewers</th>
+						<th scope="col" data-author="Reviewers" data-reviewer="Other reviewers"></th>
 					</tr>
 				</thead>
 				<tbody></tbody>

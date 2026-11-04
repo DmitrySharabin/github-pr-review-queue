@@ -2,11 +2,6 @@
 import GithubAPI from "https://cdn.jsdelivr.net/gh/madatajs/madata@063fc247b1a03924c836d74ea2f3d8fdc86ded2c/backends/github/api/github-api.js";
 import { details, query, search, summarize, sum } from "./pull-request.js";
 
-let params = new URLSearchParams(location.search);
-let repo = params.get("repo");
-let filter = params.get("filter");
-let role = params.get("role");
-
 let github = new GithubAPI("https://api.github.com/graphql");
 let table = document.querySelector("#queue");
 let status = document.querySelector("#status");
@@ -14,6 +9,7 @@ let progress = document.querySelector("progress");
 let signIn = document.querySelector("#sign-in");
 let refresh = document.querySelector("#refresh");
 let signOut = document.querySelector("#sign-out");
+let controls = document.querySelector("#controls");
 let tokenForm = document.querySelector("#token-form");
 let rowTemplate = document.querySelector("#row");
 let reviewerTemplate = document.querySelector("#reviewer");
@@ -48,6 +44,10 @@ const relative = new Intl.RelativeTimeFormat("en", { numeric: "auto", style: "sh
 
 /** @type {{ pr: object, summary: Summary, tr: HTMLTableRowElement }[]} */
 let rows = [];
+/** What the rows show: the URL parameters of their load, e.g. `{ repo: "foo/bar", filter: "label:baz" }` */
+let shown;
+/** @type {AbortController | undefined} Aborts the load in flight */
+let loading;
 
 // The last sort survives a reload, e.g. { column: "diff", direction: "ascending" }
 let saved = JSON.parse(localStorage.getItem("review-queue:sort"));
@@ -83,12 +83,6 @@ signOut.addEventListener("click", async () => {
 
 // The forms submit their fields as URL parameters, so the URL they open can be copied and reused
 for (let form of [repoForm, narrow.querySelector("form")]) {
-	for (let field of form.elements) {
-		if (field.name) {
-			field.value = params.get(field.name);
-		}
-	}
-
 	form.addEventListener("formdata", ({ formData }) => {
 		// An empty field means its default, e.g. the signed-in user: ?repo=foo/bar, not ?repo=foo/bar&user=
 		for (let [name, value] of [...formData]) {
@@ -99,68 +93,108 @@ for (let form of [repoForm, narrow.querySelector("form")]) {
 	});
 }
 
-// An author sees their own PRs, so some names change, e.g. “Awaiting review” becomes “Open”
-if (role === "author") {
-	for (let element of document.querySelectorAll("[data-author]")) {
-		element.textContent = element.dataset.author;
-	}
-}
-
-// Each role opens the same queue, filter and all, from the other side
-for (let link of document.querySelectorAll("#summary .roles a")) {
-	let switched = new URLSearchParams(params);
-	if (link.dataset.role) {
-		switched.set("role", link.dataset.role);
-	}
-	else {
-		switched.delete("role");
-	}
-
-	link.href = `?${switched}`;
-	link.ariaCurrent = (link.dataset.role === "author") === (role === "author") ? "page" : null;
-}
-
-// The folded filter still shows what it filters by
-narrow.querySelector("summary code").textContent = filter;
-
-let unfiltered = new URLSearchParams(params);
-unfiltered.delete("filter");
-let clear = narrow.querySelector(".clear");
-clear.href = `?${unfiltered}`;
-clear.hidden = !filter;
 narrow.addEventListener("toggle", () => {
 	if (narrow.open) {
 		narrow.querySelector("[name=filter]").focus();
 	}
 });
 
-if (repo) {
-	refresh.addEventListener("click", load);
-	load();
-}
-else {
+refresh.addEventListener("click", () => {
+	if (refresh.ariaDisabled !== "true") {
+		load();
+	}
+});
+
+// A filter, a role switch or another repo loads in place, so what it doesn’t change stays put, e.g. the open filter form.
+// Without the Navigation API, or to or from the page that asks for a repo, the page reloads:
+// going back to that page shows it, not just its URL, and leaving it brings back the controls it hides
+window.navigation?.addEventListener("navigate", event => {
+	let next = new URL(event.destination.url).searchParams;
+	let current = new URLSearchParams(location.search);
+	if (!event.canIntercept || event.hashChange || event.navigationType === "reload" || !current.get("repo") || !next.get("repo")) {
+		return;
+	}
+
+	// The handler runs once the URL has changed. Focus and scroll stay where they were, e.g. on the Apply button
+	event.intercept({ focusReset: "manual", scroll: "manual", handler: showView });
+});
+
+showView();
+
+/** Show what the URL asks for, e.g. `?repo=foo/bar&filter=label:baz`. */
+function showView () {
+	let params = new URLSearchParams(location.search);
+	let role = params.get("role");
+	let filter = params.get("filter");
+
+	for (let form of [repoForm, narrow.querySelector("form")]) {
+		for (let field of form.elements) {
+			if (field.name) {
+				field.value = params.get(field.name);
+			}
+		}
+	}
+
+	// Each role opens the same queue, filter and all, from the other side
+	for (let link of document.querySelectorAll("#summary .roles a")) {
+		let switched = new URLSearchParams(params);
+		if (link.dataset.role) {
+			switched.set("role", link.dataset.role);
+		}
+		else {
+			switched.delete("role");
+		}
+
+		link.href = `?${switched}`;
+		link.ariaCurrent = (link.dataset.role === "author") === (role === "author") ? "page" : null;
+	}
+
+	// The folded filter still shows what it filters by
+	narrow.querySelector("summary code").textContent = filter;
+
+	let unfiltered = new URLSearchParams(params);
+	unfiltered.delete("filter");
+	let clear = narrow.querySelector(".clear");
+	clear.href = `?${unfiltered}`;
+	clear.hidden = !filter;
+
+	if (params.get("repo")) {
+		return load();
+	}
+
 	status.textContent = "Choose a repository to see its review queue.";
 	progress.hidden = true;
 	repoForm.hidden = false;
 }
 
-/** Load the queue. A refresh keeps the current rows on screen until the new ones arrive. */
+/**
+ * Load the queue the URL asks for, and drop the results of a load still in flight.
+ * The rows on screen stay until the new ones arrive, and those of the same queue, e.g. on a refresh or a new filter, update in place.
+ */
 async function load () {
-	// aria-disabled, unlike disabled, keeps focus on the button while it waits
-	if (refresh.ariaDisabled === "true") {
-		return;
-	}
+	loading?.abort();
+	loading = new AbortController();
+	let { signal } = loading;
 
+	// A missing parameter means its default, e.g. no `user` is the signed-in user. A repeated one counts once, as in the forms
+	let params = new URLSearchParams(location.search);
+	let view = Object.fromEntries(["repo", "user", "role", "filter"].map(name => [name, params.get(name)]));
+	let { repo, role, filter } = view;
+	let sameQueue = ["repo", "user", "role"].every(name => view[name] === shown?.[name]);
+	let sameView = sameQueue && filter === shown.filter;
+
+	// aria-disabled, unlike disabled, keeps focus on the button while it waits
 	refresh.ariaDisabled = "true";
 	status.textContent = "Loading pull requests…";
 	progress.hidden = false;
 
 	try {
-		await login();
-		signOut.hidden = false;
+		await login(repo);
+		signal.throwIfAborted();
+		controls.inert = false;
 
 		// Madata signs in without a user when GitHub fails to answer anything but a 401, e.g. offline
-		let user = params.get("user") || github.user?.username;
+		let user = view.user || github.user?.username;
 		if (!user) {
 			throw new Error("GitHub didn’t say who is signed in.");
 		}
@@ -172,24 +206,41 @@ async function load () {
 			await Promise.all(nodes.map(async pr => {
 				let row = rows.find(row => row.pr.id === pr.id);
 
-				// A PR the search no longer finds, e.g. merged meanwhile
-				if (!row) {
+				// A PR the search no longer finds, e.g. merged meanwhile, or rows a newer load owns, e.g. after a role switch
+				if (!row || signal.aborted) {
 					return;
 				}
 
 				let summary = summarize({ ...row.pr, ...pr }, user, role);
-				await compare(summary.diffSinceReview);
+				await compare(repo, summary.diffSinceReview);
+				// A newer load may have started during the comparison
+				if (signal.aborted) {
+					return;
+				}
+
 				// The search may have refreshed the cheap fields during the comparison, e.g. a new title
 				fill(row, { ...summary, ...summarize(row.pr, user, role) });
 			}));
 		}));
 
-		// The rows on screen update while the search looks for new ones, so a refresh doesn’t wait for it first
-		let known = rows.map(row => row.pr.id);
-		let updating = update(known);
+		// Rows of another queue, e.g. before a role switch, stay on screen until the search replaces them, but don’t update
+		let kept = sameQueue ? rows : [];
 
-		let { search: found } = await graphql(query({ repo, user, role, filter }));
-		let previous = new Map(rows.map(row => [row.pr.id, row]));
+		// A refresh updates the rows on screen while the search looks for new ones, so it doesn’t wait for the search first.
+		// A new filter may drop some of them, so it waits for the search to know which to update
+		let early = sameView ? kept.map(row => row.pr.id) : [];
+		let updating = update(early);
+
+		let { search: found } = await graphql(query({ ...view, user }));
+		signal.throwIfAborted();
+		shown = view;
+
+		// An author sees their own PRs, so some names change with the rows, e.g. “Awaiting review” becomes “Open”
+		for (let element of document.querySelectorAll("[data-author]")) {
+			element.textContent = role === "author" ? element.dataset.author : element.dataset.reviewer;
+		}
+
+		let previous = new Map(kept.map(row => [row.pr.id, row]));
 		rows = found.nodes.map(pr => {
 			let row = previous.get(pr.id) ?? {};
 			row.pr = pr;
@@ -198,7 +249,7 @@ async function load () {
 			return row;
 		});
 		sort();
-		showSummary(user);
+		showSummary({ ...view, user });
 
 		table.parentElement.hidden = rows.length === 0;
 		repoForm.hidden = true;
@@ -212,31 +263,43 @@ async function load () {
 		}
 		status.hidden = rows.length > 0;
 
-		await Promise.all([updating, update(rows.map(row => row.pr.id).filter(id => !known.includes(id)))]);
+		await Promise.all([updating, update(rows.map(row => row.pr.id).filter(id => !early.includes(id)))]);
+		signal.throwIfAborted();
 		document.startViewTransition(sort);
-		showSummary(user);
+		showSummary({ ...view, user });
 
-		let updated = document.querySelector("#updated");
+		let time = document.querySelector("#updated time");
 		let now = new Date();
-		updated.querySelector("time").dateTime = now.toISOString();
-		updated.querySelector("time").textContent = now.toLocaleTimeString("en", { timeStyle: "short" });
-		updated.hidden = false;
+		time.dateTime = now.toISOString();
+		time.textContent = now.toLocaleTimeString("en", { timeStyle: "short" });
 	}
 	catch (error) {
+		// The newer load shows its own outcome
+		if (signal.aborted) {
+			return;
+		}
+
+		// Rows of another view would sit under labels they don’t match, e.g. after a failed role switch, so they go,
+		// with the filter of that view and the time they were updated at
+		if (!sameView && shown !== view) {
+			document.querySelector("#summary").hidden = true;
+			table.parentElement.hidden = true;
+			narrow.hidden = true;
+			document.querySelector("#updated time").textContent = "";
+		}
+
 		status.textContent = `Couldn’t load pull requests. ${describe(error)}`;
 		status.hidden = false;
 		// Most failures come from the repo or the user, so the form lets the user check and fix them
 		repoForm.hidden = false;
 	}
-	finally {
-		progress.hidden = true;
-		refresh.hidden = false;
-		refresh.ariaDisabled = null;
-	}
+
+	progress.hidden = true;
+	refresh.ariaDisabled = null;
 }
 
 /** Fill the strip above the table: where, for whom, how many, since when. */
-function showSummary (user) {
+function showSummary ({ repo, user, role, filter }) {
 	let strip = document.querySelector("#summary");
 
 	let link = strip.querySelector(".repo");
@@ -266,7 +329,7 @@ function graphql (text) {
 }
 
 /** Replace a diff’s estimate with GitHub’s exact count, when it has a range to compare. */
-async function compare (diff) {
+async function compare (repo, diff) {
 	if (!diff?.range) {
 		return;
 	}
@@ -282,7 +345,7 @@ async function compare (diff) {
 	}
 }
 
-async function login () {
+async function login (repo) {
 	try {
 		await github.login({ passive: true });
 	}

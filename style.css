@@ -10,9 +10,17 @@
 	--attention: oklch(72% 0.15 75);
 	--radius: 0.5rem;
 	--gutter: clamp(1rem, 3vw, 1.5rem);
+	/* Between the header, the summary and what follows */
+	--block-gap: 1.5rem;
 }
 
+/* The footer starts at the bottom of the window, so the queue arriving above it doesn’t push it down */
 body {
+	display: grid;
+	grid-template-rows: 1fr auto;
+	grid-template-columns: min(100%, 72rem + 2 * var(--gutter));
+	justify-content: center;
+	min-block-size: 100dvh;
 	margin: 0;
 	background: var(--ground);
 	color: var(--text);
@@ -21,8 +29,6 @@ body {
 
 main,
 footer {
-	max-inline-size: 72rem;
-	margin-inline: auto;
 	padding-inline: var(--gutter);
 }
 
@@ -32,6 +38,7 @@ main {
 }
 
 header {
+	position: relative;
 	display: flex;
 	flex-wrap: wrap;
 	gap: 1em;
@@ -47,15 +54,44 @@ h1 {
 	text-wrap: balance;
 }
 
+/* The summary replaces the status, so both keep the same gap below the header */
 #status {
-	margin-block: 0.25em 1.5em;
+	margin-block: var(--block-gap);
 	color: var(--muted);
 	text-wrap: pretty;
+}
+
+/* On a narrow screen, wraps below the title as one group */
+#controls {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1em;
+	align-items: center;
+
+	&[hidden] {
+		display: none;
+	}
+
+	/* Until the sign-in check passes: unseen, but in place, so they appear without moving the page */
+	&[inert] {
+		visibility: hidden;
+	}
 }
 
 #updated {
 	margin: 0;
 	color: var(--muted);
+
+	/* As wide as the longest time, e.g. “12:59 PM”, so the buttons next to it stay put when it arrives */
+	time {
+		display: inline-block;
+		min-inline-size: 4.4em;
+	}
+}
+
+/* No time to show and nothing loading, e.g. after a failed first load */
+header:has(progress[hidden]) #updated:has(time:empty) {
+	visibility: hidden;
 }
 
 /* The summary above the table says it on screen; the caption names the table for screen readers */
@@ -70,7 +106,7 @@ caption {
 	display: grid;
 	grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) max-content max-content;
 	gap: 1px;
-	margin-block: 1.5rem;
+	margin-block: var(--block-gap);
 	overflow: clip;
 	background: var(--rule);
 	border: 1px solid var(--border);
@@ -392,10 +428,15 @@ form {
 	}
 }
 
+/* Centered in the gap below the header, so showing it moves nothing */
 progress {
 	--duration: 1.5s;
 
+	position: absolute;
+	inset-block-start: calc(100% + var(--block-gap) / 2);
+	inset-inline-start: 0;
 	inline-size: 100%;
+	translate: 0 -50%;
 	block-size: 0.25rem;
 	appearance: none;
 	border: 0 solid;
