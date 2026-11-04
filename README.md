@@ -1,62 +1,84 @@
 # GitHub PR review queue
 
-The open pull requests awaiting someone’s review in one GitHub repo.
-Each one shows its diff size, the diff since that person’s last review, how many times they were asked to review again after reviewing, when they were last asked, and what every other reviewer did.
-When that person has not reviewed it yet, or a force push removed the reviewed commit, the column shows the whole diff, grayed out.
-GitHub’s push icon marks a PR whose reviewed commit a force push removed.
-A PR’s labels follow its title, up to five before a button for the rest. A label filters the queue by it, in place of the labels the filter asked for.
-When the filter asked for no labels, the queue narrows at once to the PRs with that label, while the queue loads again.
-An author’s avatar opens their profile, and another reviewer’s opens their latest review, or their profile while it is awaited.
-The figure columns sort, and the page remembers the last sort.
-After a refresh, the PRs it found and the cells it changed stay marked until the next load, or until a link in that row is opened.
-Next to the count above the table, “+3” in red over “−2” in green says how many PRs the refresh found and how many left the list, e.g. once merged or reviewed.
-A zero shows in gray, e.g. “−0” under “+3”, and a refresh that changes neither shows nothing. During the next refresh both dim.
+A web page that shows which pull requests in a GitHub repo wait for your review, and what changed since you last looked.
+It runs in the browser, with no build step and no server of its own.
 
-The page keeps the last queue of each view on this device and shows it at once on the next visit, while it loads again.
-A load asks GitHub for the slow details only of the PRs that changed since, and signing out forgets the stored queues.
+## Features at a glance
 
-The author view lists someone’s own open PRs instead.
-There, the columns count everyone else’s reviews and requests, and the switch above the table goes back.
+- **Your review queue**: the open PRs in one repo that wait for your review, or for anyone else’s.
+- **Your own PRs**: switch to the author view to see who reviewed your open PRs and who still has to.
+- **What is new for you**: each PR shows only the changes since your last review, so a re-review starts where you left off.
+- **Review history**: how many times you were asked again, when you were last asked, and what the other reviewers did.
+- **Labels and filters**: narrow the queue by a label with one click, or by any GitHub search terms.
+- **Sorting** by any number column. The page remembers your choice.
+- **What changed since the last refresh**: new PRs and changed values stay marked, and a counter shows how many PRs came and went.
+- **Fast start**: the last queue shows at once on the next visit, while the fresh one loads.
+- **Recent repos and users**: the page offers the ones you opened before.
 
-## Run
+## Quick start
 
-There is no build step. Serve the folder with any static web server, for example:
+1. Serve the folder with any static web server:
 
-```sh
-python3 -m http.server 8123
+   ```sh
+   python3 -m http.server 8123
+   ```
+
+2. Open <http://localhost:8123/>.
+3. Sign in with GitHub, or paste a token. See [Sign in](#sign-in).
+4. Enter a repo, such as `foo/bar`, and open the queue.
+
+## Examples
+
+The page takes its settings from the URL, so a link to a queue can be saved and shared.
+
+The PRs in `foo/bar` that wait for your review:
+
+```
+http://localhost:8123/?repo=foo/bar
 ```
 
-Then open <http://localhost:8123/>.
+The PRs that wait for `baz`’s review, without the `bar` label:
 
-## Configure
+```
+http://localhost:8123/?repo=foo/bar&user=baz&filter=-label:bar
+```
 
-Use URL parameters:
+Your own open PRs in `foo/bar`, with what every reviewer did:
 
-| Parameter | Value |
-| --- | --- |
-| `repo` | Required. Without it, the page asks for it. |
-| `user` | Optional. Defaults to the signed-in user. |
-| `role` | Optional. `author` lists the open PRs `user` wrote, with what every reviewer did. Otherwise, the PRs awaiting `user`’s review. The switch above the table changes it. |
-| `filter` | Optional. More [GitHub search terms](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests), e.g. `label:foo -label:bar` or `in:title` words. |
+```
+http://localhost:8123/?repo=foo/bar&role=author
+```
 
-For example: `?repo=foo/bar&user=baz&filter=-label:bar`.
-Without `repo`, or after an error, the page shows a form that opens that URL, so it can be copied and reused.
-Its fields offer the repos and users of the stored queues, the latest first: a click or ↓ opens them, and typing narrows them.
-Removing one, with its × or Shift+Delete, forgets its stored queues too.
-The pencil next to the repository or the user above the table changes it in place, keeping the other parameters.
+## URL parameters
 
-Sign-in goes through [Madata](https://madata.dev) and its auth server, `auth.madata.dev`.
-GitHub’s GraphQL API needs a token even for public repos.
+| Parameter | Required | Value |
+| --- | --- | --- |
+| `repo` | Yes | The repo, as `owner/name`. Without it, the page asks for it. |
+| `user` | No | Whose queue to show. Defaults to you. |
+| `role` | No | `author` shows the PRs `user` wrote. Without it, the page shows the PRs that wait for `user`’s review. |
+| `filter` | No | More [GitHub search terms](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests), e.g. `label:foo -label:bar` or words from the title. |
 
-The sign-in asks for access to every repo you can reach.
-To grant less, paste a [fine-grained token](https://github.com/settings/personal-access-tokens/new?name=PR+review+queue&expires_in=90) instead.
-The link opens GitHub’s form set to read-only access to public repos.
-For a private repo, set “Resource owner” to the repo’s owner, choose “Only select repositories”, pick the repo, and add read-only “Pull requests” and “Contents”.
-To switch between the sign-in and a token, sign out.
-The page keeps the token in `localStorage`.
+You can change the repo, the user and the view above the table too.
+
+## Sign in
+
+GitHub’s API needs a token even for public repos. There are two ways to give one:
+
+- **Sign in with GitHub** through [Madata](https://madata.dev) and its auth server, `auth.madata.dev`.
+  This asks for access to every repo you can reach.
+- **Paste a [fine-grained token](https://github.com/settings/personal-access-tokens/new?name=PR+review+queue&expires_in=90)** to grant less.
+  The link opens GitHub’s form set to read-only access to public repos.
+  For a private repo:
+  1. Set “Resource owner” to the repo’s owner.
+  2. Choose “Only select repositories” and pick the repo.
+  3. Add read-only access to “Pull requests” and “Contents”.
+
+The page keeps the token in your browser’s `localStorage`.
+To switch between the two ways, sign out. Signing out also forgets the stored queues.
 
 ## Browser support
 
-The page uses features that reached every browser in 2025–2026.
-It needs Chrome or Edge 135, Firefox 144, or Safari 26.2. In older browsers the column headers do not sort the table.
-Before Firefox 147, a filter or a role switch reloads the page instead of updating it in place, and the recent repos and users open away from their field.
+Chrome or Edge 135, Firefox 144, or Safari 26.2.
+
+- In older browsers, the columns do not sort.
+- Before Firefox 147, a filter or a view switch reloads the page.
