@@ -443,11 +443,15 @@ function fill (row, summary) {
 function render ({ number, title, url, author, avatar, diff, diffSinceReview, iterations, waitingSince, reviewers }) {
 	let tr = rowTemplate.content.firstElementChild.cloneNode(true);
 
-	tr.querySelector("img").src = avatar;
-	let link = tr.querySelector("a");
+	let link = tr.querySelector(".title");
 	link.href = url;
 	link.textContent = title;
-	tr.querySelector("small").textContent = `#${number} by ${author}`;
+	tr.querySelector(".number").textContent = `#${number}`;
+	tr.querySelector(".author").textContent = author;
+	tr.querySelector(".avatar img").src = avatar;
+	for (let profile of tr.querySelectorAll(".avatar, .author")) {
+		profile.href = `https://github.com/${author}`;
+	}
 
 	showDiff(tr.querySelector(".diff"), diff);
 	showDiff(tr.querySelector(".since-review"), diffSinceReview);
@@ -466,12 +470,15 @@ function showReviewers (cell, reviewers) {
 	}
 
 	let list = document.createElement("ul");
-	list.append(...reviewers.map(({ name, avatar, state }) => {
+	list.append(...reviewers.map(({ name, avatar, state, url }) => {
 		let item = reviewerTemplate.content.firstElementChild.cloneNode(true);
+		let link = item.querySelector("a");
 		let image = item.querySelector("img");
 		item.className = state;
+		link.href = url;
 		image.src = avatar;
-		image.alt = item.title = `${name} ${reviewerPhrases[state]}`;
+		// On the link, so keyboard focus reaches it too
+		image.alt = link.title = `${name} ${reviewerPhrases[state]}`;
 		return item;
 	}));
 	cell.append(list);

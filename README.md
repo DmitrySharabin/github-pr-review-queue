@@ -4,6 +4,7 @@ The open pull requests awaiting someone’s review in one GitHub repo.
 Each one shows its diff size, the diff since that person’s last review, how many times they were asked to review again after reviewing, when they were last asked, and what every other reviewer did.
 When there is no diff since that person’s last review, the column shows the whole diff, grayed out.
 A “force-pushed” tag marks a PR whose reviewed commit a force push removed.
+An author’s avatar opens their profile, and another reviewer’s opens their latest review, or their profile while it is awaited.
 The figure columns sort, and the page remembers the last sort.
 
 The author view lists someone’s own open PRs instead.

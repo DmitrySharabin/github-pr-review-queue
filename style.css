@@ -574,13 +574,17 @@ tbody {
 	grid-template-columns: 2rem 1fr;
 	column-gap: 0.85em;
 
-	a {
+	.title {
 		font-weight: 500;
 	}
 
-	img {
+	.avatar {
 		grid-row: span 2;
 		align-self: center;
+	}
+
+	img {
+		display: block;
 		inline-size: 100%;
 		block-size: auto;
 		border-radius: 50%;
@@ -623,17 +627,23 @@ time:empty {
 }
 
 .reviewers li {
-	position: relative;
-
+	a,
 	img {
 		display: block;
+	}
+
+	a {
+		position: relative;
+	}
+
+	img {
 		inline-size: 1.5rem;
 		block-size: auto;
 		border-radius: 50%;
 		background: var(--rule);
 	}
 
-	&::after {
+	a::after {
 		content: "";
 		position: absolute;
 		inset-block-end: -0.2em;

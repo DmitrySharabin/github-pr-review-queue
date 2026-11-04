@@ -12,6 +12,7 @@
  * @property {string} name - The login
  * @property {string} avatar - The avatar URL
  * @property {"awaiting" | "approved" | "changes-requested" | "commented"} state
+ * @property {string} url - Their latest review, or their profile while their review is awaited
  *
  * @typedef {object} Summary
  * @property {number} number
@@ -92,10 +93,10 @@ export function details ({ user, role, ids }) {
 				nodes { requestedReviewer { ... on Actor { login avatarUrl(size: 48) } } }
 			}
 			latestReviews(first: 20) {
-				nodes { state author { login avatarUrl(size: 48) } }
+				nodes { state url author { login avatarUrl(size: 48) } }
 			}
 			latestOpinionatedReviews(first: 20) {
-				nodes { state author { login avatarUrl(size: 48) } }
+				nodes { state url author { login avatarUrl(size: 48) } }
 			}
 		}
 	}
@@ -170,17 +171,17 @@ function reviewers (pr, user) {
 
 	// Later entries win: an approval outranks a comment after it, and a pending request outranks any review
 	let reviews = [...pr.latestReviews.nodes, ...pr.latestOpinionatedReviews.nodes];
-	for (let { state, author } of reviews) {
+	for (let { state, url, author } of reviews) {
 		// A dismissed review says nothing anymore. A deleted account has no author
 		if (states[state] && author) {
-			found.set(author.login, { name: author.login, avatar: author.avatarUrl, state: states[state] });
+			found.set(author.login, { name: author.login, avatar: author.avatarUrl, state: states[state], url });
 		}
 	}
 
 	for (let { requestedReviewer: reviewer } of pr.reviewRequests.nodes) {
 		// NOTE: Skips teams: their fields need the read:org scope, which the sign-in doesn’t ask for
 		if (reviewer?.login) {
-			found.set(reviewer.login, { name: reviewer.login, avatar: reviewer.avatarUrl, state: "awaiting" });
+			found.set(reviewer.login, { name: reviewer.login, avatar: reviewer.avatarUrl, state: "awaiting", url: `https://github.com/${reviewer.login}` });
 		}
 	}
 
