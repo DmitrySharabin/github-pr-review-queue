@@ -12,6 +12,8 @@
 	--gutter: clamp(1rem, 3vw, 1.5rem);
 	/* Between the header, the summary and what follows */
 	--block-gap: 1.5rem;
+	/* A strong ease-out: motion that answers the user starts at once */
+	--ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 /* The footer starts at the bottom of the window, so the queue arriving above it doesn’t push it down */
@@ -72,9 +74,12 @@ h1 {
 		display: none;
 	}
 
+	transition: opacity 150ms var(--ease-out), visibility 150ms;
+
 	/* Until the sign-in check passes: unseen, but in place, so they appear without moving the page */
 	&[inert] {
 		visibility: hidden;
+		opacity: 0;
 	}
 }
 
@@ -210,6 +215,7 @@ caption {
 			padding-inline: 0.5em;
 			border-radius: 1e5px;
 			text-decoration: none;
+			transition: background-color 150ms ease, color 150ms ease;
 
 			&:hover {
 				color: var(--text);
@@ -234,6 +240,14 @@ form button,
 	font: inherit;
 	font-weight: 500;
 	cursor: pointer;
+	transition: scale 160ms var(--ease-out), background-color 150ms ease;
+
+	/* Answers the press before the network does */
+	@media (prefers-reduced-motion: no-preference) {
+		&:active:not([aria-disabled="true"]) {
+			scale: 0.97;
+		}
+	}
 }
 
 #sign-in > button,
@@ -343,6 +357,21 @@ form {
 #narrow {
 	margin-block-end: 1rem;
 
+	/* The content fades with the turning chevron. content-visibility keeps it on screen while it fades out */
+	&::details-content {
+		opacity: 0;
+		transition-property: opacity, content-visibility;
+		transition-duration: 150ms;
+		transition-timing-function: var(--ease-out);
+		transition-behavior: allow-discrete;
+	}
+
+	/* Opening shows the content at once, so the toggle handler can focus the field in it. Only the fade-out waits */
+	&[open]::details-content {
+		opacity: 1;
+		transition-property: opacity;
+	}
+
 	summary {
 		display: inline-flex;
 		gap: 0.5em;
@@ -364,7 +393,7 @@ form {
 			margin-inline: calc(-3.25em / 16);
 			background-color: currentColor;
 			mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 4l4 4-4 4'/%3E%3C/svg%3E") no-repeat center / contain;
-			transition: rotate 0.2s;
+			transition: rotate 150ms var(--ease-out);
 		}
 	}
 
@@ -447,6 +476,18 @@ progress {
 	background: var(--border);
 	/* Lets the fill move in track units (cqi) */
 	container-type: inline-size;
+	/* Fades in and out, so a quick refresh doesn’t flash it. display stays on screen while it fades out */
+	transition-property: opacity, display;
+	transition-duration: 150ms;
+	transition-behavior: allow-discrete;
+
+	@starting-style {
+		opacity: 0;
+	}
+
+	&[hidden] {
+		opacity: 0;
+	}
 
 	@media (prefers-reduced-motion: reduce) {
 		/* Slowed, not stopped: without its animation the indeterminate fill has no width */
@@ -638,6 +679,28 @@ time:empty {
 	}
 }
 
+/* Avatar links: a ring on hover and focus, a press on click */
+:is(.pull-request .avatar, .reviewers a) {
+	border-radius: 50%;
+	outline: 2px solid transparent;
+	outline-offset: 2px;
+	transition: scale 160ms var(--ease-out), outline-color 150ms ease;
+
+	&:focus-visible {
+		outline-color: var(--text);
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		&:active {
+			scale: 0.95;
+		}
+	}
+
+	&:hover {
+		outline-color: var(--border);
+	}
+}
+
 /* Avatars with a badge for what each did */
 .reviewers ul {
 	display: flex;
@@ -749,6 +812,11 @@ th button {
 		vertical-align: -0.1em;
 		background-color: currentColor;
 		mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 3v10M4 9l4 4 4-4'/%3E%3C/svg%3E") no-repeat center / contain;
+
+		/* Turns when the order flips */
+		@media (prefers-reduced-motion: no-preference) {
+			transition: scale 160ms var(--ease-out);
+		}
 	}
 }
 
