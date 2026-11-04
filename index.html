@@ -68,7 +68,7 @@
 				<input id="repo" name="repo" placeholder="owner/name" pattern="[\w.\-]+/[\w.\-]+" required autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go"
 					role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="recent-repos">
 				<div class="recent" popover="manual">
-					<ul id="recent-repos" role="listbox" aria-label="Recent repositories"></ul>
+					<ul id="recent-repos" role="listbox" tabindex="-1" aria-label="Recent repositories"></ul>
 					<button type="button">Clear recent repositories</button>
 				</div>
 			</div>
@@ -77,7 +77,7 @@
 				<input id="user" name="user" pattern="[\w\-]+" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" aria-describedby="user-note"
 					role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="recent-users">
 				<div class="recent" popover="manual">
-					<ul id="recent-users" role="listbox" aria-label="Recent users"></ul>
+					<ul id="recent-users" role="listbox" tabindex="-1" aria-label="Recent users"></ul>
 					<button type="button">Clear recent users</button>
 				</div>
 				<small id="user-note">Whose queue to show. Empty means yours.</small>

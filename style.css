@@ -520,7 +520,12 @@ form {
 			background: color-mix(in oklch, var(--text) 4%, var(--surface));
 		}
 
+		/* Ringed like a focused control. Inside its row, since the list that scrolls would clip it outside */
 		&[aria-selected="true"] {
+			outline: auto;
+			/* The browser’s own ring color, as on the field. `auto` alone takes the text color */
+			outline-color: -webkit-focus-ring-color;
+			outline-offset: -2px;
 			background: color-mix(in oklch, var(--text) 8%, var(--surface));
 		}
 

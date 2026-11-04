@@ -1,6 +1,7 @@
 /**
  * Offer the values a text field had before, as a combo box: a click or ↓ opens them, typing narrows them, Enter or a click picks one.
  * The field’s `aria-controls` names a listbox inside a popover, and the button after the listbox clears them all.
+ * The listbox needs `tabindex="-1"`: a list long enough to scroll would be a Tab stop between the field and that button.
  * @param {HTMLInputElement} input - A field with `role="combobox"`
  * @param {{ values: () => string[], remove: (value: string) => void }} recent - The values, the latest first, and how to forget one
  */
@@ -48,6 +49,7 @@ export function offerRecent (input, { values, remove }) {
 
 			let option = document.createElement("li");
 			option.role = "option";
+			option.ariaKeyShortcuts = "Shift+Delete";
 			option.dataset.value = value;
 			option.append(text, button);
 			option.addEventListener("click", event => {
@@ -136,10 +138,6 @@ export function offerRecent (input, { values, remove }) {
 			event.preventDefault();
 			close();
 		}
-		// Tab goes on to the next field, not into the list, e.g. onto the button that clears it all
-		else if (event.key === "Tab") {
-			close();
-		}
 		// Without an active option, Enter submits the form and Delete deletes text.
 		// Removing takes Shift+Delete, as in the browsers’ own suggestions, so a slip doesn’t forget a value
 		else if (expanded && options[active] && event.key === "Enter") {
@@ -156,7 +154,17 @@ export function offerRecent (input, { values, remove }) {
 		}
 	});
 
-	popup.querySelector(":scope > button").addEventListener("click", () => {
+	let clear = popup.querySelector(":scope > button");
+	// Tab goes from the field to this button, the list’s one stop, and Escape on it goes back
+	clear.addEventListener("keydown", event => {
+		if (event.key === "Escape") {
+			event.preventDefault();
+			close();
+			input.focus();
+		}
+	});
+
+	clear.addEventListener("click", () => {
 		for (let value of all) {
 			remove(value);
 		}
@@ -168,8 +176,12 @@ export function offerRecent (input, { values, remove }) {
 	// The list keeps focus in the field, so a click on it doesn’t close it
 	popup.addEventListener("pointerdown", event => event.preventDefault());
 
-	// A click elsewhere. One on the list keeps focus in the field
-	input.addEventListener("blur", close);
+	// Focus elsewhere, e.g. a click or a Tab past the clear button
+	field.addEventListener("focusout", event => {
+		if (!field.contains(event.relatedTarget)) {
+			close();
+		}
+	});
 
 	// Reading the values may be slow, so it waits until the field shows, e.g. after each error that shows the form
 	new IntersectionObserver(([entry]) => {
