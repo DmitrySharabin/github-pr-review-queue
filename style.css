@@ -769,16 +769,16 @@ tbody {
 .labels {
 	display: inline-flex;
 	flex-wrap: wrap;
-	/* Wrapped rows, and the author link on the line below, stay 24px apart center to center, the smallest target spacing WCAG allows */
 	gap: 0.5em 0.3em;
-	margin: 0 0 0.625em;
+	margin: 0;
 	padding: 0;
 	list-style: none;
 	font-size: 0.75em;
 	font-weight: 500;
-	line-height: 1.6;
+	/* Fits the pills in the title’s line, so a row with labels is as tall as one without */
+	line-height: 1.4;
 
-	/* Black or white, whichever reads better by APCA: white from a lightness of 0.7 down, e.g. on GitHub’s red “bug”.
+	/* Black or white, whichever reads better by APCA: white below a lightness of 0.7, e.g. on GitHub’s red “bug”.
 	   contrast-color() goes by WCAG 2.1 and picks black there. The link inherits the color */
 	li {
 		color: oklch(from var(--color) max(0, sign(0.7 - l)) 0 h);
