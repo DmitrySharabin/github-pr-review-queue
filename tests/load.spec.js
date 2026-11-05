@@ -1,6 +1,9 @@
 import { test, expect } from "./github.js";
 
-test("A failed search hides the bars that stood in for its rows, even of the view shown last", async ({ page, github }) => {
+test("A failed search hides the bars that stood in for its rows, even of the view shown last", async ({
+	page,
+	github,
+}) => {
 	await page.goto("/?repo=foo/bar");
 	await expect(page.locator("progress")).toBeHidden();
 	github.search = () => 500;
@@ -48,7 +51,10 @@ test("Failed details keep the rows the search found on screen", async ({ page, g
 	await expect(page.locator("#queue tbody .number").filter({ visible: true })).toHaveCount(6);
 });
 
-test("A sort chosen while the bars show keeps them, and sorts the rows that replace them", async ({ page, github }) => {
+test("A sort chosen while the bars show keeps them, and sorts the rows that replace them", async ({
+	page,
+	github,
+}) => {
 	let { promise, resolve } = Promise.withResolvers();
 	github.search = () => promise;
 	await page.goto("/?repo=foo/bar");
@@ -58,14 +64,26 @@ test("A sort chosen while the bars show keeps them, and sorts the rows that repl
 	await expect(page.locator("#queue tr.skeleton").first()).toBeVisible();
 	resolve();
 
-	await expect(page.locator("#queue tbody .number")).toHaveText(["#70", "#69", "#68", "#67", "#66", "#65"]);
+	await expect(page.locator("#queue tbody .number")).toHaveText([
+		"#70",
+		"#69",
+		"#68",
+		"#67",
+		"#66",
+		"#65",
+	]);
 });
 
-test("A PR deleted between the search and its details counts as loaded, and leaves the others to load", async ({ page, github }) => {
+test("A PR deleted between the search and its details counts as loaded, and leaves the others to load", async ({
+	page,
+	github,
+}) => {
 	// 11 PRs ask for details in two batches, of 10 and 1
 	github.search = answer => {
 		let [pr] = answer.data.search.nodes;
-		answer.data.search.nodes.push(...[..."GHIJK"].map(id => ({ ...pr, id, number: id.charCodeAt(0) })));
+		answer.data.search.nodes.push(
+			...[..."GHIJK"].map(id => ({ ...pr, id, number: id.charCodeAt(0) })),
+		);
 	};
 	let { promise, resolve } = Promise.withResolvers();
 	github.details = answer => {
@@ -75,7 +93,13 @@ test("A PR deleted between the search and its details counts as loaded, and leav
 
 		// As GitHub answers for B
 		answer.data.nodes[1] = null;
-		answer.errors = [{ type: "NOT_FOUND", path: ["nodes", 1], message: "Could not resolve to a node with the global id of 'B'." }];
+		answer.errors = [
+			{
+				type: "NOT_FOUND",
+				path: ["nodes", 1],
+				message: "Could not resolve to a node with the global id of 'B'.",
+			},
+		];
 	};
 	await page.goto("/?repo=foo/bar");
 	await expect(page.locator("#counter")).toContainText("10 of 11");
@@ -86,10 +110,19 @@ test("A PR deleted between the search and its details counts as loaded, and leav
 	await expect(page.locator("#queue td.diff .added")).toHaveCount(10);
 });
 
-test("A PR stored without details, after GitHub said it was deleted, asks for them again on the next visit", async ({ page, github }) => {
+test("A PR stored without details, after GitHub said it was deleted, asks for them again on the next visit", async ({
+	page,
+	github,
+}) => {
 	github.details = answer => {
 		answer.data.nodes[1] = null;
-		answer.errors = [{ type: "NOT_FOUND", path: ["nodes", 1], message: "Could not resolve to a node with the global id of 'B'." }];
+		answer.errors = [
+			{
+				type: "NOT_FOUND",
+				path: ["nodes", 1],
+				message: "Could not resolve to a node with the global id of 'B'.",
+			},
+		];
 	};
 	await page.goto("/?repo=foo/bar");
 	await expect(page.locator("progress")).toBeHidden();
@@ -103,9 +136,17 @@ test("A PR stored without details, after GitHub said it was deleted, asks for th
 test("A repository GitHub can’t find still fails the load", async ({ page, github }) => {
 	github.search = answer => {
 		answer.data.repository = null;
-		answer.errors = [{ type: "NOT_FOUND", path: ["repository"], message: "Could not resolve to a Repository with the name 'foo/bar'." }];
+		answer.errors = [
+			{
+				type: "NOT_FOUND",
+				path: ["repository"],
+				message: "Could not resolve to a Repository with the name 'foo/bar'.",
+			},
+		];
 	};
 	await page.goto("/?repo=foo/bar");
 
-	await expect(page.locator("#repo-form .notice")).toContainText("GitHub can’t find this repository");
+	await expect(page.locator("#repo-form .notice")).toContainText(
+		"GitHub can’t find this repository",
+	);
 });

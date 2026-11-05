@@ -133,13 +133,15 @@ export function query ({ repo, user, role, filter }) {
  */
 export function details ({ user, role, ids }) {
 	let size = 10;
-	let batches = Array.from({ length: Math.ceil(ids.length / size) }, (_, i) => ids.slice(i * size, (i + 1) * size));
+	let batches = Array.from({ length: Math.ceil(ids.length / size) }, (_, i) =>
+		ids.slice(i * size, (i + 1) * size));
 
 	// A reviewer needs only their own reviews, an author everyone else’s
 	let byUser = role === "author" ? "" : `author: ${JSON.stringify(user)}, `;
 
 	// NOTE: Gets only the last 100 commits, reviews and review requests of each PR, and 20 other reviewers
-	return batches.map(batch => `query {
+	return batches.map(
+		batch => `query {
 	nodes(ids: ${JSON.stringify(batch)}) {
 		... on PullRequest {
 			id additions deletions
@@ -163,7 +165,8 @@ export function details ({ user, role, ids }) {
 			}
 		}
 	}
-}`);
+}`,
+	);
 }
 
 /**
@@ -190,13 +193,18 @@ export function summarize (pr, user, role) {
 	let authorView = role === "author";
 	let isUser = login => login?.toLowerCase() === user.toLowerCase();
 	// An author waits on everyone they asked. NOTE: Requests to a team are not counted
-	let requests = pr.timelineItems.nodes.filter(event => authorView ? event.requestedReviewer?.login : isUser(event.requestedReviewer?.login));
+	let requests = pr.timelineItems.nodes.filter(event =>
+		authorView ? event.requestedReviewer?.login : isUser(event.requestedReviewer?.login));
 	// The author’s own reviews are replies to the others
-	let reviews = authorView ? pr.reviews.nodes.filter(review => !isUser(review.author?.login)) : pr.reviews.nodes;
+	let reviews = authorView
+		? pr.reviews.nodes.filter(review => !isUser(review.author?.login))
+		: pr.reviews.nodes;
 	let waitingSince = requests.length > 0 ? new Date(requests.at(-1).createdAt) : null;
 	let commits = pr.commits.nodes.map(node => node.commit);
 	// A review clears the request, so a reviewer’s one after the latest request is only a reply in a thread
-	let reviewed = reviews.findLast(review => authorView || !waitingSince || new Date(review.submittedAt) < waitingSince)?.commit.oid;
+	let reviewed = reviews.findLast(
+		review => authorView || !waitingSince || new Date(review.submittedAt) < waitingSince,
+	)?.commit.oid;
 	// NOTE: -1 also when the reviewed commit is older than the last 100, which then reads as a force push
 	let index = commits.findIndex(commit => commit.oid === reviewed);
 	let since = commits.slice(index + 1);
@@ -211,20 +219,31 @@ export function summarize (pr, user, role) {
 	return {
 		...summary,
 		diff,
-		diffSinceReview: index === -1 ? { ...diff, whole: reviewed ? "force-pushed" : "unreviewed" } : {
-			...sum(own),
-			url: `${pr.url}/changes/${reviewed}..${commits.at(-1).oid}`,
-			range: exact ? `${reviewed}...${last.oid}` : undefined,
-		},
+		diffSinceReview:
+			index === -1
+				? { ...diff, whole: reviewed ? "force-pushed" : "unreviewed" }
+				: {
+						...sum(own),
+						url: `${pr.url}/changes/${reviewed}..${commits.at(-1).oid}`,
+						range: exact ? `${reviewed}...${last.oid}` : undefined,
+					},
 		// A round is a request that follows a review: requests with no review between them add none
-		iterations: requests.filter((request, i) => reviews.some(review =>
-			review.submittedAt < request.createdAt && review.submittedAt > (requests[i - 1]?.createdAt ?? ""))).length,
+		iterations: requests.filter((request, i) =>
+			reviews.some(
+				review =>
+					review.submittedAt < request.createdAt &&
+					review.submittedAt > (requests[i - 1]?.createdAt ?? ""),
+			)).length,
 		waitingSince,
 		reviewers: reviewers(pr).filter(reviewer => !isUser(reviewer.name)),
 	};
 }
 
-const states = { APPROVED: "approved", CHANGES_REQUESTED: "changes-requested", COMMENTED: "commented" };
+const states = {
+	APPROVED: "approved",
+	CHANGES_REQUESTED: "changes-requested",
+	COMMENTED: "commented",
+};
 
 /**
  * The latest say of everyone on a PR, from {@link details}.
@@ -239,14 +258,24 @@ function reviewers (pr) {
 	for (let { state, url, author } of reviews) {
 		// A dismissed review says nothing anymore. A deleted account has no author
 		if (states[state] && author) {
-			found.set(author.login, { name: author.login, avatar: author.avatarUrl, state: states[state], url });
+			found.set(author.login, {
+				name: author.login,
+				avatar: author.avatarUrl,
+				state: states[state],
+				url,
+			});
 		}
 	}
 
 	for (let { requestedReviewer: reviewer } of pr.reviewRequests.nodes) {
 		// NOTE: Skips teams: their fields need the read:org scope, which the sign-in doesn’t ask for
 		if (reviewer?.login) {
-			found.set(reviewer.login, { name: reviewer.login, avatar: reviewer.avatarUrl, state: "awaiting", url: `https://github.com/${reviewer.login}` });
+			found.set(reviewer.login, {
+				name: reviewer.login,
+				avatar: reviewer.avatarUrl,
+				state: "awaiting",
+				url: `https://github.com/${reviewer.login}`,
+			});
 		}
 	}
 

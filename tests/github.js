@@ -15,7 +15,8 @@ export const test = base.extend({
 		};
 
 		// Madata signs in with a stored token without asking GitHub for one
-		await context.addInitScript(() => localStorage.setItem("madata:token:auth.madata.dev/github", "fake"));
+		await context.addInitScript(() =>
+			localStorage.setItem("madata:token:auth.madata.dev/github", "fake"));
 
 		await context.route("https://api.github.com/**", async route => {
 			if (new URL(route.request().url()).pathname === "/user") {
@@ -26,7 +27,13 @@ export const test = base.extend({
 			let isSearch = query.includes("search(");
 			let answer = isSearch
 				? { data: { search: { nodes: [..."ABCDEF"].map(found) } } }
-				: { data: { nodes: JSON.parse(query.match(/nodes\(ids: (\[.*?\])\)/)[1]).map(detailed) } };
+				: {
+						data: {
+							nodes: JSON.parse(query.match(/nodes\(ids: (\[.*?\])\)/)[1]).map(
+								detailed,
+							),
+						},
+					};
 
 			let status = await (isSearch ? github.search : github.details)(answer);
 			route.fulfill(status ? { status, json: { message: "Boom" } } : { json: answer });

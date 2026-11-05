@@ -26,39 +26,41 @@ export function offerRecent (input, { values, remove }) {
 
 	/** Fill the list with the values that contain what is typed, e.g. `foo/bar` for `bar`. */
 	function render () {
-		options = all.filter(value => value.toLowerCase().includes(typed)).map(value => {
-			let at = value.toLowerCase().indexOf(typed);
-			let mark = document.createElement("mark");
-			mark.textContent = value.slice(at, at + typed.length);
+		options = all
+			.filter(value => value.toLowerCase().includes(typed))
+			.map(value => {
+				let at = value.toLowerCase().indexOf(typed);
+				let mark = document.createElement("mark");
+				mark.textContent = value.slice(at, at + typed.length);
 
-			let text = document.createElement("span");
-			text.append(value.slice(0, at), mark, value.slice(at + typed.length));
+				let text = document.createElement("span");
+				text.append(value.slice(0, at), mark, value.slice(at + typed.length));
 
-			// A screen reader user removes the active option with Shift+Delete instead
-			let button = document.createElement("button");
-			button.type = "button";
-			button.tabIndex = -1;
-			button.ariaHidden = "true";
-			button.className = "cancel";
-			button.title = "Remove from recent";
-			button.addEventListener("click", () => {
-				remove(value);
-				update();
-				show();
+				// A screen reader user removes the active option with Shift+Delete instead
+				let button = document.createElement("button");
+				button.type = "button";
+				button.tabIndex = -1;
+				button.ariaHidden = "true";
+				button.className = "cancel";
+				button.title = "Remove from recent";
+				button.addEventListener("click", () => {
+					remove(value);
+					update();
+					show();
+				});
+
+				let option = document.createElement("li");
+				option.role = "option";
+				option.ariaKeyShortcuts = "Shift+Delete";
+				option.dataset.value = value;
+				option.append(text, button);
+				option.addEventListener("click", event => {
+					if (event.target !== button) {
+						pick(option);
+					}
+				});
+				return option;
 			});
-
-			let option = document.createElement("li");
-			option.role = "option";
-			option.ariaKeyShortcuts = "Shift+Delete";
-			option.dataset.value = value;
-			option.append(text, button);
-			option.addEventListener("click", event => {
-				if (event.target !== button) {
-					pick(option);
-				}
-			});
-			return option;
-		});
 
 		list.replaceChildren(...options);
 		select(-1);
@@ -132,7 +134,10 @@ export function offerRecent (input, { values, remove }) {
 			}
 			// From none, ↓ goes to the first and ↑ to the last, and both wrap around
 			let count = options.length;
-			select(count && (active === -1 && step === -1 ? count - 1 : (active + step + count) % count));
+			select(
+				count &&
+					(active === -1 && step === -1 ? count - 1 : (active + step + count) % count),
+			);
 		}
 		else if (expanded && event.key === "Escape") {
 			event.preventDefault();

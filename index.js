@@ -1,7 +1,17 @@
 /** @import { Summary, View } from "./pull-request.js" */
 // The commit is also in index.html, which preloads the modules this one imports
 import GithubAPI from "https://cdn.jsdelivr.net/gh/madatajs/madata@063fc247b1a03924c836d74ea2f3d8fdc86ded2c/backends/github/api/github-api.js";
-import { addedLabel, details, hasLabel, outdated, query, search, summarize, sum, withLabel } from "./pull-request.js";
+import {
+	addedLabel,
+	details,
+	hasLabel,
+	outdated,
+	query,
+	search,
+	summarize,
+	sum,
+	withLabel,
+} from "./pull-request.js";
 import { offerRecent } from "./recent.js";
 
 let github = new GithubAPI("https://api.github.com/graphql");
@@ -38,16 +48,17 @@ const sortKeys = {
 
 /** Why “Changes since last review” counts the whole PR, keyed by the diff’s `whole` */
 const wholeTitles = {
-	"unreviewed": "Not reviewed yet, so this counts the whole pull request",
-	"force-pushed": "A force push removed the reviewed commit, so this counts the whole pull request",
+	unreviewed: "Not reviewed yet, so this counts the whole pull request",
+	"force-pushed":
+		"A force push removed the reviewed commit, so this counts the whole pull request",
 };
 
 /** What each other reviewer did, keyed by their `state` */
 const reviewerPhrases = {
-	"awaiting": "has yet to review",
-	"approved": "approved",
+	awaiting: "has yet to review",
+	approved: "approved",
 	"changes-requested": "requested changes",
-	"commented": "commented",
+	commented: "commented",
 };
 
 const queuePrefix = "review-queue:queue:";
@@ -60,7 +71,13 @@ const day = 864e5;
 // NOTE: Temporal.Duration#round() with `relativeTo` counts calendar months. Not in Safari yet (November 2026)
 const month = 30.44 * day;
 // Units grow with the wait, e.g. “3 yr. ago”, not “1,036 days ago”
-const units = [["year", 12 * month], ["month", month], ["day", day], ["hour", 36e5], ["minute", 6e4]];
+const units = [
+	["year", 12 * month],
+	["month", month],
+	["day", day],
+	["hour", 36e5],
+	["minute", 6e4],
+];
 // Short units, e.g. “11 min. ago”, keep the latest request on one line in the summary
 const relative = new Intl.RelativeTimeFormat("en", { numeric: "auto", style: "short" });
 const days = new Intl.NumberFormat("en", { style: "unit", unit: "day", unitDisplay: "long" });
@@ -84,7 +101,10 @@ if (saved) {
 
 table.addEventListener("command", event => {
 	let th = event.source.closest("th");
-	let sorted = { column: event.source.value, direction: th.ariaSort === "descending" ? "ascending" : "descending" };
+	let sorted = {
+		column: event.source.value,
+		direction: th.ariaSort === "descending" ? "ascending" : "descending",
+	};
 	markSort(sorted);
 	localStorage.setItem("review-queue:sort", JSON.stringify(sorted));
 	// No transition: its capture holds the new order back up to 300 ms on 100 rows, and when every row moves no one follows one.
@@ -112,12 +132,17 @@ for (let button of document.querySelectorAll(".notice button")) {
 	});
 }
 
-signIn.querySelector(":scope > button").addEventListener("click", () => github.login().catch(error => showNotice(signIn, "Couldn’t sign in", describe(error))));
+signIn
+	.querySelector(":scope > button")
+	.addEventListener("click", () =>
+		github.login().catch(error => showNotice(signIn, "Couldn’t sign in", describe(error))));
 
 tokenForm.addEventListener("submit", event => {
 	event.preventDefault();
 	// Madata stores and validates the token as it does after the popup, then fires mv-login, which login() waits for
-	github.login({ accessToken: tokenForm.elements.token.value }).catch(error => showNotice(signIn, "Couldn’t sign in", describe(error)));
+	github
+		.login({ accessToken: tokenForm.elements.token.value })
+		.catch(error => showNotice(signIn, "Couldn’t sign in", describe(error)));
 });
 
 // A token that works but can’t read the repo keeps the sign-in hidden, so signing out is the way to replace it
@@ -144,7 +169,13 @@ for (let form of forms) {
 // Clearing the repos forgets every queue, but the user field shows its chevron until it is opened
 for (let name of ["repo", "user"]) {
 	offerRecent(repoForm.elements[name], {
-		values: () => [...new Set(storedQueues().map(({ view }) => view.get(name)).filter(Boolean))],
+		values: () => [
+			...new Set(
+				storedQueues()
+					.map(({ view }) => view.get(name))
+					.filter(Boolean),
+			),
+		],
 		remove: value => forget(view => view.get(name) === value),
 	});
 }
@@ -204,7 +235,13 @@ refresh.addEventListener("click", () => {
 window.navigation?.addEventListener("navigate", event => {
 	let next = new URL(event.destination.url).searchParams;
 	let current = new URLSearchParams(location.search);
-	if (!event.canIntercept || event.hashChange || event.navigationType === "reload" || !current.get("repo") || !next.get("repo")) {
+	if (
+		!event.canIntercept ||
+		event.hashChange ||
+		event.navigationType === "reload" ||
+		!current.get("repo") ||
+		!next.get("repo")
+	) {
 		return;
 	}
 
@@ -274,7 +311,9 @@ async function load () {
 
 	// A missing parameter means its default, e.g. no `user` is the signed-in user. A repeated one counts once, as in the forms
 	let params = new URLSearchParams(location.search);
-	let view = Object.fromEntries(["repo", "user", "role", "filter"].map(name => [name, params.get(name)]));
+	let view = Object.fromEntries(
+		["repo", "user", "role", "filter"].map(name => [name, params.get(name)]),
+	);
 	let { repo, role, filter } = view;
 	let sameQueue = ["repo", "user", "role"].every(name => view[name] === shown?.[name]);
 	let sameView = sameQueue && filter === shown.filter;
@@ -349,7 +388,9 @@ async function load () {
 		// Madata signs in without a user when GitHub fails to answer anything but a 401, e.g. offline, so this is a failure to connect too
 		let user = view.user || github.user?.username;
 		if (!user) {
-			throw new Error(GithubAPI.phrase("something_went_wrong_while_connecting", GithubAPI.name));
+			throw new Error(
+				GithubAPI.phrase("something_went_wrong_while_connecting", GithubAPI.name),
+			);
 		}
 
 		// A queue stored without a `user` parameter is that of whoever was signed in then
@@ -372,40 +413,45 @@ async function load () {
 		let done = 0;
 
 		/** Fill in the slow fields of these PRs’ rows, a few PRs per query. */
-		let update = ids => Promise.all(details({ user, role, ids }).map(async text => {
-			// A batch retries once on its own: GitHub drops a slow query without a readable response, or answers that it timed out
-			let { nodes } = await graphql(text).catch(() => graphql(text));
-			await Promise.all(nodes.map(async pr => {
-				// Rows a newer load owns, e.g. after a role switch
-				if (signal.aborted) {
-					return;
-				}
+		let update = ids =>
+			Promise.all(
+				details({ user, role, ids }).map(async text => {
+					// A batch retries once on its own: GitHub drops a slow query without a readable response, or answers that it timed out
+					let { nodes } = await graphql(text).catch(() => graphql(text));
+					await Promise.all(
+						nodes.map(async pr => {
+							// Rows a newer load owns, e.g. after a role switch
+							if (signal.aborted) {
+								return;
+							}
 
-				// A PR deleted since the search, which GitHub answers with null: nothing to fill, and the next search drops its row
-				if (!pr) {
-					showProgress(task, ++done, ids.length);
-					return;
-				}
+							// A PR deleted since the search, which GitHub answers with null: nothing to fill, and the next search drops its row
+							if (!pr) {
+								showProgress(task, ++done, ids.length);
+								return;
+							}
 
-				let row = rows.find(row => row.pr.id === pr.id);
+							let row = rows.find(row => row.pr.id === pr.id);
 
-				let summary = summarize({ ...row.pr, ...pr }, user, role);
-				await compare(repo, summary.diffSinceReview);
-				// A newer load may have started during the comparison
-				if (signal.aborted) {
-					return;
-				}
+							let summary = summarize({ ...row.pr, ...pr }, user, role);
+							await compare(repo, summary.diffSinceReview);
+							// A newer load may have started during the comparison
+							if (signal.aborted) {
+								return;
+							}
 
-				// The search may have refreshed the cheap fields during the comparison, e.g. a new title.
-				// Undimmed first, the row equals its render when nothing changed, and keeps focus
-				if (row.tr.classList.contains("stale")) {
-					unmark(row.tr);
-				}
-				fill(row, { ...summary, ...summarize(row.pr, user, role) });
-				row.detailed = row.pr;
-				showProgress(task, ++done, ids.length);
-			}));
-		}));
+							// The search may have refreshed the cheap fields during the comparison, e.g. a new title.
+							// Undimmed first, the row equals its render when nothing changed, and keeps focus
+							if (row.tr.classList.contains("stale")) {
+								unmark(row.tr);
+							}
+							fill(row, { ...summary, ...summarize(row.pr, user, role) });
+							row.detailed = row.pr;
+							showProgress(task, ++done, ids.length);
+						}),
+					);
+				}),
+			);
 
 		// Rows of another queue, e.g. before a role switch, stay on screen until the search replaces them, but don’t update
 		let kept = sameQueue || stored ? rows : [];
@@ -462,7 +508,7 @@ async function load () {
 
 		// Rows of another view would sit under labels they don’t match, e.g. after a failed role switch, so they go,
 		// with the filter of that view and the time they were updated at. So do bars that stand in for rows, e.g. on a first visit
-		if (!sameView && shown !== view || table.tBodies[0].querySelector(".skeleton")) {
+		if ((!sameView && shown !== view) || table.tBodies[0].querySelector(".skeleton")) {
 			strip.hidden = true;
 			table.parentElement.hidden = true;
 			empty.hidden = true;
@@ -477,7 +523,11 @@ async function load () {
 
 		showDelta();
 		// Most failures come from the repo or the user, so the form lets the user check and fix them
-		showNotice(repoForm, `Couldn’t load the pull requests in ${repo}`, describe(error, "Check the repository and the user, then try again."));
+		showNotice(
+			repoForm,
+			`Couldn’t load the pull requests in ${repo}`,
+			describe(error, "Check the repository and the user, then try again."),
+		);
 	}
 
 	progress.hidden = true;
@@ -507,7 +557,10 @@ function showQueue ({ repo, user, role, filter }) {
 /** Stand in for a queue that nothing shows yet, e.g. on a first visit, while its search runs: the strip with what the view tells, and rows of bars. */
 function showSkeleton ({ repo, user, role, filter }) {
 	showRole(role);
-	table.tBodies[0].replaceChildren(...Array.from({ length: 6 }, () => skeletonTemplate.content.firstElementChild.cloneNode(true)));
+	table.tBodies[0].replaceChildren(
+		...Array.from({ length: 6 }, () =>
+			skeletonTemplate.content.firstElementChild.cloneNode(true)),
+	);
 	showSummary({ repo, user, role, filter });
 	// Unknown until the search ends. Without a link, it is no empty stop for the keyboard
 	let count = strip.querySelector(".count");
@@ -544,10 +597,14 @@ function showProgress (task, done, total) {
 function showEmpty ({ repo, user, role, filter }) {
 	let author = role === "author";
 	let title = author ? "No open pull requests" : "Nothing to review";
-	let text = author ? `${user} has no open pull requests in ${repo}.` : `No pull requests in ${repo} are waiting for ${user}’s review.`;
+	let text = author
+		? `${user} has no open pull requests in ${repo}.`
+		: `No pull requests in ${repo} are waiting for ${user}’s review.`;
 	if (filter) {
 		title = "No matching pull requests";
-		text = author ? `None of ${user}’s open pull requests in ${repo}` : `None of the pull requests waiting for ${user}’s review in ${repo}`;
+		text = author
+			? `None of ${user}’s open pull requests in ${repo}`
+			: `None of the pull requests waiting for ${user}’s review in ${repo}`;
 		text += ` match “${filter}”. Try other search terms, or clear the filter.`;
 	}
 
@@ -563,7 +620,12 @@ function showUpdated (date) {
 	updated.dateTime = date.toISOString();
 	// A stored queue may be days old, e.g. “Nov 1, 6:05 PM”
 	let today = date.toDateString() === new Date().toDateString();
-	updated.textContent = date.toLocaleString("en", today ? { timeStyle: "short" } : { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+	updated.textContent = date.toLocaleString(
+		"en",
+		today
+			? { timeStyle: "short" }
+			: { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" },
+	);
 }
 
 /**
@@ -581,7 +643,7 @@ function queueKey (view) {
  */
 function restore (view) {
 	// JSON has no dates
-	let revive = (key, value) => key === "waitingSince" && value ? new Date(value) : value;
+	let revive = (key, value) => (key === "waitingSince" && value ? new Date(value) : value);
 	return JSON.parse(localStorage.getItem(queueKey(view)), revive) ?? undefined;
 }
 
@@ -631,7 +693,10 @@ function store (view, queue) {
 		catch (error) {
 			// Newest first, so the last one is the oldest
 			// NOTE: Storage full of other data, e.g. of another app on the origin, loses every queue before this one gives up
-			others ??= error.name === "QuotaExceededError" ? storedQueues().filter(other => other.key !== key) : [];
+			others ??=
+				error.name === "QuotaExceededError"
+					? storedQueues().filter(other => other.key !== key)
+					: [];
 
 			if (others.length === 0) {
 				// Only the next visit’s head start is lost
@@ -676,13 +741,19 @@ function showSummary ({ repo, user, role, filter }) {
 function showDelta (delta) {
 	let { added = 0, left = 0 } = delta ?? {};
 	let changed = added + left > 0;
-	for (let [name, text, count] of [["up", "+", added], ["down", "−", left]]) {
+	for (let [name, text, count] of [
+		["up", "+", added],
+		["down", "−", left],
+	]) {
 		let line = strip.querySelector(`.delta .${name}`);
 		line.textContent = changed ? text + count : "";
 		line.classList.toggle("zero", count === 0);
 	}
 
-	changes.textContent = delta ? [added && `${added} new`, left && `${left} gone`].filter(Boolean).join(", ") || "No changes" : "";
+	changes.textContent = delta
+		? [added && `${added} new`, left && `${left} gone`].filter(Boolean).join(", ") ||
+			"No changes"
+		: "";
 }
 
 /**
@@ -690,7 +761,9 @@ function showDelta (delta) {
  * GitHub answers null and an error, and load() throws the whole answer away for it, the other PRs included.
  */
 async function graphql (text) {
-	let { data, errors = [] } = await inTime(github.request("https://api.github.com/graphql", { query: text }, "POST"));
+	let { data, errors = [] } = await inTime(
+		github.request("https://api.github.com/graphql", { query: text }, "POST"),
+	);
 	errors = errors.filter(error => error.type !== "NOT_FOUND" || error.path?.[0] !== "nodes");
 
 	// Joined as load() joins them, which describe() matches, e.g. “Could not resolve to a Repository”
@@ -717,7 +790,9 @@ async function compare (repo, diff) {
 
 	try {
 		// NOTE: GitHub lists at most 300 files in a comparison
-		let { files } = await inTime(github.load(`https://api.github.com/repos/${repo}/compare/${diff.range}`));
+		let { files } = await inTime(
+			github.load(`https://api.github.com/repos/${repo}/compare/${diff.range}`),
+		);
 		Object.assign(diff, sum(files));
 		// Exact now, so a later load of the unchanged PR needn’t compare again
 		delete diff.range;
@@ -980,7 +1055,19 @@ function same (cell, other) {
 	return x.isEqualNode(y);
 }
 
-function render ({ number, title, url, author, avatar, labels, diff, diffSinceReview, iterations, waitingSince, reviewers }) {
+function render ({
+	number,
+	title,
+	url,
+	author,
+	avatar,
+	labels,
+	diff,
+	diffSinceReview,
+	iterations,
+	waitingSince,
+	reviewers,
+}) {
 	let tr = rowTemplate.content.firstElementChild.cloneNode(true);
 
 	let link = tr.querySelector(".title");
@@ -1013,19 +1100,21 @@ function showLabels (headline, labels) {
 	let list = document.createElement("ul");
 	list.className = "labels";
 	list.ariaLabel = "Labels";
-	list.append(...labels.map(({ name, color, description }, i) => {
-		let item = labelTemplate.content.firstElementChild.cloneNode(true);
-		let link = item.querySelector("a");
-		let params = new URLSearchParams(location.search);
-		params.set("filter", withLabel(params.get("filter"), name));
-		link.href = `?${params}`;
-		link.textContent = name;
-		link.ariaLabel = `Filter by label ${name}`;
-		link.title = description ?? "";
-		item.style.setProperty("--color", `#${color}`);
-		item.hidden = i >= labelLimit;
-		return item;
-	}));
+	list.append(
+		...labels.map(({ name, color, description }, i) => {
+			let item = labelTemplate.content.firstElementChild.cloneNode(true);
+			let link = item.querySelector("a");
+			let params = new URLSearchParams(location.search);
+			params.set("filter", withLabel(params.get("filter"), name));
+			link.href = `?${params}`;
+			link.textContent = name;
+			link.ariaLabel = `Filter by label ${name}`;
+			link.title = description ?? "";
+			item.style.setProperty("--color", `#${color}`);
+			item.hidden = i >= labelLimit;
+			return item;
+		}),
+	);
 
 	let rest = labels.length - labelLimit;
 	if (rest > 0) {
@@ -1061,17 +1150,19 @@ function showReviewers (cell, reviewers) {
 	}
 
 	let list = document.createElement("ul");
-	list.append(...reviewers.map(({ name, avatar, state, url }) => {
-		let item = reviewerTemplate.content.firstElementChild.cloneNode(true);
-		let link = item.querySelector("a");
-		let image = item.querySelector("img");
-		item.className = state;
-		link.href = url;
-		image.src = avatar;
-		// On the link, so keyboard focus reaches it too
-		image.alt = link.title = `${name} ${reviewerPhrases[state]}`;
-		return item;
-	}));
+	list.append(
+		...reviewers.map(({ name, avatar, state, url }) => {
+			let item = reviewerTemplate.content.firstElementChild.cloneNode(true);
+			let link = item.querySelector("a");
+			let image = item.querySelector("img");
+			item.className = state;
+			link.href = url;
+			image.src = avatar;
+			// On the link, so keyboard focus reaches it too
+			image.alt = link.title = `${name} ${reviewerPhrases[state]}`;
+			return item;
+		}),
+	);
 	cell.append(list);
 }
 
@@ -1091,7 +1182,8 @@ function showDiff (cell, diff) {
 	link.href = diff.url;
 	cell.querySelector(".added").textContent = `+${diff.additions.toLocaleString("en")}`;
 	cell.querySelector(".deleted").textContent = `−${diff.deletions.toLocaleString("en")}`;
-	cell.querySelector(".diffstat").style = `--additions: ${diff.additions}; --deletions: ${diff.deletions}`;
+	cell.querySelector(".diffstat").style =
+		`--additions: ${diff.additions}; --deletions: ${diff.deletions}`;
 
 	if (diff.whole) {
 		cell.classList.add("whole");
@@ -1104,7 +1196,9 @@ function showDiff (cell, diff) {
 function showTime (time, date) {
 	let elapsed = Date.now() - date;
 	// The largest unit the wait rounds to at least one of, so 23.8 hours read “yesterday”, not “24 hr. ago”
-	let [unit, length] = units.find(([, length], i) => elapsed >= length - (units[i + 1]?.[1] ?? 0) / 2) ?? units.at(-1);
+	let [unit, length] =
+		units.find(([, length], i) => elapsed >= length - (units[i + 1]?.[1] ?? 0) / 2) ??
+		units.at(-1);
 	// Months and years round off days, so the tooltip adds them, e.g. “Jan 4, 2024, 11:05 AM · 1,036 days”
 	let rounded = Boolean(date) && length >= month;
 
@@ -1116,7 +1210,11 @@ function showTime (time, date) {
 	}
 	time.classList.toggle("rounded", rounded);
 	// To the nearest, so the count agrees with the days, e.g. 1,036 days are “3 yr. ago”, not 2
-	time.textContent = date ? relative.format(-Math.round(elapsed / length), unit) : date === null ? "—" : "";
+	time.textContent = date
+		? relative.format(-Math.round(elapsed / length), unit)
+		: date === null
+			? "—"
+			: "";
 }
 
 function size (diff) {
