@@ -396,18 +396,27 @@ async function load () {
 
 		let now = new Date();
 		showUpdated(now);
-		// The search did refresh the queue, so the failure shows beside Refresh, never with the form.
-		// Its rows that failed keep their old details, and the next load asks for them again
+		// Rows whose details failed show their old ones as they are, and the next load asks for them again
 		if (failed) {
-			throw failed.reason;
+			for (let tr of table.querySelectorAll("tr.stale")) {
+				unmark(tr);
+			}
 		}
-		header.classList.remove("failed");
-		store(view, { user, at: now, rows: rows.map(({ pr, summary }) => ({ pr, summary })) });
 
+		// The user has seen what the search found, even when details failed
 		let last = seen;
 		seen = snapshot(rows);
 		if (last) {
 			showDelta(mark(rows, last));
+		}
+
+		// The search did refresh the queue, so a failure shows beside Refresh, never with the form
+		if (failed) {
+			showFailure(describe(failed.reason));
+		}
+		else {
+			header.classList.remove("failed");
+			store(view, { user, at: now, rows: rows.map(({ pr, summary }) => ({ pr, summary })) });
 		}
 	}
 	catch (error) {
@@ -421,11 +430,6 @@ async function load () {
 		if ((!sameView && shown !== view) || table.tBodies[0].querySelector(".skeleton")) {
 			hideQueue();
 			updated.textContent = "";
-		}
-
-		// Rows the load didn’t update show their old values as they are
-		for (let tr of table.querySelectorAll("tr.stale")) {
-			unmark(tr);
 		}
 
 		showDelta();

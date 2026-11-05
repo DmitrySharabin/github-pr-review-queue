@@ -235,3 +235,63 @@ test("A click on a link in a marked row removes its mark, since the user has see
 
 	await expect(page.locator("#queue tbody mark:not([hidden])")).toHaveCount(0);
 });
+
+test("A refresh whose details fail still marks the PRs its search found", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+
+	github.search = answer => {
+		let { nodes } = answer.data.search;
+		nodes.push({ ...nodes[0], id: "G", number: 71 });
+	};
+	github.details = () => 502;
+	await page.getByRole("button", { name: "Refresh" }).click();
+	await expect(page.getByText("Couldn’t refresh")).toBeVisible();
+
+	await expect(page.locator("#queue tbody small:has(mark:not([hidden]))")).toHaveText([
+		"#71 by ghost new",
+	]);
+	await expect(page.locator("#summary .delta .up")).toHaveText("+1");
+});
+
+test("A refresh after one whose details failed doesn’t mark the PRs that one showed as new again", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+	github.search = answer => {
+		let { nodes } = answer.data.search;
+		nodes.push({ ...nodes[0], id: "G", number: 71 });
+	};
+	github.details = () => 502;
+	await page.getByRole("button", { name: "Refresh" }).click();
+	await expect(page.getByText("Couldn’t refresh")).toBeVisible();
+
+	github.details = () => {};
+	await page.getByRole("button", { name: "Refresh" }).click();
+	await expect(page.getByText("Couldn’t refresh")).toBeHidden();
+	await expect(page.locator("progress")).toBeHidden();
+
+	await expect(page.locator("#queue tbody mark:not([hidden])")).not.toHaveText(["new"]);
+});
+
+test("A refresh whose details fail shows the rows it rechecked as they were, not dimmed as if still loading", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+
+	github.search = answer => {
+		answer.data.search.nodes[0].updatedAt = "2026-11-05T12:00:00Z";
+	};
+	github.details = () => 502;
+	await page.getByRole("button", { name: "Refresh" }).click();
+	await expect(page.getByText("Couldn’t refresh")).toBeVisible();
+
+	await expect(page.locator("#queue tr.stale")).toHaveCount(0);
+});
