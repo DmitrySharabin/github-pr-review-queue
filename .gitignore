@@ -1,2 +1,4 @@
 .claude/
 .playwright-mcp
+node_modules/
+test-results/

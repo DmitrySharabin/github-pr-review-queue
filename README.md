@@ -76,6 +76,18 @@ GitHub’s API needs a token even for public repos. There are two ways to give o
 The page keeps the token in your browser’s `localStorage`.
 To switch between the two ways, sign out. Signing out also forgets the stored queues.
 
+## Tests
+
+The tests open the page in Chromium with [Playwright](https://playwright.dev) and fake GitHub’s answers, so they need no token.
+
+```sh
+npm install
+npx playwright install chromium
+npm test
+```
+
+To watch them run, step by step, use `npm test -- --ui`.
+
 ## Browser support
 
 Chrome or Edge 135, Firefox 144, or Safari 26.2.
