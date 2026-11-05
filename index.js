@@ -8,6 +8,7 @@ import {
 	outdated,
 	query,
 	search,
+	size,
 	sizes,
 	summarize,
 	sum,
@@ -1247,8 +1248,4 @@ function showTime (time, date) {
 		: date === null
 			? "—"
 			: "";
-}
-
-function size (diff) {
-	return diff.additions + diff.deletions;
 }

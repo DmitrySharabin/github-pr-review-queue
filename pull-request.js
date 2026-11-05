@@ -306,3 +306,12 @@ export function sum (diffs) {
 
 	return total;
 }
+
+/**
+ * How many lines a diff changes, e.g. 12 for +10 −2.
+ * @param {Diff} diff
+ * @returns {number}
+ */
+export function size (diff) {
+	return diff.additions + diff.deletions;
+}
