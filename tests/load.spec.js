@@ -313,3 +313,23 @@ test("A PR whose commit sizes fail ends the load only once the other PRs are cou
 	await expect(page.getByText("Couldn’t refresh")).toBeVisible();
 	await expect(page.locator("#counter")).toBeHidden();
 });
+
+test("A click on a label keeps the rows that have it while the search runs", async ({
+	page,
+	github,
+}) => {
+	github.search = answer => {
+		for (let pr of answer.data.search.nodes) {
+			if ("AC".includes(pr.id)) {
+				pr.labels.nodes = [{ name: "bug", color: "d73a4a", description: null }];
+			}
+		}
+	};
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+
+	github.search = () => new Promise(() => {});
+	await page.getByRole("link", { name: "Filter by label bug" }).first().click();
+
+	await expect(page.locator("#queue tbody .number")).toHaveText(["#65", "#67"]);
+});

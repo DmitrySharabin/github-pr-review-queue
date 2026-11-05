@@ -154,3 +154,45 @@ test("A retry after a failed refresh keeps the queue in place while it runs, ins
 	expect((await strip.boundingBox()).y).toBe(y);
 	resolve(502);
 });
+
+test("A refresh marks the PRs it finds that the last load didn’t, and the rows that changed", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+
+	github.search = answer => {
+		let { nodes } = answer.data.search;
+		nodes[1].title = "A pull request retitled B";
+		nodes.push({ ...nodes[0], id: "G", number: 71 });
+	};
+	await page.getByRole("button", { name: "Refresh" }).click();
+	await expect(page.locator("progress")).toBeHidden();
+
+	await expect(page.locator("#queue tbody small:has(mark:not([hidden]))")).toHaveText([
+		"#66 by ghost changed",
+		"#71 by ghost new",
+	]);
+	await expect(page.locator("#summary .delta .up")).toHaveText("+1");
+});
+
+test("A refresh that finds nothing new marks nothing, even after one that marked rows", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+	github.search = answer => {
+		let { nodes } = answer.data.search;
+		nodes[1].title = "A pull request retitled B";
+		nodes.push({ ...nodes[0], id: "G", number: 71 });
+	};
+	await page.getByRole("button", { name: "Refresh" }).click();
+	await expect(page.locator("progress")).toBeHidden();
+
+	await page.getByRole("button", { name: "Refresh" }).click();
+	await expect(page.locator("#updated .changes")).toHaveText("No changes");
+
+	await expect(page.locator("#queue tbody mark:not([hidden])")).toHaveCount(0);
+});
