@@ -18,6 +18,16 @@ export const test = base.extend({
 		await context.addInitScript(() =>
 			localStorage.setItem("madata:token:auth.madata.dev/github", "fake"));
 
+		// Nothing waits on the network: an avatar that GitHub is slow to send holds up the page’s load event, and with it `page.goto()`.
+		// Every avatar is a black square
+		await context.route("https://auth.madata.dev/services.json", route =>
+			route.fulfill({ json: { Github: { client_id: "fake" } } }));
+		await context.route("https://github.com/*.png*", route =>
+			route.fulfill({
+				contentType: "image/svg+xml",
+				body: `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><rect width="48" height="48"/></svg>`,
+			}));
+
 		await context.route("https://api.github.com/**", async route => {
 			if (new URL(route.request().url()).pathname === "/user") {
 				return route.fulfill({ json: { login: "DmitrySharabin" } });
