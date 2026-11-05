@@ -54,6 +54,15 @@ export function fill (row, summary) {
 }
 
 /**
+ * The rows as they show now, by PR id, for a later {@link mark} to compare with.
+ * @param {Row[]} rows
+ * @returns {Map<string, HTMLTableRowElement>}
+ */
+export function snapshot (rows) {
+	return new Map(rows.map(row => [row.pr.id, row.tr.cloneNode(true)]));
+}
+
+/**
  * Mark what changed since the last load: the PRs it didn’t show, and the cells that differ from it.
  * @param {Row[]} rows - The rows on screen
  * @param {Map<string, HTMLTableRowElement>} last - The rows it showed, by PR id

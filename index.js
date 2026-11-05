@@ -1,4 +1,7 @@
-/** @import { Row } from "./row.js" */
+/**
+ * @import { View } from "./pull-request.js"
+ * @import { Row } from "./row.js"
+ */
 import {
 	addedLabel,
 	details,
@@ -10,7 +13,7 @@ import {
 } from "./pull-request.js";
 import { count, describe, github, graphql, nodes, notFound, signedInUser } from "./github.js";
 import { forget, restore, store, storedQueues } from "./queues.js";
-import { fill, mark, unmark } from "./row.js";
+import { fill, mark, snapshot, unmark } from "./row.js";
 import { sort, sortBy } from "./sort.js";
 import { showTime } from "./time.js";
 import { offerRecent } from "./recent.js";
@@ -289,7 +292,7 @@ async function load () {
 		});
 		shownUser = stored.user;
 		showUpdated(new Date(stored.at));
-		seen = new Map(rows.map(row => [row.pr.id, row.tr.cloneNode(true)]));
+		seen = snapshot(rows);
 	}
 
 	if (stored || label !== undefined) {
@@ -352,60 +355,6 @@ async function load () {
 
 		// Unless values on screen are being checked, e.g. on a refresh
 		let task = "loaded";
-		let done = 0;
-
-		/**
-		 * Fill in the slow fields of these PRs’ rows, a few PRs per query.
-		 * A failed query leaves its rows as they were, and the others fill in still. Resolves to the first failure, if any
-		 */
-		let update = async ids => {
-			// GitHub stops a query that runs too long, so each asks for a few PRs
-			let size = 10;
-			let batches = Array.from({ length: Math.ceil(ids.length / size) }, (_, i) =>
-				ids.slice(i * size, (i + 1) * size));
-
-			let results = await Promise.allSettled(
-				batches.map(async batch => {
-					let prs = await nodes(ids => details({ user, role, ids }), batch, signal);
-					return Promise.allSettled(
-						prs.map(async pr => {
-							// Rows a newer load owns, e.g. after a role switch
-							if (signal.aborted) {
-								return;
-							}
-
-							// A PR deleted since the search, which GitHub answers with null: nothing to fill, and the next search drops its row
-							if (!pr) {
-								showProgress(task, ++done, ids.length);
-								return;
-							}
-
-							let row = rows.find(row => row.pr.id === pr.id);
-
-							let summary = summarize({ ...row.pr, ...pr }, user, role);
-							await count(repo, summary.diffSinceReview, signal);
-							// A newer load may have started during the count
-							if (signal.aborted) {
-								return;
-							}
-
-							// The search may have refreshed the cheap fields during the count, e.g. a new title.
-							// Undimmed first, the row equals its render when nothing changed, and keeps focus
-							if (row.tr.classList.contains("stale")) {
-								unmark(row.tr);
-							}
-							fill(row, { ...summary, ...summarize(row.pr, user, role) });
-							row.detailed = row.pr;
-							showProgress(task, ++done, ids.length);
-						}),
-					);
-				}),
-			);
-			// A batch that answered settles each of its PRs apart, e.g. one whose commit sizes failed
-			return results
-				.flatMap(result => result.value ?? result)
-				.find(result => result.status === "rejected");
-		};
 
 		// Rows of another queue, e.g. before a role switch, stay on screen until the search replaces them, but don’t update
 		let kept = sameQueue || stored ? rows : [];
@@ -426,7 +375,7 @@ async function load () {
 			// A range left means its comparison failed, so the next load tries again.
 			// The details are checked against their own copy: a load stopped before they came, e.g. by a label click, already replaced `pr`
 			if (!row.detailed || row.summary.diffSinceReview.range || outdated(row.detailed, pr)) {
-				stale.push(pr.id);
+				stale.push(row);
 				if (row.detailed) {
 					row.tr.classList.add("stale");
 					task = "rechecked";
@@ -439,7 +388,7 @@ async function load () {
 			showProgress(task, 0, stale.length);
 		}
 
-		let failed = await update(stale);
+		let failed = await update(stale, task, { ...view, user }, signal);
 		signal.throwIfAborted();
 		sort(rows, { animate: true });
 		showSummary({ ...view, user });
@@ -455,7 +404,7 @@ async function load () {
 		store(view, { user, at: now, rows: rows.map(({ pr, summary }) => ({ pr, summary })) });
 
 		let last = seen;
-		seen = new Map(rows.map(row => [row.pr.id, row.tr.cloneNode(true)]));
+		seen = snapshot(rows);
 		if (last) {
 			showDelta(mark(rows, last));
 		}
@@ -469,10 +418,7 @@ async function load () {
 		// Rows of another view would sit under labels they don’t match, e.g. after a failed role switch, so they go,
 		// with the filter of that view and the time they were updated at. So do bars that stand in for rows, e.g. on a first visit
 		if ((!sameView && shown !== view) || table.tBodies[0].querySelector(".skeleton")) {
-			strip.hidden = true;
-			table.parentElement.hidden = true;
-			empty.hidden = true;
-			narrow.hidden = true;
+			hideQueue();
 			updated.textContent = "";
 		}
 
@@ -502,6 +448,65 @@ async function load () {
 	refresh.ariaDisabled = null;
 	delta.classList.remove("stale");
 	failure.classList.remove("stale");
+}
+
+/**
+ * Fill in the slow fields of these rows, a few PRs per query, and count them on the progress bar.
+ * A failed query leaves its rows as they were, and the others fill in still. Resolves to the first failure, if any
+ * @param {Row[]} stale
+ * @param {string} task - What the progress bar counts, e.g. “rechecked” on a refresh
+ * @param {View} view - The load’s, with the user it is for
+ * @param {AbortSignal} signal - The load’s
+ */
+async function update (stale, task, { repo, user, role }, signal) {
+	let done = 0;
+	// GitHub stops a query that runs too long, so each asks for a few PRs
+	let size = 10;
+	let batches = Array.from({ length: Math.ceil(stale.length / size) }, (_, i) =>
+		stale.slice(i * size, (i + 1) * size));
+
+	let results = await Promise.allSettled(
+		batches.map(async batch => {
+			let ids = batch.map(row => row.pr.id);
+			let prs = await nodes(ids => details({ user, role, ids }), ids, signal);
+			return Promise.allSettled(
+				prs.map(async pr => {
+					// Rows a newer load owns, e.g. after a role switch
+					if (signal.aborted) {
+						return;
+					}
+
+					// A PR deleted since the search, which GitHub answers with null: nothing to fill, and the next search drops its row
+					if (!pr) {
+						showProgress(task, ++done, stale.length);
+						return;
+					}
+
+					let row = batch.find(row => row.pr.id === pr.id);
+
+					let summary = summarize({ ...row.pr, ...pr }, user, role);
+					await count(repo, summary.diffSinceReview, signal);
+					// A newer load may have started during the count
+					if (signal.aborted) {
+						return;
+					}
+
+					// The search may have refreshed the cheap fields during the count, e.g. a new title.
+					// Undimmed first, the row equals its render when nothing changed, and keeps focus
+					if (row.tr.classList.contains("stale")) {
+						unmark(row.tr);
+					}
+					fill(row, { ...summary, ...summarize(row.pr, user, role) });
+					row.detailed = row.pr;
+					showProgress(task, ++done, stale.length);
+				}),
+			);
+		}),
+	);
+	// A batch that answered settles each of its PRs apart, e.g. one whose commit sizes failed
+	return results
+		.flatMap(result => result.value ?? result)
+		.find(result => result.status === "rejected");
 }
 
 /** Show the rows, sorted, with what goes around them: the strip above them, or why there are none. */
@@ -540,6 +545,14 @@ function showSkeleton ({ repo, user, role, filter }) {
 	empty.hidden = true;
 	repoForm.hidden = true;
 	narrow.hidden = false;
+}
+
+/** Hide the queue and what goes around it, e.g. for the sign-in card or the form after a failed load. */
+function hideQueue () {
+	strip.hidden = true;
+	table.parentElement.hidden = true;
+	empty.hidden = true;
+	narrow.hidden = true;
 }
 
 /** Name things after the role, since an author sees their own PRs, e.g. “Awaiting review” becomes “Open”. */
@@ -665,10 +678,7 @@ async function login (repo) {
 		// No stored token. The sign-in popup needs a click, or the browser blocks it.
 		// Whoever signs in may be someone else, e.g. after a token expired, so the queues of the last one go
 		forget();
-		strip.hidden = true;
-		table.parentElement.hidden = true;
-		empty.hidden = true;
-		narrow.hidden = true;
+		hideQueue();
 		showDelta();
 		header.classList.remove("failed");
 		status.hidden = false;
