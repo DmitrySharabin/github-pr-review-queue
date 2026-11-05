@@ -680,9 +680,11 @@ hgroup {
 
 	/* The first lines until Show all shows the rest */
 	&:not(.expanded) span {
+		/* NOTE: No browser ships `line-clamp` without the prefix yet, only behind flags (November 2026) */
 		display: -webkit-box;
 		-webkit-box-orient: vertical;
 		-webkit-line-clamp: var(--lines, 3);
+		line-clamp: var(--lines, 3);
 		overflow: hidden;
 	}
 
