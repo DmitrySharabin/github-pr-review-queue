@@ -1,5 +1,16 @@
 {
 	"name": "github-pr-review-queue",
+	"description": "Open GitHub pull requests awaiting someone’s review, with diff size, changes since their last review, wait time, and what every other reviewer did",
+	"homepage": "https://prq.fyi/",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/DmitrySharabin/github-pr-review-queue.git"
+	},
+	"bugs": {
+		"url": "https://github.com/DmitrySharabin/github-pr-review-queue/issues"
+	},
+	"author": "Dmitry Sharabin (https://d12n.me)",
+	"license": "MIT",
 	"private": true,
 	"type": "module",
 	"scripts": {

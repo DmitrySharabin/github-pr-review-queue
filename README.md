@@ -94,3 +94,7 @@ Chrome or Edge 135, Firefox 144, or Safari 26.2.
 
 - In older browsers, the columns do not sort.
 - Before Firefox 147, a filter or a view switch reloads the page.
+
+## License
+
+[MIT](LICENSE)
