@@ -268,6 +268,21 @@ main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #upd
 		block-size: auto;
 		margin-inline-end: 0.4em;
 		border-radius: 50%;
+		background: var(--rule);
+	}
+
+	/* No user yet, so no link and no image. Chrome and Firefox frame an image without a source, so a disc stands in for it, as in the rows of bars */
+	.user:not([href]) {
+		img {
+			display: none;
+		}
+
+		&::before {
+			inline-size: 1.2em;
+			block-size: 1.2em;
+			margin-inline-end: 0.4em;
+			border-radius: 50%;
+		}
 	}
 
 	.roles {
@@ -1282,6 +1297,8 @@ time.rounded {
 
 /* A value still loading leaves its cell or time empty: a flat bar holds its place */
 :is(td, time, .count):empty::before,
+.user:not([href]) > span::before,
+.user:not([href])::before,
 .skeleton :is(.avatar, .headline, small)::before {
 	content: "";
 	display: inline-block;

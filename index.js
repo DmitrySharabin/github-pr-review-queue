@@ -380,6 +380,13 @@ async function load () {
 	counter.hidden = true;
 	progress.hidden = false;
 
+	// Nothing on screen yet, e.g. on a first visit or after a failed load. A stored token signs in without a card,
+	// so bars stand in for the rows during the sign-in. Without one, they would flash before the sign-in card
+	// NOTE: An expired token still shows them before the card
+	if (strip.hidden && github.isAuthenticated()) {
+		showSkeleton(view);
+	}
+
 	try {
 		await login(repo);
 		signal.throwIfAborted();
@@ -403,8 +410,8 @@ async function load () {
 			showDelta();
 		}
 
-		// Nothing on screen yet, e.g. on a first visit or after a failed load
-		if (strip.hidden) {
+		// Nothing on screen yet, e.g. after the sign-in card, or bars that wait for the user’s name
+		if (strip.hidden || table.tBodies[0].querySelector(".skeleton")) {
 			showSkeleton({ ...view, user });
 		}
 
@@ -716,8 +723,21 @@ function showSummary ({ repo, user, role, filter }) {
 	link.textContent = repo;
 
 	let person = strip.querySelector(".user");
-	person.href = `https://github.com/${user}`;
-	person.querySelector("img").src = `https://github.com/${user}.png?size=48`;
+	if (user) {
+		person.href = `https://github.com/${user}`;
+		let avatar = person.querySelector("img");
+		let src = `https://github.com/${user}.png?size=48`;
+		// An image keeps drawing its last source until the new one loads, e.g. the last user’s face.
+		// Without a source first, the image shows its background, a disc, until then
+		if (avatar.src !== src) {
+			avatar.removeAttribute("src");
+			avatar.src = src;
+		}
+	}
+	// Unknown during the sign-in when the URL names no user. Without a link, bars stand in for the avatar and the name
+	else {
+		person.removeAttribute("href");
+	}
 	person.querySelector("span").textContent = user;
 
 	let count = strip.querySelector(".count");

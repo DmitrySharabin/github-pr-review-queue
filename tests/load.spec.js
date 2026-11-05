@@ -20,6 +20,54 @@ test("A failed search hides the bars that stood in for its rows, even of the vie
 	await expect(page.locator("#queue")).toBeHidden();
 });
 
+test("With a stored token, bars stand in for the rows while the sign-in runs, so nothing jumps in when they arrive", async ({
+	page,
+	github,
+}) => {
+	// Madata asks auth.madata.dev for its services before it signs in
+	await page.route("https://auth.madata.dev/**", () => {});
+	await page.goto("/?repo=foo/bar");
+
+	await expect(page.locator("#queue tr.skeleton").first()).toBeVisible();
+});
+
+// Without the `github` fixture, no token is stored
+test("Without a stored token, no bars flash before the sign-in card", async ({ page }) => {
+	await page.route("https://auth.madata.dev/**", () => {});
+	await page.goto("/?repo=foo/bar");
+
+	await expect(page.locator("#queue")).toBeHidden();
+});
+
+test("Bars that stood in for the user during the sign-in give way to the user once it ends", async ({
+	page,
+	github,
+}) => {
+	github.search = () => new Promise(() => {});
+	await page.goto("/?repo=foo/bar");
+
+	await expect(page.locator("#summary .user")).toHaveText("DmitrySharabin");
+});
+
+test("A new user’s avatar shows a disc, not the last user’s face, while it loads", async ({
+	page,
+	github,
+}) => {
+	// The new user’s avatar never arrives
+	await page.route("https://github.com/other-user.png*", () => {});
+	await page.goto("/?repo=foo/bar");
+	let avatar = page.locator("#summary .user img");
+	await expect.poll(() => avatar.evaluate(img => img.naturalWidth)).toBe(48);
+	let face = await avatar.screenshot();
+
+	await page.getByRole("button", { name: "Change user" }).click();
+	await page.getByRole("textbox", { name: "User" }).fill("other-user");
+	await page.getByRole("textbox", { name: "User" }).press("Enter");
+	await expect(page.locator("#summary .user")).toHaveText("other-user");
+
+	expect((await avatar.screenshot()).equals(face)).toBe(false);
+});
+
 test("A role switch hides the counter of the load it stops", async ({ page, github }) => {
 	github.details = () => new Promise(() => {});
 	await page.goto("/?repo=foo/bar");
