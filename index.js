@@ -8,12 +8,14 @@ let github = new GithubAPI("https://api.github.com/graphql");
 let table = document.querySelector("#queue");
 let status = document.querySelector("#status");
 let progress = document.querySelector("progress");
+let counter = document.querySelector("#counter");
 let signIn = document.querySelector("#sign-in");
 let refresh = document.querySelector("#refresh");
 let signOut = document.querySelector("#sign-out");
 let controls = document.querySelector("#controls");
 let tokenForm = document.querySelector("#token-form");
 let rowTemplate = document.querySelector("#row");
+let skeletonTemplate = document.querySelector("#skeleton");
 let reviewerTemplate = document.querySelector("#reviewer");
 let labelTemplate = document.querySelector("#label");
 let repoForm = document.querySelector("#repo-form");
@@ -85,8 +87,11 @@ table.addEventListener("command", event => {
 	let sorted = { column: event.source.value, direction: th.ariaSort === "descending" ? "ascending" : "descending" };
 	markSort(sorted);
 	localStorage.setItem("review-queue:sort", JSON.stringify(sorted));
-	// No transition: its capture holds the new order back up to 300 ms on 100 rows, and when every row moves no one follows one
-	sort();
+	// No transition: its capture holds the new order back up to 300 ms on 100 rows, and when every row moves no one follows one.
+	// Bars wait for the search, which sorts what it finds: sorting now would put the rows of the last queue, or none, in their place
+	if (!table.tBodies[0].querySelector(".skeleton")) {
+		sort();
+	}
 });
 
 // Opening a link in a marked row, e.g. its PR, is seeing what changed in it. A middle click opens it too, a right click opens a menu
@@ -320,6 +325,10 @@ async function load () {
 	refresh.ariaDisabled = "true";
 	delta.classList.add("stale");
 	status.textContent = "Loading pull requests…";
+	// Indeterminate until the search tells how many PRs need details
+	progress.removeAttribute("value");
+	progress.ariaValueText = null;
+	counter.hidden = true;
 	progress.hidden = false;
 
 	try {
@@ -343,6 +352,15 @@ async function load () {
 			showDelta();
 		}
 
+		// Nothing on screen yet, e.g. on a first visit or after a failed load
+		if (strip.hidden) {
+			showSkeleton({ ...view, user });
+		}
+
+		// Unless values on screen are being checked, e.g. on a refresh
+		let task = "Loading details";
+		let done = 0;
+
 		/** Fill in the slow fields of these PRs’ rows, a few PRs per query. */
 		let update = ids => Promise.all(details({ user, role, ids }).map(async text => {
 			// A batch retries once on its own: GitHub drops a slow query without a readable response, or answers that it timed out
@@ -362,9 +380,14 @@ async function load () {
 					return;
 				}
 
-				// The search may have refreshed the cheap fields during the comparison, e.g. a new title
+				// The search may have refreshed the cheap fields during the comparison, e.g. a new title.
+				// Undimmed first, the row equals its render when nothing changed, and keeps focus
+				if (row.tr.classList.contains("stale")) {
+					unmark(row.tr);
+				}
 				fill(row, { ...summary, ...summarize(row.pr, user, role) });
 				row.detailed = row.pr;
+				showProgress(task, ++done, ids.length);
 			}));
 		}));
 
@@ -380,18 +403,25 @@ async function load () {
 		let stale = [];
 		rows = found.nodes.map(pr => {
 			let row = previous.get(pr.id) ?? {};
+			row.pr = pr;
+			// Without details the summary has no slow fields, so a refreshed row keeps its old ones, dimmed, until they arrive
+			fill(row, { ...row.summary, ...summarize(pr, user, role) });
+
 			// A range left means its comparison failed, so the next load tries again.
 			// The details are checked against their own copy: a load stopped before they came, e.g. by a label click, already replaced `pr`
 			if (!row.detailed || row.summary.diffSinceReview.range || outdated(row.detailed, pr)) {
 				stale.push(pr.id);
+				if (row.detailed) {
+					row.tr.classList.add("stale");
+					task = "Checking changed";
+				}
 			}
-
-			row.pr = pr;
-			// Without details the summary has no slow fields, so a refreshed row keeps its old ones until they arrive
-			fill(row, { ...row.summary, ...summarize(pr, user, role) });
 			return row;
 		});
 		showQueue({ ...view, user });
+		if (stale.length > 0) {
+			showProgress(task, 0, stale.length);
+		}
 
 		await update(stale);
 		signal.throwIfAborted();
@@ -415,13 +445,18 @@ async function load () {
 		}
 
 		// Rows of another view would sit under labels they don’t match, e.g. after a failed role switch, so they go,
-		// with the filter of that view and the time they were updated at
-		if (!sameView && shown !== view) {
+		// with the filter of that view and the time they were updated at. So do bars that stand in for rows, e.g. on a first visit
+		if (!sameView && shown !== view || table.tBodies[0].querySelector(".skeleton")) {
 			strip.hidden = true;
 			table.parentElement.hidden = true;
 			empty.hidden = true;
 			narrow.hidden = true;
 			updated.textContent = "";
+		}
+
+		// Rows the load didn’t update show their old values as they are
+		for (let tr of table.querySelectorAll("tr.stale")) {
+			unmark(tr);
 		}
 
 		showDelta();
@@ -430,17 +465,14 @@ async function load () {
 	}
 
 	progress.hidden = true;
+	counter.hidden = true;
 	refresh.ariaDisabled = null;
 	delta.classList.remove("stale");
 }
 
 /** Show the rows, sorted, with what goes around them: the strip above them, or why there are none. */
 function showQueue ({ repo, user, role, filter }) {
-	// An author sees their own PRs, so some names change with the rows, e.g. “Awaiting review” becomes “Open”
-	for (let element of document.querySelectorAll("[data-author]")) {
-		element.textContent = role === "author" ? element.dataset.author : element.dataset.reviewer;
-	}
-
+	showRole(role);
 	sort();
 	showSummary({ repo, user, role, filter });
 
@@ -454,6 +486,42 @@ function showQueue ({ repo, user, role, filter }) {
 		showEmpty({ repo, user, role, filter });
 	}
 	status.hidden = rows.length > 0;
+}
+
+/** Stand in for a queue that nothing shows yet, e.g. on a first visit, while its search runs: the strip with what the view tells, and rows of bars. */
+function showSkeleton ({ repo, user, role, filter }) {
+	showRole(role);
+	table.tBodies[0].replaceChildren(...Array.from({ length: 6 }, () => skeletonTemplate.content.firstElementChild.cloneNode(true)));
+	showSummary({ repo, user, role, filter });
+	// Unknown until the search ends. Without a link, it is no empty stop for the keyboard
+	let count = strip.querySelector(".count");
+	count.textContent = "";
+	count.removeAttribute("href");
+	showTime(strip.querySelector(".latest"));
+
+	table.parentElement.hidden = false;
+	empty.hidden = true;
+	repoForm.hidden = true;
+	narrow.hidden = false;
+}
+
+/** Name things after the role, since an author sees their own PRs, e.g. “Awaiting review” becomes “Open”. */
+function showRole (role) {
+	for (let element of document.querySelectorAll("[data-author]")) {
+		element.textContent = role === "author" ? element.dataset.author : element.dataset.reviewer;
+	}
+}
+
+/** Count the PRs whose details arrived, on the progress bar and next to the buttons, e.g. “Checking changed 3 of 7” on a refresh. */
+function showProgress (task, done, total) {
+	progress.max = total;
+	progress.value = done;
+	progress.ariaValueText = `${done} of ${total}`;
+
+	let count = document.createElement("b");
+	count.textContent = done;
+	counter.replaceChildren(`${task} `, count, ` of ${total}`);
+	counter.hidden = false;
 }
 
 /** Say why the queue is empty, e.g. “Nothing to review”, in the card and in the status, which a screen reader hears. */
@@ -838,7 +906,7 @@ function unmark (tr) {
 	label.textContent = "";
 
 	for (let element of [tr, ...tr.cells]) {
-		element.classList.remove("new", "changed");
+		element.classList.remove("new", "changed", "stale");
 		if (element.classList.length === 0) {
 			element.removeAttribute("class");
 		}

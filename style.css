@@ -95,15 +95,26 @@ small {
 	}
 }
 
-#updated {
+#updated,
+#counter {
 	margin: 0;
 	color: var(--muted);
 	line-height: calc(var(--control-size) / 2);
+}
 
-	/* As wide as the longest time, e.g. “12:59 PM”, so the buttons next to it stay put when it arrives */
-	time {
-		display: inline-block;
-		min-inline-size: 4.4em;
+/* As wide as the longest time, e.g. “12:59 PM”, so the buttons next to it stay put when it arrives */
+#updated time {
+	display: inline-block;
+	min-inline-size: 4.4em;
+}
+
+/* Digits of one width, so the text doesn’t twitch as the count grows */
+#counter {
+	font-variant-numeric: tabular-nums;
+
+	b {
+		color: var(--text);
+		font-weight: 500;
 	}
 }
 
@@ -135,10 +146,11 @@ main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #ref
 }
 
 /* Said on screen by the summary above the table, by the delta next to its count, e.g. “+3” for “3 new”,
-   and by the card that shows, e.g. the sign-in, whose changes a screen reader hears from the status */
+   the update time while the counter takes its place during a load, and by the card that shows, e.g. the sign-in, whose changes a screen reader hears from the status */
 caption,
 #updated .changes,
-main:has(> :is(#repo-form, #sign-in, #empty):not([hidden])) > #status,
+#counter:not([hidden]) + #updated,
+main:has(> :is(#repo-form, #sign-in, #summary):not([hidden])) > #status,
 main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #updated {
 	position: absolute;
 	/* One pixel wide, so a long one, e.g. an error, doesn’t widen the page */
@@ -430,11 +442,13 @@ button {
 
 	/* Spaced by a margin, not a gap, so the row takes no room while they hide, e.g. on the sign-in */
 	#updated,
+	#counter,
 	#refresh {
 		margin-block-start: 0.5em;
 	}
 
-	#updated {
+	#updated,
+	#counter {
 		grid-area: 2 / 1;
 	}
 
@@ -834,6 +848,7 @@ hgroup {
 /* In the gap below the header, centered in the queue’s, so showing it moves nothing */
 progress {
 	--duration: 1.5s;
+	--animation: none;
 
 	position: absolute;
 	inset-block-start: calc(100% + var(--block-gap) / 2);
@@ -861,6 +876,11 @@ progress {
 		opacity: 0;
 	}
 
+	/* Until the load knows how many PRs it waits for, e.g. during the search */
+	&:indeterminate {
+		--animation: progress-indeterminate var(--duration) infinite linear;
+	}
+
 	@media (prefers-reduced-motion: reduce) {
 		/* Slowed, not stopped: without its animation the indeterminate fill has no width */
 		--duration: 10s;
@@ -873,14 +893,15 @@ progress {
 	&::-webkit-progress-value {
 		background: var(--text);
 		border-radius: 1e5px;
-		animation: progress-indeterminate var(--duration) infinite linear;
+		animation: var(--animation);
+		transition: inline-size 300ms var(--ease-out);
 	}
 
 	/* Firefox, e.g. Zen; a rule shared with the WebKit pseudo-element would be dropped as invalid in both */
 	&::-moz-progress-bar {
 		background: var(--text);
 		border-radius: 1e5px;
-		animation: progress-indeterminate var(--duration) infinite linear;
+		animation: var(--animation);
 	}
 }
 
@@ -1016,6 +1037,11 @@ th {
 	white-space: nowrap;
 }
 
+/* The pull request takes the room the figures leave, so the figures stay as wide as their own text, whatever the titles, e.g. bars while the search runs */
+:is(th, td):first-child {
+	inline-size: 100%;
+}
+
 td:not(.requested) {
 	color: var(--muted);
 }
@@ -1023,6 +1049,11 @@ td:not(.requested) {
 /* Room for the times up to “30 days ago”, which arrive after the rows: a wider one would move every column, title wraps included */
 td.requested {
 	min-inline-size: 9ch;
+}
+
+/* Room for sizes such as “+999 −99”, which arrive after the rows, as the times do */
+td.diff {
+	min-inline-size: 13ch;
 }
 
 thead {
@@ -1172,12 +1203,13 @@ time.rounded {
 }
 
 /* A line tall, as the text that replaces it. A time that lays out as a flex box, e.g. in the summary, has no line around its bar: without this, the bar sits at the top */
-:is(td, time):empty {
+:is(td, time, .count):empty {
 	min-block-size: 1lh;
 }
 
 /* A value still loading leaves its cell or time empty: a flat bar holds its place */
-:is(td, time):empty::before {
+:is(td, time, .count):empty::before,
+.skeleton :is(.avatar, .headline, small)::before {
 	content: "";
 	display: inline-block;
 	inline-size: 3em;
@@ -1185,6 +1217,38 @@ time.rounded {
 	vertical-align: middle;
 	border-radius: 0.25em;
 	background: color-mix(in oklch, var(--text) 8%, var(--surface));
+}
+
+/* Where a PR will be: its avatar, title and byline */
+.skeleton {
+	.avatar::before {
+		display: block;
+		inline-size: 2rem;
+		block-size: 2rem;
+		border-radius: 50%;
+	}
+
+	.headline::before {
+		inline-size: 16em;
+	}
+
+	small::before {
+		inline-size: 7em;
+	}
+}
+
+/* As wide as a count of two digits, so the strip’s cells keep their widths when it arrives */
+.count:empty::before {
+	inline-size: 1.25em;
+}
+
+/* Old values that a load is replacing, e.g. on a refresh. They come back to full strength as the new ones arrive */
+tbody td {
+	transition: opacity 300ms var(--ease-out);
+
+	tr.stale > & {
+		opacity: 0.4;
+	}
 }
 
 /* The whole PR, standing in for a diff since a review */

@@ -30,6 +30,7 @@
 		<header>
 			<h1>GitHub PR review queue</h1>
 			<div id="controls" inert>
+				<p id="counter" hidden></p>
 				<p id="updated" role="status" aria-atomic="true">Updated at <time></time><span class="changes"></span></p>
 				<button id="refresh" aria-disabled="true">Refresh</button>
 				<button id="sign-out">Sign out</button>
@@ -208,6 +209,17 @@
 				</th>
 				<td class="diff"><a target="_blank"><span class="added"></span> <span class="deleted"></span> <span class="diffstat" aria-hidden="true"></span></a></td>
 				<td class="since-review"><a target="_blank"><span class="added"></span> <span class="deleted"></span> <span class="diffstat" aria-hidden="true"></span><span class="force-pushed" role="img" aria-label="Force-pushed" hidden></span></a></td>
+				<td class="iterations"></td>
+				<td class="requested"><time></time></td>
+				<td class="reviewers"></td>
+			</tr>
+		</template>
+
+		<template id="skeleton">
+			<tr class="skeleton" aria-hidden="true">
+				<th scope="row"><div class="pull-request"><span class="avatar"></span><span class="headline"></span><small></small></div></th>
+				<td class="diff"></td>
+				<td class="since-review"></td>
 				<td class="iterations"></td>
 				<td class="requested"><time></time></td>
 				<td class="reviewers"></td>
