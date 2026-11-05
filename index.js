@@ -430,14 +430,17 @@ async function load () {
 		let task = "loaded";
 		let done = 0;
 
-		/** Fill in the slow fields of these PRs’ rows, a few PRs per query. */
+		/**
+		 * Fill in the slow fields of these PRs’ rows, a few PRs per query.
+		 * A failed query leaves its rows as they were, and the others fill in still. Resolves to the first failure, if any
+		 */
 		let update = async ids => {
 			// GitHub stops a query that runs too long, and these fields are the slow ones
 			let size = 10;
 			let batches = Array.from({ length: Math.ceil(ids.length / size) }, (_, i) =>
 				ids.slice(i * size, (i + 1) * size));
 
-			await Promise.all(
+			let results = await Promise.allSettled(
 				batches.map(async batch => {
 					let found = await nodes(ids => details({ user, role, ids }), batch, signal);
 					await Promise.all(
@@ -474,6 +477,7 @@ async function load () {
 					);
 				}),
 			);
+			return results.find(result => result.status === "rejected");
 		};
 
 		// Rows of another queue, e.g. before a role switch, stay on screen until the search replaces them, but don’t update
@@ -508,13 +512,18 @@ async function load () {
 			showProgress(task, 0, stale.length);
 		}
 
-		await update(stale);
+		let failed = await update(stale);
 		signal.throwIfAborted();
 		sort({ animate: true });
 		showSummary({ ...view, user });
 
 		let now = new Date();
 		showUpdated(now);
+		// The search did refresh the queue, so the failure shows beside Refresh, never with the form.
+		// Its rows that failed keep their old details, and the next load asks for them again
+		if (failed) {
+			throw failed.reason;
+		}
 		header.classList.remove("failed");
 		store(view, { user, at: now, rows: rows.map(({ pr, summary }) => ({ pr, summary })) });
 

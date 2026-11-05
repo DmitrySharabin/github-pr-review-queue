@@ -94,9 +94,20 @@ test("On a phone, the counter shows below the title, not over it", async ({ page
 test("Failed details keep the rows the search found on screen", async ({ page, github }) => {
 	github.details = () => 500;
 	await page.goto("/?repo=foo/bar");
-	await expect(page.locator("#repo-form .notice")).toBeVisible();
+	await expect(page.getByText("Couldn’t refresh")).toBeVisible();
 
 	await expect(page.locator("#queue tbody .number").filter({ visible: true })).toHaveCount(6);
+});
+
+test("Failed details on a first load show no form to fix the repo and user, which the search found", async ({
+	page,
+	github,
+}) => {
+	github.details = () => 500;
+	await page.goto("/?repo=foo/bar");
+	await expect(page.getByText("Couldn’t refresh")).toBeVisible();
+
+	await expect(page.locator("#repo-form")).toBeHidden();
 });
 
 test("Details GitHub stops for running too long load in two halves, so a slow batch doesn’t fail the load", async ({
@@ -187,7 +198,7 @@ test("A PR deleted between the search and its details counts as loaded, and leav
 	await expect(page.locator("#counter")).toContainText("10 of 11");
 	resolve();
 
-	// The update time shows only once a load ends without failing
+	// The update time shows once a load ends
 	await expect(page.locator("#updated time")).not.toBeEmpty();
 	await expect(page.locator("#queue td.diff .added")).toHaveCount(10);
 });
