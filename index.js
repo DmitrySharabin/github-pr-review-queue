@@ -981,8 +981,9 @@ function describe (error, advice = "Try again.") {
 		return navigator.onLine ? slow : "You’re offline. Check your connection, then try again.";
 	}
 
-	// A text body, e.g. a 502’s HTML page, or an answer inTime() stopped as it arrived, which Madata throws as fetch did
-	if (message === undefined || error.name === "TimeoutError") {
+	// A text body, e.g. a 502’s HTML page. Or an answer inTime() stopped as it arrived: Madata doesn’t wrap the error of reading it,
+	// which Chrome names TimeoutError and Firefox and Safari AbortError. A load’s own abort never gets here
+	if (message === undefined || ["TimeoutError", "AbortError"].includes(error.name)) {
 		return slow;
 	}
 

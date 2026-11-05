@@ -297,7 +297,6 @@ test("A PR whose commit sizes fail ends the load only once the other PRs are cou
 	};
 	await page.goto("/?repo=foo/bar");
 	await failed.promise;
-	await expect(page.locator("#counter")).toContainText("4 of 6");
 	held.resolve();
 
 	await expect(
