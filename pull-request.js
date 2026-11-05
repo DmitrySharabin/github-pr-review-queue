@@ -236,7 +236,9 @@ export function summarize (pr, user, role) {
 			index === -1
 				? { ...diff, whole: reviewed ? "force-pushed" : "unreviewed" }
 				: {
-						...(own.length > 0 ? { commits: own.map(commit => commit.id) } : sum(own)),
+						...(own.length > 0
+							? { commits: own.map(commit => commit.id) }
+							: { additions: 0, deletions: 0 }),
 						url: `${pr.url}/changes/${reviewed}..${commits.at(-1).oid}`,
 						range: exact ? `${reviewed}...${last.oid}` : undefined,
 					},

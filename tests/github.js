@@ -6,6 +6,7 @@ export { expect } from "@playwright/test";
  * Playwright’s `test` with GitHub faked for the test’s page, as DmitrySharabin, whose queue in any repo holds PRs A–F (#65–#70).
  * A test changes how GitHub answers through the `github` fixture’s hooks. Each gets the answer to change, e.g. to add GraphQL errors,
  * and may return an HTTP status to fail with, e.g. `github.search = () => 500`, or a promise to hold the answer until it settles.
+ * `details` also gets the queries for commit sizes, whose nodes are then commits, e.g. N with +780.
  */
 export const test = base.extend({
 	github: async ({ context }, use) => {

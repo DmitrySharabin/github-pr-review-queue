@@ -445,14 +445,13 @@ async function load () {
 							let row = rows.find(row => row.pr.id === pr.id);
 
 							let summary = summarize({ ...row.pr, ...pr }, user, role);
-							await compare(repo, summary.diffSinceReview);
-							await estimate(summary.diffSinceReview);
-							// A newer load may have started during the comparison
+							await count(repo, summary.diffSinceReview);
+							// A newer load may have started during the count
 							if (signal.aborted) {
 								return;
 							}
 
-							// The search may have refreshed the cheap fields during the comparison, e.g. a new title.
+							// The search may have refreshed the cheap fields during the count, e.g. a new title.
 							// Undimmed first, the row equals its render when nothing changed, and keeps focus
 							if (row.tr.classList.contains("stale")) {
 								unmark(row.tr);
@@ -816,40 +815,34 @@ function inTime (answer) {
 	return Promise.race([answer, new Promise((resolve, reject) => setTimeout(reject, 20_000))]);
 }
 
-/** Replace a diff’s estimate with GitHub’s exact count, when it has a range to compare. */
-async function compare (repo, diff) {
-	if (!diff.range) {
-		return;
+/** Count a diff that summarize() left uncounted: exactly, when it has a range to compare, or else by the sizes of its commits. */
+async function count (repo, diff) {
+	if (diff.range) {
+		try {
+			// NOTE: GitHub lists at most 300 files in a comparison
+			let { files } = await inTime(
+				github.load(`https://api.github.com/repos/${repo}/compare/${diff.range}`),
+			);
+			Object.assign(diff, sum(files));
+			// Exact now, so a later load of the unchanged PR needn’t compare again
+			delete diff.range;
+			delete diff.commits;
+			return;
+		}
+		catch (error) {
+			// One failed comparison should not hide the queue: the commits’ sizes estimate the count instead
+			// NOTE: A refresh whose comparison fails, or succeeds after one that failed, marks the cell as changed
+			console.warn(`Couldn’t compare ${diff.range}, adding up its commits instead.`, error);
+		}
 	}
 
-	try {
-		// NOTE: GitHub lists at most 300 files in a comparison
-		let { files } = await inTime(
-			github.load(`https://api.github.com/repos/${repo}/compare/${diff.range}`),
-		);
-		Object.assign(diff, sum(files));
-		// Exact now, so neither estimate() nor a later load of the unchanged PR needs to count again
-		delete diff.range;
+	if (diff.commits) {
+		let text = sizes(diff.commits);
+		// Retries once, as the details do. NOTE: A commit GitHub can’t resolve answers null, which fails the load
+		let { nodes } = await graphql(text).catch(() => graphql(text));
+		Object.assign(diff, sum(nodes));
 		delete diff.commits;
 	}
-	catch (error) {
-		// One failed comparison should not hide the queue: the estimate stays
-		// NOTE: A refresh whose comparison fails, or succeeds after one that failed, marks the cell as changed
-		console.warn(`Couldn’t compare ${diff.range}, showing the estimate.`, error);
-	}
-}
-
-/** Count a diff by the sizes of its commits, when it lists them and nothing counted it exactly. */
-async function estimate (diff) {
-	if (!diff.commits) {
-		return;
-	}
-
-	let text = sizes(diff.commits);
-	// Retries once, as the details do
-	let { nodes } = await graphql(text).catch(() => graphql(text));
-	Object.assign(diff, sum(nodes));
-	delete diff.commits;
 }
 
 async function login (repo) {
