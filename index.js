@@ -6,12 +6,12 @@ import {
 	outdated,
 	query,
 	search,
-	size,
 	summarize,
 } from "./pull-request.js";
 import { count, describe, github, graphql, nodes, notFound, signedInUser } from "./github.js";
 import { forget, restore, store, storedQueues } from "./queues.js";
 import { fill, mark, unmark } from "./row.js";
+import { sort, sortBy } from "./sort.js";
 import { showTime } from "./time.js";
 import { offerRecent } from "./recent.js";
 
@@ -37,13 +37,6 @@ let delta = strip.querySelector(".delta");
 let filterForm = narrow.querySelector("form");
 let forms = [repoForm, filterForm, ...strip.querySelectorAll("form")];
 
-/** Sort value of each column. `null` and `undefined` (still loading) sort last in both directions. */
-const sortKeys = {
-	diff: summary => summary.diff && size(summary.diff),
-	diffSinceReview: summary => summary.diffSinceReview && size(summary.diffSinceReview),
-	iterations: summary => summary.iterations,
-	waitingSince: summary => summary.waitingSince && -summary.waitingSince,
-};
 /** @type {Row[]} */
 let rows = [];
 /** What the rows show: the URL parameters of their load, e.g. `{ repo: "foo/bar", filter: "label:baz" }` */
@@ -55,26 +48,7 @@ let loading;
 /** @type {Map<string, HTMLTableRowElement> | undefined} The rows the last finished load of this view showed, by PR id, for the next to mark what changed */
 let seen;
 
-// The last sort survives a reload, e.g. { column: "diff", direction: "ascending" }
-let saved = JSON.parse(localStorage.getItem("review-queue:sort"));
-if (saved) {
-	markSort(saved);
-}
-
-table.addEventListener("command", event => {
-	let th = event.source.closest("th");
-	let sorted = {
-		column: event.source.value,
-		direction: th.ariaSort === "descending" ? "ascending" : "descending",
-	};
-	markSort(sorted);
-	localStorage.setItem("review-queue:sort", JSON.stringify(sorted));
-	// No transition: its capture holds the new order back up to 300 ms on 100 rows, and when every row moves no one follows one.
-	// Bars wait for the search, which sorts what it finds: sorting now would put the rows of the last queue, or none, in their place
-	if (!table.tBodies[0].querySelector(".skeleton")) {
-		sort();
-	}
-});
+table.addEventListener("command", event => sortBy(rows, event.source.value));
 
 // Opening a link in a marked row, e.g. its PR, is seeing what changed in it. A middle click opens it too, a right click opens a menu
 for (let type of ["click", "auxclick"]) {
@@ -467,7 +441,7 @@ async function load () {
 
 		let failed = await update(stale);
 		signal.throwIfAborted();
-		sort({ animate: true });
+		sort(rows, { animate: true });
 		showSummary({ ...view, user });
 
 		let now = new Date();
@@ -533,7 +507,7 @@ async function load () {
 /** Show the rows, sorted, with what goes around them: the strip above them, or why there are none. */
 function showQueue ({ repo, user, role, filter }) {
 	showRole(role);
-	sort();
+	sort(rows);
 	showSummary({ repo, user, role, filter });
 
 	table.parentElement.hidden = rows.length === 0;
@@ -750,72 +724,4 @@ function showReason (element, reason) {
 	element.classList.remove("expanded");
 	all.textContent = "Show all";
 	all.hidden = text.scrollHeight <= text.clientHeight;
-}
-
-/** Mark the column the table sorts by. */
-function markSort ({ column, direction }) {
-	let th = table.tHead.querySelector(`[value="${column}"]`)?.closest("th");
-
-	// A saved column the table no longer has
-	if (!th) {
-		return;
-	}
-
-	table.tHead.querySelector("[aria-sort]").ariaSort = null;
-	th.ariaSort = direction;
-}
-
-/**
- * Sort the rows on screen by the sorted column.
- * @param {{ animate?: boolean }} [options] - Whether moved rows slide to their new places
- */
-function sort ({ animate } = {}) {
-	let th = table.tHead.querySelector("[aria-sort]");
-	let key = sortKeys[th.querySelector("button").value];
-	let sign = th.ariaSort === "ascending" ? 1 : -1;
-
-	rows.sort((a, b) => {
-		let [x, y] = [key(a.summary), key(b.summary)];
-
-		if (x == null || y == null) {
-			return (x == null) - (y == null);
-		}
-
-		return sign * (x - y);
-	});
-
-	let body = table.tBodies[0];
-	let place = () => {
-		// A row already at its place stays, e.g. every row on a refresh that changes no order.
-		// moveBefore() keeps a moved row’s focus and selected text, which insertBefore() drops. A new row isn’t on the page yet
-		rows.forEach(({ tr }, i) => {
-			let next = body.rows[i] ?? null;
-			if (tr === next) {
-				return;
-			}
-
-			if (tr.isConnected && body.moveBefore) {
-				body.moveBefore(tr, next);
-			}
-			else {
-				body.insertBefore(tr, next);
-			}
-		});
-
-		// Left after the sorted rows: those of PRs the search no longer finds
-		while (body.rows.length > rows.length) {
-			body.rows[rows.length].remove();
-		}
-	};
-
-	// A transition styles 4 pseudo-elements per row, e.g. 400 for 100 rows, and blocks clicks while it runs,
-	// so it runs only when a row moves where someone sees it: a hidden tab, e.g. switched away from during a load, skips it with an error.
-	// Firefox before 144 has no view transitions: the rows then sort without moving
-	let moves = body.rows.length !== rows.length || rows.some(({ tr }, i) => tr !== body.rows[i]);
-	if (animate && moves && !document.hidden && document.startViewTransition) {
-		document.startViewTransition(place);
-	}
-	else {
-		place();
-	}
 }
