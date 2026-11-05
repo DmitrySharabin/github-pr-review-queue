@@ -482,7 +482,7 @@ async function load () {
 				stale.push(pr.id);
 				if (row.detailed) {
 					row.tr.classList.add("stale");
-					task = "updated";
+					task = "rechecked";
 				}
 			}
 			return row;
@@ -588,7 +588,7 @@ function showRole (role) {
 	}
 }
 
-/** Count the PRs whose details arrived, on the progress bar and next to the buttons, e.g. “3 of 7 pull requests updated” on a refresh. */
+/** Count the PRs whose details arrived, on the progress bar and next to the buttons, e.g. “3 of 7 pull requests rechecked” on a refresh. */
 function showProgress (task, done, total) {
 	progress.max = total;
 	progress.value = done;
