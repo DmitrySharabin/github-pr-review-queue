@@ -435,16 +435,16 @@ async function load () {
 		 * A failed query leaves its rows as they were, and the others fill in still. Resolves to the first failure, if any
 		 */
 		let update = async ids => {
-			// GitHub stops a query that runs too long, and these fields are the slow ones
+			// GitHub stops a query that runs too long, so each asks for a few PRs
 			let size = 10;
 			let batches = Array.from({ length: Math.ceil(ids.length / size) }, (_, i) =>
 				ids.slice(i * size, (i + 1) * size));
 
 			let results = await Promise.allSettled(
 				batches.map(async batch => {
-					let found = await nodes(ids => details({ user, role, ids }), batch, signal);
-					await Promise.all(
-						found.map(async pr => {
+					let prs = await nodes(ids => details({ user, role, ids }), batch, signal);
+					return Promise.allSettled(
+						prs.map(async pr => {
 							// Rows a newer load owns, e.g. after a role switch
 							if (signal.aborted) {
 								return;
@@ -477,7 +477,10 @@ async function load () {
 					);
 				}),
 			);
-			return results.find(result => result.status === "rejected");
+			// A batch that answered settles each of its PRs apart, e.g. one whose commit sizes failed
+			return results
+				.flatMap(result => result.value ?? result)
+				.find(result => result.status === "rejected");
 		};
 
 		// Rows of another queue, e.g. before a role switch, stay on screen until the search replaces them, but don’t update
@@ -843,10 +846,9 @@ async function nodes (query, ids, signal) {
 		return (await graphql(query(ids), signal)).nodes;
 	}
 	catch {
-		signal.throwIfAborted();
 		let half = Math.ceil(ids.length / 2);
 		// One PR asks again as it is
-		let halves = [ids.slice(0, half), ids.slice(half)].filter(half => half.length > 0);
+		let halves = [ids.slice(0, half), ids.slice(half)].filter(part => part.length > 0);
 		let answers = await Promise.all(halves.map(ids => graphql(query(ids), signal)));
 		return answers.flatMap(answer => answer.nodes);
 	}

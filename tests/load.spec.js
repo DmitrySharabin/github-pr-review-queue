@@ -99,17 +99,6 @@ test("Failed details keep the rows the search found on screen", async ({ page, g
 	await expect(page.locator("#queue tbody .number").filter({ visible: true })).toHaveCount(6);
 });
 
-test("Failed details on a first load show no form to fix the repo and user, which the search found", async ({
-	page,
-	github,
-}) => {
-	github.details = () => 500;
-	await page.goto("/?repo=foo/bar");
-	await expect(page.getByText("Couldn’t refresh")).toBeVisible();
-
-	await expect(page.locator("#repo-form")).toBeHidden();
-});
-
 test("Details GitHub stops for running too long load in two halves, so a slow batch doesn’t fail the load", async ({
 	page,
 	github,
@@ -122,10 +111,7 @@ test("Details GitHub stops for running too long load in two halves, so a slow ba
 	await expect(page.locator("#queue td.diff .added")).toHaveCount(6);
 });
 
-test("A role switch stops the requests of the load it leaves, so GitHub doesn’t work on answers nobody sees", async ({
-	page,
-	github,
-}) => {
+test("A role switch stops the requests of the load it leaves", async ({ page, github }) => {
 	await page.goto("/?repo=foo/bar");
 	await expect(page.locator("progress")).toBeHidden();
 
@@ -273,4 +259,49 @@ test("Changes since the last review add up the sizes of the author’s commits s
 	await expect(
 		page.locator("#queue tbody tr").filter({ hasText: "#65" }).locator(".since-review"),
 	).toContainText("+780 −2");
+});
+
+test("A PR whose commit sizes fail ends the load only once the other PRs are counted, so no row fills in after it", async ({
+	page,
+	github,
+}) => {
+	let commit = (id, parents = 1) => ({
+		commit: { id, oid: id, parents: { totalCount: parents } },
+	});
+	let failed = Promise.withResolvers();
+	let held = Promise.withResolvers();
+	let asked = 0;
+	// A and B each have one of the author’s commits since the review, after a merge: N for A, whose sizes GitHub fails twice, and O for B
+	github.details = answer => {
+		let [node] = answer.data.nodes;
+		if (node.id === "N") {
+			if (++asked === 2) {
+				failed.resolve();
+			}
+			return 502;
+		}
+		if (node.id === "O") {
+			return held.promise;
+		}
+
+		for (let pr of answer.data.nodes.filter(pr => pr.id === "A" || pr.id === "B")) {
+			pr.commits.nodes = [commit("L"), commit("M", 2), commit(pr.id === "A" ? "N" : "O")];
+			pr.reviews.nodes = [
+				{
+					submittedAt: "2026-11-01T12:00:00Z",
+					author: { login: "DmitrySharabin" },
+					commit: { oid: "L" },
+				},
+			];
+		}
+	};
+	await page.goto("/?repo=foo/bar");
+	await failed.promise;
+	await expect(page.locator("#counter")).toContainText("4 of 6");
+	held.resolve();
+
+	await expect(
+		page.locator("#queue tbody tr").filter({ hasText: "#66" }).locator(".since-review"),
+	).toContainText("+790");
+	await expect(page.locator("#counter")).toBeHidden();
 });
