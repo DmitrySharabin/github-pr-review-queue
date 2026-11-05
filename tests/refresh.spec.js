@@ -175,6 +175,7 @@ test("A refresh marks the PRs it finds that the last load didn’t, and the rows
 		"#71 by ghost new",
 	]);
 	await expect(page.locator("#summary .delta .up")).toHaveText("+1");
+	await expect(page.locator("#updated .changes")).toContainText("1 new");
 });
 
 test("A refresh that finds nothing new marks nothing, even after one that marked rows", async ({
@@ -255,6 +256,8 @@ test("A refresh whose details fail still marks the PRs its search found", async 
 		"#71 by ghost new",
 	]);
 	await expect(page.locator("#summary .delta .up")).toHaveText("+1");
+	// As a screen reader hears it, before the reason
+	await expect(page.locator("#updated .changes")).toContainText("1 new");
 });
 
 test("A refresh after one whose details failed doesn’t mark the PRs that one showed as new again", async ({
@@ -276,7 +279,7 @@ test("A refresh after one whose details failed doesn’t mark the PRs that one s
 	await expect(page.getByText("Couldn’t refresh")).toBeHidden();
 	await expect(page.locator("progress")).toBeHidden();
 
-	await expect(page.locator("#queue tbody mark:not([hidden])")).not.toHaveText(["new"]);
+	await expect(page.locator("#queue tbody mark:not([hidden])")).toHaveCount(0);
 });
 
 test("A refresh whose details fail shows the rows it rechecked as they were, not dimmed as if still loading", async ({

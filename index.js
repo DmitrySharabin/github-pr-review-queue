@@ -396,11 +396,10 @@ async function load () {
 
 		let now = new Date();
 		showUpdated(now);
-		// Rows whose details failed show their old ones as they are, and the next load asks for them again
-		if (failed) {
-			for (let tr of table.querySelectorAll("tr.stale")) {
-				unmark(tr);
-			}
+		// Rows whose details didn’t arrive, e.g. failed or of a deleted PR, show what they had, undimmed.
+		// The next load asks for them again
+		for (let tr of table.querySelectorAll("tr.stale")) {
+			unmark(tr);
 		}
 
 		// The user has seen what the search found, even when details failed
@@ -731,7 +730,8 @@ function showNotice (card, title, reason) {
 function showFailure (reason) {
 	header.classList.add("failed");
 	showReason(failure, reason);
-	changes.textContent = reason;
+	// After what the search found, e.g. “1 new”, when the details of some PRs failed
+	changes.textContent = [changes.textContent, reason].filter(Boolean).join(". ");
 	// The header says it instead. The form of an earlier failure has nothing left to fix, and the status says nothing stale, e.g. “Loading”
 	repoForm.hidden = true;
 	status.textContent = "";

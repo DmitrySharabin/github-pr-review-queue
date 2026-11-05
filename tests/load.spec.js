@@ -355,3 +355,29 @@ test("A queue stored for another user marks nothing new for the one signed in no
 
 	await expect(page.locator("#queue tbody mark:not([hidden])")).toHaveCount(0);
 });
+
+test("A refreshed row of a PR deleted before its details shows as it was, not dimmed as if still loading", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+
+	github.search = answer => {
+		answer.data.search.nodes[0].updatedAt = "2026-11-05T12:00:00Z";
+	};
+	github.details = answer => {
+		answer.data.nodes[0] = null;
+		answer.errors = [
+			{
+				type: "NOT_FOUND",
+				path: ["nodes", 0],
+				message: "Could not resolve to a node with the global id of 'A'.",
+			},
+		];
+	};
+	await page.getByRole("button", { name: "Refresh" }).click();
+	await expect(page.locator("progress")).toBeHidden();
+
+	await expect(page.locator("#queue tr.stale")).toHaveCount(0);
+});

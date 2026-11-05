@@ -112,8 +112,13 @@ export function unmark (tr) {
  * Whether two cells show the same thing. A time compares by its date alone, since its text, tooltip and class change as time passes,
  * e.g. “5 min. ago”, or “· 1,036 days” in the tooltip.
  * Labels compare all of them, shown or not, since the user may have shown them after the last load.
+ * A cell that was empty, e.g. of a PR whose details failed, showed nothing to change from.
  */
 function same (cell, other) {
+	if (!other.textContent.trim()) {
+		return true;
+	}
+
 	let [x, y] = [cell, other].map(element => {
 		let clone = element.cloneNode(true);
 		for (let time of clone.querySelectorAll("time")) {
