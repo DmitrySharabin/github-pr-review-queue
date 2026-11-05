@@ -116,3 +116,16 @@ test("A long reason for a failed refresh shows its first lines, so the header do
 
 	await expect(page.locator("#failure").getByRole("button", { name: "Show all" })).toBeVisible();
 });
+
+test("A failed refresh calls the time the last update, so it doesn’t read as if the refresh updated the rows", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+
+	github.search = () => 502;
+	await page.getByRole("button", { name: "Refresh" }).click();
+
+	await expect(page.getByText("Last updated at")).toBeVisible();
+});

@@ -20,6 +20,8 @@
 	--inset: 1rem;
 	/* Points right. Turned, it points down */
 	--chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 4l4 4-4 4'/%3E%3C/svg%3E");
+	/* A circled “!”, next to a failure, so color isn’t the only sign of it */
+	--alert: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round'%3E%3Ccircle cx='8' cy='8' r='6.25'/%3E%3Cpath d='M8 4.75v3.75M8 11.25v0'/%3E%3C/svg%3E");
 	/* A white tick, on the green of an approval or of an empty queue */
 	--check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
 }
@@ -139,8 +141,9 @@ main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #ref
 	content: "" / ", ";
 }
 
-/* Only after a failed load, e.g. “Couldn’t refresh · Updated at 4:09 PM”, over the reason */
-header:not(.failed) :is(#updated strong, #failure) {
+/* After a failed load, the time is the rows’ age, e.g. “Couldn’t refresh · Last updated at 4:09 PM”, over the reason */
+header:not(.failed) :is(#updated :is(strong, .last), #failure),
+header.failed #updated .now {
 	display: none;
 }
 
@@ -148,6 +151,17 @@ header:not(.failed) :is(#updated strong, #failure) {
 #updated strong {
 	color: color-mix(in oklch, var(--attention) 55%, var(--text));
 	font-weight: 500;
+
+	&::before {
+		content: "";
+		display: inline-block;
+		inline-size: 1em;
+		block-size: 1em;
+		margin-inline-end: 0.3em;
+		vertical-align: -0.15em;
+		background: currentColor;
+		mask: var(--alert) center / contain no-repeat;
+	}
 
 	/* Pauses a screen reader before the time, e.g. “Couldn’t refresh, Updated at 4:09 PM” */
 	&::after {
@@ -512,7 +526,7 @@ button {
 		grid-area: 2 / 2;
 	}
 
-	/* Over the time, which would otherwise break inside, e.g. “Updated at” over “4:26 PM” */
+	/* Over the time, which would otherwise break inside, e.g. “Last updated at” over “4:26 PM” */
 	#updated strong {
 		display: block;
 

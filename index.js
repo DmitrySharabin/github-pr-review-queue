@@ -888,9 +888,9 @@ function showNotice (card, title, reason) {
 }
 
 /**
- * Say next to Refresh that a load failed and why, e.g. “Couldn’t refresh · Updated at 4:09 PM” over “You’re offline. …”.
+ * Say next to Refresh that a load failed and why, e.g. “Couldn’t refresh · Last updated at 4:09 PM” over “You’re offline. …”.
  * The rows stay as the last finished load left them, and focus stays where it was, e.g. on Refresh to try again.
- * A screen reader hears the reason after the update time, e.g. “Couldn’t refresh, Updated at 4:09 PM, You’re offline. …”
+ * A screen reader hears the reason after the update time, e.g. “Couldn’t refresh, Last updated at 4:09 PM, You’re offline. …”
  */
 function showFailure (reason) {
 	header.classList.add("failed");
