@@ -1162,6 +1162,11 @@ tbody {
 	}
 }
 
+/* A line tall, as the text that replaces it. A time that lays out as a flex box, e.g. in the summary, has no line around its bar: without this, the bar sits at the top */
+:is(td, time):empty {
+	min-block-size: 1lh;
+}
+
 /* A value still loading leaves its cell or time empty: a flat bar holds its place */
 :is(td, time):empty::before {
 	content: "";
