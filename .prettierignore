@@ -1,3 +1,4 @@
-# Prettier formats only the JS files.
+# Prettier formats only the JS and CSS files.
 *.*
 !*.js
+!*.css
