@@ -1128,6 +1128,8 @@ th {
 /* The pull request takes the room the figures leave, so the figures stay as wide as their own text, whatever the titles, e.g. bars while the search runs */
 :is(th, td):first-child {
 	inline-size: 100%;
+	/* Room for the longest word of most titles, which arrive after the bars, e.g. on a phone, where the titles wrap */
+	min-inline-size: 12em;
 }
 
 td:not(.requested) {
@@ -1318,8 +1320,9 @@ time.rounded {
 		border-radius: 50%;
 	}
 
+	/* No wider than the column, so the bars don’t widen it, e.g. on a phone */
 	.headline::before {
-		inline-size: 16em;
+		inline-size: min(16em, 100%);
 	}
 
 	small::before {
