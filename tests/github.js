@@ -7,17 +7,26 @@ export { expect } from "@playwright/test";
  * A test changes how GitHub answers through the `github` fixture’s hooks. Each gets the answer to change, e.g. to add GraphQL errors,
  * and may return an HTTP status to fail with, e.g. `github.search = () => 500`, or a promise to hold the answer until it settles.
  * `details` also gets the queries for commit sizes, whose nodes are then commits, e.g. N with +780.
+ * `user` gets GitHub’s answer to whose token it is, e.g. `github.user = () => 401` for a token GitHub rejects.
  */
 export const test = base.extend({
-	github: async ({ context }, use) => {
+	// The token Madata finds stored, or none for the sign-in card: `test.use({ token: null })`
+	token: ["fake", { option: true }],
+
+	github: async ({ context, token }, use) => {
 		let github = {
+			user () {},
 			search () {},
 			details () {},
 		};
 
 		// Madata signs in with a stored token without asking GitHub for one
-		await context.addInitScript(() =>
-			localStorage.setItem("madata:token:auth.madata.dev/github", "fake"));
+		if (token) {
+			await context.addInitScript(
+				token => localStorage.setItem("madata:token:auth.madata.dev/github", token),
+				token,
+			);
+		}
 
 		// Nothing waits on the network. An avatar that GitHub is slow to send holds up the page’s load event, and with it `page.goto()`.
 		// Every avatar is a black square
@@ -31,7 +40,9 @@ export const test = base.extend({
 
 		await context.route("https://api.github.com/**", async route => {
 			if (new URL(route.request().url()).pathname === "/user") {
-				return route.fulfill({ json: { login: "DmitrySharabin" } });
+				let answer = { login: "DmitrySharabin" };
+				let status = await github.user(answer);
+				return route.fulfill(failed(status) ?? { json: answer });
 			}
 
 			let { query } = route.request().postDataJSON();
@@ -47,12 +58,22 @@ export const test = base.extend({
 					};
 
 			let status = await (isSearch ? github.search : github.details)(answer);
-			route.fulfill(status ? { status, json: { message: "Boom" } } : { json: answer });
+			route.fulfill(failed(status) ?? { json: answer });
 		});
 
 		await use(github);
 	},
 });
+
+/** GitHub’s answer that fails with this status, if any. Its body repeats the status, which Madata reads, e.g. a 401 for a token GitHub rejects */
+function failed (status) {
+	if (status) {
+		return {
+			status,
+			json: { message: status === 401 ? "Bad credentials" : "Boom", status: String(status) },
+		};
+	}
+}
 
 /** A PR as the search finds it, e.g. #65 for A. */
 function found (id) {

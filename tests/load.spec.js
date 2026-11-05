@@ -31,12 +31,37 @@ test("With a stored token, bars stand in for the rows while the sign-in runs, so
 	await expect(page.locator("#queue tr.skeleton").first()).toBeVisible();
 });
 
-// Without the `github` fixture, no token is stored
-test("Without a stored token, no bars flash before the sign-in card", async ({ page }) => {
-	await page.route("https://auth.madata.dev/**", () => {});
-	await page.goto("/?repo=foo/bar");
+test.describe("Without a stored token", () => {
+	test.use({ token: null });
 
-	await expect(page.locator("#queue")).toBeHidden();
+	test("No bars flash before the sign-in card", async ({ page, github }) => {
+		await page.route("https://auth.madata.dev/**", () => {});
+		await page.goto("/?repo=foo/bar");
+
+		await expect(page.locator("#queue")).toBeHidden();
+	});
+
+	test("A pasted token that GitHub rejects says so on the sign-in card", async ({
+		page,
+		github,
+	}) => {
+		github.user = () => 401;
+		await page.goto("/?repo=foo/bar");
+		await page.getByLabel("Fine-grained token").fill("github_pat_foo");
+		await page.getByRole("button", { name: "Use token" }).click();
+
+		await expect(page.locator("#sign-in .notice")).toContainText(
+			"GitHub didn’t accept this token",
+		);
+	});
+
+	test("A pasted token that GitHub accepts loads the queue", async ({ page, github }) => {
+		await page.goto("/?repo=foo/bar");
+		await page.getByLabel("Fine-grained token").fill("github_pat_foo");
+		await page.getByRole("button", { name: "Use token" }).click();
+
+		await expect(page.locator("#summary .user")).toHaveText("DmitrySharabin");
+	});
 });
 
 test("Bars that stood in for the user during the sign-in give way to the user once it ends", async ({
