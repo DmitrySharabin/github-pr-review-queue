@@ -306,12 +306,8 @@ main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #upd
 		flex: none;
 		inline-size: 1.5rem;
 		min-block-size: 1.5rem;
-		padding: 0;
-		border: none;
 		border-radius: var(--control-radius);
-		background: transparent;
 		color: var(--muted);
-		cursor: pointer;
 
 		&::before {
 			content: "";
@@ -346,16 +342,13 @@ main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #upd
 	--icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round'%3E%3Cpath d='M4 4l8 8M12 4l-8 8'/%3E%3C/svg%3E");
 }
 
-#refresh,
-#sign-out,
-form button,
-#sign-in > button {
-	min-block-size: var(--control-size);
-	padding-inline: 1em;
+/* Every button, text or icon, with the page’s font and no browser chrome. Each kind adds its own size and fill */
+button {
+	padding: 0;
 	border: none;
-	border-radius: var(--control-radius);
+	background: none;
+	color: inherit;
 	font: inherit;
-	font-weight: 500;
 	cursor: pointer;
 	transition: scale 160ms var(--ease-out), background-color 150ms ease;
 
@@ -365,6 +358,17 @@ form button,
 			scale: 0.97;
 		}
 	}
+}
+
+/* Text buttons, as tall as the fields next to them */
+#refresh,
+#sign-out,
+#sign-in > button,
+:is(#repo-form, #token-form, #narrow form) > button {
+	min-block-size: var(--control-size);
+	padding-inline: 1em;
+	border-radius: var(--control-radius);
+	font-weight: 500;
 }
 
 #sign-in > button,
@@ -678,9 +682,9 @@ hgroup {
 	/* Light, and on a mouse only on the row it would remove */
 	li button {
 		flex: none;
+		/* As tall as its row, so a click near ✕ removes rather than picks */
+		align-self: stretch;
 		inline-size: 2rem;
-		padding: 0;
-		background: transparent;
 		color: color-mix(in oklch, var(--muted) 70%, var(--surface));
 
 		&::before {
@@ -708,11 +712,10 @@ hgroup {
 		margin-block-start: 0.25rem;
 		padding-inline: 0.5rem;
 		border-block-start: 1px solid var(--rule);
-		border-radius: 0;
 		text-align: start;
-		background: none;
 		color: var(--muted);
 		font-size: 0.85em;
+		font-weight: 500;
 		text-decoration: underline;
 		text-underline-offset: 0.15em;
 
@@ -1154,8 +1157,6 @@ tbody {
 	.more {
 		--color: var(--surface);
 		color: var(--muted);
-		font: inherit;
-		cursor: pointer;
 
 		&:hover {
 			color: var(--text);
@@ -1418,13 +1419,6 @@ time.rounded {
 }
 
 thead button {
-	padding: 0;
-	border: none;
-	background: none;
-	color: inherit;
-	font: inherit;
-	cursor: pointer;
-
 	&:hover {
 		color: var(--text);
 	}
