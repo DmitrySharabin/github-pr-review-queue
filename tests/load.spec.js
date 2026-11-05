@@ -279,7 +279,7 @@ test("A PR whose commit sizes fail ends the load only once the other PRs are cou
 	let failed = Promise.withResolvers();
 	let held = Promise.withResolvers();
 	let asked = 0;
-	// A and B each have one of the author’s commits since the review, after a merge, so their sizes are the count: N for A, which GitHub fails twice, and O for B
+	// A and B each have one of the author’s commits since the review, after a merge, so their sizes are the count. A has N, which GitHub fails twice, and B has O
 	github.details = answer => {
 		let [node] = answer.data.nodes;
 		if (node.id === "N") {

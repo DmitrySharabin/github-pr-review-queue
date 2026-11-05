@@ -9,8 +9,8 @@ export const notFound = /Could not resolve to a (Repository|User)/;
 
 /**
  * Who is signed in, e.g. `DmitrySharabin`.
- * Madata signs in without a user when GitHub fails to answer anything but a 401, e.g. offline, so this is a failure to connect too
  * @returns {string}
+ * @throws Madata’s connection error when Madata signed in without a user. It does that when GitHub fails to answer anything but a 401, e.g. offline
  */
 export function signedInUser () {
 	let user = github.user?.username;
@@ -22,8 +22,8 @@ export function signedInUser () {
 }
 
 /**
- * GitHub’s answer to a GraphQL query, through Madata’s request() rather than load(): for a PR deleted since the search,
- * GitHub answers null and an error, and load() throws the whole answer away for it, the other PRs included.
+ * GitHub’s answer to a GraphQL query, through Madata’s request() rather than its load().
+ * For a PR deleted since the search, GitHub answers null and an error, and Madata’s load() throws the whole answer away for it, the other PRs included.
  */
 export async function graphql (text, signal) {
 	let { data, errors = [] } = await github.request(
@@ -34,7 +34,7 @@ export async function graphql (text, signal) {
 	);
 	errors = errors.filter(error => error.type !== "NOT_FOUND" || error.path?.[0] !== "nodes");
 
-	// Joined as load() joins them, which describe() matches, e.g. “Could not resolve to a Repository”
+	// Joined as Madata’s load() joins them, which describe() matches, e.g. “Could not resolve to a Repository”
 	if (errors.length > 0) {
 		throw new Error(errors.map(error => error.message).join("\n"));
 	}
@@ -43,8 +43,8 @@ export async function graphql (text, signal) {
 }
 
 /**
- * The nodes that a `nodes(ids:)` query finds, e.g. {@link details}. GitHub stops a query that runs too long,
- * so a failed one asks again in two halves, each faster. Only once: a failure of another kind, e.g. offline, would fan out into many requests
+ * The nodes that a `nodes(ids:)` query finds, e.g. of `details()`. GitHub stops a query that runs too long,
+ * so a failed one asks again in two halves, each faster. Only once, since a failure of another kind, e.g. offline, would fan out into many requests
  * @param {(ids: string[]) => string} query
  * @param {string[]} ids
  * @param {AbortSignal} signal - The load’s
@@ -63,7 +63,7 @@ export async function nodes (query, ids, signal) {
 }
 
 /**
- * The signal for a request: it aborts with the load’s, or after 20 s, which describe() reads as “took too long”. That is twice the time GitHub gives a query.
+ * The signal for a request. It aborts with the load’s, or after 20 s, which describe() reads as “took too long”. That is twice the time GitHub gives a query.
  * A dropped connection, e.g. after the laptop slept, never answers otherwise.
  * @param {AbortSignal} signal - The load’s
  */
@@ -71,7 +71,7 @@ function inTime (signal) {
 	return AbortSignal.any([signal, AbortSignal.timeout(20_000)]);
 }
 
-/** Count a diff that summarize() left uncounted: exactly, when it has a range to compare, or else by the sizes of its commits. */
+/** Count a diff that summarize() left uncounted. One with a range to compare counts exactly, others by the sizes of their commits. */
 export async function count (repo, diff, signal) {
 	if (diff.range) {
 		try {
@@ -90,7 +90,7 @@ export async function count (repo, diff, signal) {
 		}
 		catch (error) {
 			signal.throwIfAborted();
-			// One failed comparison should not hide the queue: the commits’ sizes estimate the count instead
+			// One failed comparison should not hide the queue, so the commits’ sizes estimate the count instead
 			// NOTE: A refresh whose comparison fails, or succeeds after one that failed, marks the cell as changed
 			console.warn(`Couldn’t compare ${diff.range}, adding up its commits instead.`, error);
 		}
@@ -109,7 +109,7 @@ export async function count (repo, diff, signal) {
  * @param {string} [advice] - What to do about an error not known here, which shows GitHub’s own words
  */
 export function describe (error, advice = "Try again.") {
-	// On an HTTP error, Madata throws GitHub’s response body: JSON, e.g. { message: "Bad credentials" }, or text, e.g. a 502’s HTML page.
+	// On an HTTP error, Madata throws GitHub’s response body. It is JSON, e.g. { message: "Bad credentials" }, or text, e.g. a 502’s HTML page.
 	// Its own errors and GitHub’s GraphQL errors, e.g. a repo that doesn’t exist, are told apart by their messages
 	let message = error?.message;
 	let slow = "GitHub took too long to respond. Try again in a minute.";
@@ -119,8 +119,8 @@ export function describe (error, advice = "Try again.") {
 		return navigator.onLine ? slow : "You’re offline. Check your connection, then try again.";
 	}
 
-	// A text body, e.g. a 502’s HTML page. Or an answer inTime() stopped as it arrived: Madata doesn’t wrap the error of reading it,
-	// which Chrome names TimeoutError and Firefox and Safari AbortError. A load’s own abort never gets here
+	// A text body, e.g. a 502’s HTML page. Or an answer inTime() stopped as it arrived, whose reading error Madata doesn’t wrap.
+	// Chrome names that error TimeoutError, Firefox and Safari AbortError. A load’s own abort never gets here
 	if (message === undefined || ["TimeoutError", "AbortError"].includes(error.name)) {
 		return slow;
 	}

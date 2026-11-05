@@ -9,7 +9,7 @@ async function starts (page, github, selector) {
 
 	let { promise, resolve } = Promise.withResolvers();
 	github.search = () => promise;
-	// As in a real reviewer queue, where every PR waits for DmitrySharabin: a wait time is wider than the dash of no request
+	// As in a real reviewer queue, every PR waits for DmitrySharabin. A wait time is wider than the dash of no request
 	github.details = answer => {
 		for (let pr of answer.data.nodes) {
 			pr.timelineItems.nodes = [

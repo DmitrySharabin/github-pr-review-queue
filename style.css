@@ -15,7 +15,7 @@
 	--gutter: clamp(1rem, 3vw, 1.5rem);
 	/* Between the header, the summary and what follows */
 	--block-gap: 1.5rem;
-	/* A strong ease-out: motion that answers the user starts at once */
+	/* A strong ease-out, so motion that answers the user starts at once */
 	--ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 	--inset: 1rem;
 	/* Points right. Turned, it points down */
@@ -95,7 +95,7 @@ small {
 		display: none;
 	}
 
-	/* Until the sign-in check passes: unseen, but in place, so they appear without moving the page */
+	/* Unseen until the sign-in check passes, but in place, so the controls appear without moving the page */
 	&[inert] {
 		visibility: hidden;
 		opacity: 0;
@@ -130,8 +130,7 @@ header:has(progress[hidden]) #updated:has(time:empty) {
 	visibility: hidden;
 }
 
-/* Nothing on screen to refresh, e.g. after a failed first load, where Show queue tries again, or before the sign-in.
-   The time hides only on screen, so a screen reader still hears when a load from the card ends */
+/* Nothing on screen to refresh, e.g. after a failed first load, where Show queue tries again, or before the sign-in */
 main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #refresh {
 	display: none;
 }
@@ -141,13 +140,13 @@ main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #ref
 	content: "" / ", ";
 }
 
-/* After a failed load, the time is the rows’ age, e.g. “Couldn’t refresh · Last updated at 4:09 PM”, over the reason */
+/* After a failed load, the time says how old the rows are, e.g. “Couldn’t refresh · Last updated at 4:09 PM”, over the reason */
 header:not(.failed) :is(#updated strong, #updated .last, #failure),
 header.failed #updated .now {
 	display: none;
 }
 
-/* Amber, as the notices: worth a look, not alarming. Darkened to read as text */
+/* Amber, as on the notices, so it reads as worth a look, not as an alarm. Darkened to read as text */
 #updated strong {
 	color: color-mix(in oklch, var(--attention) 55%, var(--text));
 	font-weight: 500;
@@ -185,7 +184,8 @@ header.failed #updated .now {
 	text-wrap: pretty;
 }
 
-/* Unseen while a retry runs, under a counter it would read as the caption of, but in place, so the queue under it doesn’t move */
+/* Unseen while a retry runs, since under the counter it would read as the counter’s caption.
+   It keeps its place, so the queue under it doesn’t move */
 #failure.stale {
 	visibility: hidden;
 }
@@ -201,15 +201,17 @@ header.failed #updated .now {
 	}
 }
 
-/* Said on screen by the summary above the table, by the delta next to its count, e.g. “+3” for “3 new”,
-   the update time while the counter takes its place during a load, and by the card that shows, e.g. the sign-in, whose changes a screen reader hears from the status */
+/* Read aloud but unseen, since something else on screen says the same.
+   The summary above the table says the caption. The delta next to its count says the changes, e.g. “+3” for “3 new”.
+   The counter takes the update time’s place during a load. A card, e.g. the sign-in, says the status, which a screen reader still hears change.
+   With a card and no summary, the time hides only on screen, so a screen reader still hears when a load from the card ends */
 caption,
 #updated .changes,
 #counter:not([hidden]) + #updated,
 main:has(> :is(#repo-form, #sign-in, #summary):not([hidden])) > #status,
 main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #updated {
 	position: absolute;
-	/* One pixel wide, so a long one, e.g. an error, doesn’t widen the page */
+	/* One pixel wide, so a long text, e.g. an error, doesn’t widen the page */
 	inline-size: 1px;
 	overflow: hidden;
 	clip-path: inset(50%);
@@ -236,7 +238,7 @@ main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #upd
 		background: var(--surface);
 	}
 
-	/* A phone has no room for four cells in a row: two rows of two */
+	/* A phone has no room for four cells in a row, so they form two rows of two */
 	@container (width < 36rem) {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
@@ -250,16 +252,18 @@ main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #upd
 		font-size: 0.85em;
 	}
 
-	/* Room for the times up to “30 days ago”, which arrive after the rest: the cells before it share what it leaves, so a wider one would move them */
+	/* Room for the times up to “30 days ago”, which arrive after the rest.
+	   The cells before it share the room it leaves, so a wider time would move them */
 	.latest {
 		min-inline-size: 9ch;
 	}
 
 	dd {
-		/* As tall as its value, e.g. a field or a name with an avatar, not as a line of text around it, so a form in its place moves nothing */
+		/* As tall as its value, e.g. a field or a name with an avatar, not as a line of text around it.
+		   A form in the value’s place then moves nothing */
 		display: flex;
-		/* Room for a focus ring, which the scrolling cell would clip, e.g. around the field that edits it. The margin cancels it,
-		   and below the value leaves 0.25em more air than the cell’s padding */
+		/* Room for a focus ring, e.g. around the field that edits the value, which the scrolling cell would clip.
+		   The margin cancels this padding. Below the value, the margin leaves 0.25em more air than the cell’s padding */
 		padding: 0.25rem;
 		margin: calc(0.15em - 0.25rem) -0.25rem calc(0.25em - 0.25rem);
 		overflow-x: auto;
@@ -322,7 +326,7 @@ main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #upd
 		background: var(--rule);
 	}
 
-	/* No user yet, so no link and no image. Chrome and Firefox frame an image without a source, so a disc stands in for it, as in the rows of bars */
+	/* No user yet, so no link and no image. Chrome and Firefox frame an image without a source, so a disc stands in for it, as in the placeholder rows of a load */
 	.user:not([href]) {
 		img {
 			display: none;
@@ -370,7 +374,7 @@ main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #upd
 		inline-size: 100%;
 
 		input {
-			/* Grows with the name, and shrinks so that ✓ and ✕ fit a phone’s cell */
+			/* Grows with the name, and shrinks so that ✕ fits a phone’s cell */
 			field-sizing: content;
 			min-inline-size: 4ch;
 			box-sizing: border-box;
@@ -380,13 +384,12 @@ main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #upd
 			font-weight: 500;
 		}
 
-		/* Not a gap, which would also space the fade before the field */
 		button {
 			margin-inline-start: 0.25em;
 		}
 	}
 
-	/* Icon buttons as big as the role switch: the smallest target WCAG allows */
+	/* Icon buttons as big as the role switch, the smallest target WCAG allows */
 	button {
 		flex: none;
 		inline-size: 1.5rem;
@@ -415,7 +418,7 @@ main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #upd
 	.apply {
 		--icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 8.5l3 3 7-7'/%3E%3C/svg%3E");
 
-		/* A phone’s half-width cell has room for the name or for ✓, and its keyboard’s Go key submits */
+		/* A phone’s half-width cell has room for the name or for ✓, not both. The phone keyboard’s Go key submits instead */
 		@container (width < 36rem) {
 			display: none;
 		}
@@ -486,9 +489,9 @@ button {
 	}
 }
 
-/* A phone: the title next to Sign out, and under them the time next to Refresh.
+/* On a phone, the title sits next to Sign out, and the time next to Refresh under them.
    The controls span both rows and share the header’s grid, so they still fade in as one.
-   After the buttons’ own sizes, which it overrides */
+   Placed after the buttons’ own sizes, so it overrides them */
 @container (width < 36rem) {
 	/* The first row is as tall as Sign out on every page, so the title stays put, e.g. on the page that asks for a repo */
 	header {
@@ -625,7 +628,8 @@ form {
 	}
 }
 
-/* The page that asks for a repo, the sign-in, and why the queue didn’t load: one card in the middle, lower than the summary that replaces it */
+/* The page that asks for a repo, the sign-in, and why the queue didn’t load each show one card in the middle.
+   The card sits lower than the summary that replaces it */
 main:has(> #summary[hidden]) > :is(#repo-form, #sign-in) {
 	margin: clamp(var(--block-gap), 12vh, 7rem) auto var(--block-gap);
 }
@@ -646,7 +650,7 @@ hgroup {
 	}
 }
 
-/* What went wrong, in the card that can fix it. Amber, as the marks of what changed: worth a look, not alarming */
+/* What went wrong, in the card that can fix it. Amber, as the marks of what changed, so it reads as worth a look, not as an alarm */
 .notice {
 	margin: 0;
 	padding: 0.75em 1em;
@@ -792,10 +796,11 @@ hgroup {
 		&[aria-selected="true"] {
 			background: color-mix(in oklch, var(--text) 8%, var(--surface));
 
-			/* Only while focus is in the field: Tab on to the clear button rings that instead */
+			/* Only while focus is in the field. Tab moves on to “Clear recent …”, which then has the ring instead */
 			.field:has(> input:focus) & {
 				outline: auto;
-				/* The browser’s own ring color, as on the field. Chrome draws `auto` alone in the text color, Firefox in its own and has no keyword for it */
+				/* The browser’s own ring color, as on the field. Chrome draws `auto` alone in the text color.
+				   Firefox draws it in its own color and has no keyword for it */
 				outline-color: -webkit-focus-ring-color;
 				outline-offset: -2px;
 			}
@@ -812,7 +817,7 @@ hgroup {
 		font-weight: 700;
 	}
 
-	/* Light, and on a mouse only on the row it would remove */
+	/* With a mouse, shown only on the row it would remove */
 	li button {
 		flex: none;
 		/* As tall as its row, so a click near ✕ removes rather than picks */
@@ -889,7 +894,7 @@ hgroup {
 		}
 
 		/* A chevron that turns down while open. Turned, its stroke starts 3.25 of 16 units in, so this margin puts it on the edge of the boxes around it.
-		   Closed, it starts 5.25 in, too little inside to see */
+		   Closed, it starts 5.25 in, and those 2 units more are too few to notice */
 		&::before {
 			content: "";
 			inline-size: 1em;
@@ -964,7 +969,7 @@ hgroup {
 	}
 }
 
-/* In the gap below the header, centered in the queue’s, so showing it moves nothing */
+/* Centered in the gap between the header and the queue, so showing it moves nothing */
 progress {
 	--duration: 1.5s;
 	--animation: none;
@@ -983,7 +988,7 @@ progress {
 	background: var(--border);
 	/* Lets the fill move in track units (cqi) */
 	container-type: inline-size;
-	/* Fades in and out, so a quick refresh doesn’t flash it. display stays on screen while it fades out */
+	/* Fades in and out, so a quick refresh doesn’t flash it. The `display` transition keeps it on screen while it fades out */
 	transition-property: opacity, display;
 	transition-duration: 150ms;
 	transition-behavior: allow-discrete;
@@ -1001,7 +1006,7 @@ progress {
 		--animation: progress-indeterminate var(--duration) infinite linear;
 	}
 
-	/* A counted load can wait seconds on one request, e.g. at “4 of 10”: a gleam sweeping the track and the fill shows it still works */
+	/* A counted load can wait seconds on one request, e.g. at “4 of 10”. A gleam sweeping the track and the fill shows it still works */
 	&:not(:indeterminate) {
 		--animation: gleam var(--duration) infinite linear;
 		--gleam: linear-gradient(
@@ -1024,7 +1029,7 @@ progress {
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		/* Slowed, not stopped: without its animation the indeterminate fill has no width */
+		/* Slowed, not stopped, since without its animation the indeterminate fill has no width */
 		--duration: 10s;
 	}
 
@@ -1039,7 +1044,7 @@ progress {
 		transition: inline-size 300ms var(--ease-out);
 	}
 
-	/* Firefox, e.g. Zen; a rule shared with the WebKit pseudo-element would be dropped as invalid in both */
+	/* Firefox and browsers built on it, e.g. Zen. A rule that also names the WebKit pseudo-element is invalid in both engines, so each drops it */
 	&::-moz-progress-bar {
 		background: var(--gleam), var(--text);
 		border-radius: 1e5px;
@@ -1047,7 +1052,8 @@ progress {
 	}
 }
 
-/* Across the track and the fill as one bar: cqi is the bar’s width on both, since the fill’s container is the bar, and the bar spans main, its own container */
+/* Sweeps the track and the fill as one bar. On both, cqi is the bar’s width.
+   The fill’s container is the bar, and the bar is as wide as its own container, main */
 @keyframes gleam {
 	from {
 		background-position-x: -40cqi;
@@ -1074,7 +1080,7 @@ progress {
 	}
 }
 
-/* Too narrow for the table: it scrolls in its own frame, the width of the summary above it, instead of the page.
+/* Too narrow for the table, so the table scrolls in its own frame, the width of the summary above it, instead of the page.
    Only then, since a scrolling frame would also pin the sticky header to itself rather than the window */
 @container (width < 48rem) {
 	.scroller {
@@ -1200,7 +1206,8 @@ th {
 	white-space: nowrap;
 }
 
-/* The pull request takes the room the figures leave, so the figures stay as wide as their own text, whatever the titles, e.g. bars while the search runs */
+/* The pull request takes the room the figures leave.
+   The figures then stay as wide as their own text, whatever the titles, e.g. bars while the search runs */
 :is(th, td):first-child {
 	inline-size: 100%;
 	/* Room for the longest word of most titles, which arrive after the bars, e.g. on a phone, where the titles wrap */
@@ -1211,7 +1218,7 @@ td:not(.requested) {
 	color: var(--muted);
 }
 
-/* Room for the times up to “30 days ago”, which arrive after the rows: a wider one would move every column, title wraps included */
+/* Room for the times up to “30 days ago”, which arrive after the rows. A wider time would move every column, title wraps included */
 td.requested {
 	min-inline-size: 9ch;
 }
@@ -1328,7 +1335,7 @@ tbody {
 	/* Fits the pills in the title’s line, so a row with labels is as tall as one without */
 	line-height: 1.4;
 
-	/* Black or white, whichever reads better by APCA: white below a lightness of 0.7, e.g. on GitHub’s red “bug”.
+	/* Black or white, whichever reads better by APCA (Accessible Perceptual Contrast Algorithm). White wins below a lightness of 0.7, e.g. on GitHub’s red “bug”.
 	   contrast-color() goes by WCAG 2.1 and picks black there. The link inherits the color */
 	li {
 		color: oklch(from var(--color) max(0, sign(0.7 - l)) 0 h);
@@ -1367,12 +1374,13 @@ time.rounded {
 	cursor: help;
 }
 
-/* A line tall, as the text that replaces it. A time that lays out as a flex box, e.g. in the summary, has no line around its bar: without this, the bar sits at the top */
+/* A line tall, as the text that replaces it. A time that lays out as a flex box, e.g. in the summary, has no line around its bar.
+   Without this, the bar sits at the top */
 :is(td, time, .count):empty {
 	min-block-size: 1lh;
 }
 
-/* A value still loading leaves its cell or time empty: a flat bar holds its place */
+/* A value still loading leaves its cell or time empty. A flat bar holds its place */
 :is(td, time, .count):empty::before,
 .user:not([href]) > span::before,
 .user:not([href])::before,
@@ -1663,7 +1671,7 @@ thead button {
 	}
 
 	/* The arrow keeps its space while hidden, so headers do not shift on sort.
-	   It comes before the label, since the sortable columns align to the end: after it, its space would keep the label off the figures’ edge */
+	   It comes before the label, since the sortable columns align to the end. After the label, its space would keep the label off the figures’ edge */
 	&::before {
 		content: "";
 		display: inline-block;

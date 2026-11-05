@@ -18,7 +18,7 @@ if (saved) {
 }
 
 /**
- * Sort the rows by a column, the other way round when they already are, and keep it for the next visit.
+ * Sort the rows by a column, or reverse them when they are sorted by it already, and save the choice for the next visit.
  * @param {Row[]} rows
  * @param {string} column - A key of {@link sortKeys}, e.g. `diff`
  */
@@ -27,8 +27,8 @@ export function sortBy (rows, column) {
 	let sorted = { column, direction: th.ariaSort === "descending" ? "ascending" : "descending" };
 	markSort(sorted);
 	localStorage.setItem("review-queue:sort", JSON.stringify(sorted));
-	// No transition: its capture holds the new order back up to 300 ms on 100 rows, and when every row moves no one follows one.
-	// Bars wait for the search, which sorts what it finds: sorting now would put the rows of the last queue, or none, in their place
+	// No transition. Its capture holds the new order back up to 300 ms on 100 rows, and when every row moves, no one follows one.
+	// Bars wait for the search, which sorts what it finds. Sorting now would put the rows of the last queue, or none, in their place
 	if (!table.tBodies[0].querySelector(".skeleton")) {
 		sort(rows);
 	}
@@ -85,15 +85,15 @@ export function sort (rows, { animate } = {}) {
 			}
 		});
 
-		// Left after the sorted rows: those of PRs the search no longer finds
+		// Rows left after the sorted ones belong to PRs the search no longer finds
 		while (body.rows.length > rows.length) {
 			body.rows[rows.length].remove();
 		}
 	};
 
-	// A transition styles 4 pseudo-elements per row, e.g. 400 for 100 rows, and blocks clicks while it runs,
-	// so it runs only when a row moves where someone sees it: a hidden tab, e.g. switched away from during a load, skips it with an error.
-	// Firefox before 144 has no view transitions: the rows then sort without moving
+	// A transition styles 4 pseudo-elements per row, e.g. 400 for 100 rows, and blocks clicks while it runs.
+	// So it runs only when someone can see a row move. A hidden tab, e.g. switched away from during a load, skips it with an error.
+	// Firefox before 144 has no view transitions, so the rows sort there without moving
 	let moves = body.rows.length !== rows.length || rows.some(({ tr }, i) => tr !== body.rows[i]);
 	if (animate && moves && !document.hidden && document.startViewTransition) {
 		document.startViewTransition(place);

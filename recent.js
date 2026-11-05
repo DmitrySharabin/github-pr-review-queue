@@ -1,7 +1,7 @@
 /**
- * Offer the values a text field had before, as a combo box: a click or ↓ opens them, typing narrows them, Enter or a click picks one.
+ * Offer the values a text field had before, as a combo box. A click or ↓ opens them, typing narrows them, and Enter or a click picks one.
  * The field’s `aria-controls` names a listbox inside a popover, and the button after the listbox clears them all.
- * The listbox needs `tabindex="-1"`: a list long enough to scroll would be a Tab stop between the field and that button.
+ * The listbox needs `tabindex="-1"`, or a list long enough to scroll becomes a Tab stop between the field and that button.
  * @param {HTMLInputElement} input - A field with `role="combobox"`
  * @param {{ values: () => string[], remove: (value: string) => void }} recent - The values, the latest first, and how to forget one
  */

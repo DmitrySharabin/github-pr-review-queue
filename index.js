@@ -42,7 +42,7 @@ let forms = [repoForm, filterForm, ...strip.querySelectorAll("form")];
 
 /** @type {Row[]} */
 let rows = [];
-/** What the rows show: the URL parameters of their load, e.g. `{ repo: "foo/bar", filter: "label:baz" }` */
+/** The URL parameters of the load the rows show, e.g. `{ repo: "foo/bar", filter: "label:baz" }` */
 let shown;
 /** Whose queue the rows show, e.g. the signed-in user’s when the URL names no `user` */
 let shownUser;
@@ -53,7 +53,7 @@ let seen;
 
 table.addEventListener("command", event => sortBy(rows, event.source.value));
 
-// Opening a link in a marked row, e.g. its PR, is seeing what changed in it. A middle click opens it too, a right click opens a menu
+// Opening a link in a marked row, e.g. its PR, is seeing what changed in it. A middle click opens a link too. A right click opens a menu instead
 for (let type of ["click", "auxclick"]) {
 	table.tBodies[0].addEventListener(type, event => {
 		let tr = event.target.closest("a")?.closest("tr");
@@ -119,7 +119,7 @@ for (let name of ["repo", "user"]) {
 	});
 }
 
-// A value in the summary turns into its form in place. Enter or ✓ opens the queue it names, Esc, ✕ or the pencil again goes back
+// A value in the summary turns into its form in place. Enter or ✓ opens the queue it names. Esc, ✕ or the pencil again goes back
 for (let form of strip.querySelectorAll("form")) {
 	let value = form.previousElementSibling;
 	let button = strip.querySelector(`[commandfor="${form.id}"]`);
@@ -241,7 +241,8 @@ function showView () {
 
 /**
  * Load the queue the URL asks for, and stop a load still in flight.
- * The rows on screen stay until the new ones arrive, and those of the same queue, e.g. on a refresh or a new filter, update in place.
+ * The rows on screen stay until the new ones arrive.
+ * Rows of the same queue, e.g. on a refresh or a new filter, update in place.
  */
 async function load () {
 	loading?.abort();
@@ -262,8 +263,8 @@ async function load () {
 		unmark(tr);
 	}
 
-	// A label added to the filter, e.g. by a click on it, keeps the rows on screen that have it: the search would find just those.
-	// Unless the search found its maximum of 100 PRs: then others with the label may be past them
+	// A label added to the filter, e.g. by a click on it, keeps the rows on screen that have it. The search would find just those.
+	// A search that found its maximum of 100 PRs may have missed others with the label, so then the rows wait for the search
 	let label = sameQueue && rows.length < 100 ? addedLabel(shown.filter, filter) : undefined;
 	if (label !== undefined) {
 		rows = rows.filter(({ pr }) => hasLabel(pr, label));
@@ -373,7 +374,7 @@ async function load () {
 			fill(row, { ...row.summary, ...summarize(pr, user, role) });
 
 			// A range left means its comparison failed, so the next load tries again.
-			// The details are checked against their own copy: a load stopped before they came, e.g. by a label click, already replaced `pr`
+			// The details are checked against their own copy. A load stopped before they came, e.g. by a label click, already replaced `pr`
 			if (!row.detailed || row.summary.diffSinceReview.range || outdated(row.detailed, pr)) {
 				stale.push(row);
 				if (row.detailed) {
@@ -480,7 +481,7 @@ async function fillDetails (stale, task, { repo, user, role }, signal) {
 						return;
 					}
 
-					// A PR deleted since the search, which GitHub answers with null: nothing to fill, and the next search drops its row
+					// GitHub answers null for a PR deleted since the search. Its row has nothing to fill, and the next search drops it
 					if (!pr) {
 						showProgress(task, ++done, stale.length);
 						return;
@@ -531,7 +532,10 @@ function showQueue ({ repo, user, role, filter }) {
 	status.hidden = rows.length > 0;
 }
 
-/** Stand in for a queue that nothing shows yet, e.g. on a first visit, while its search runs: the strip with what the view tells, and rows of bars. */
+/**
+ * Stand in for a queue that nothing shows yet, e.g. on a first visit, while its search runs.
+ * The strip shows what the view tells, and rows of bars stand for the PRs.
+ */
 function showSkeleton ({ repo, user, role, filter }) {
 	showRole(role);
 	table.tBodies[0].replaceChildren(
@@ -651,7 +655,8 @@ function showSummary ({ repo, user, role, filter }) {
 }
 
 /**
- * Show next to the count how many PRs the last load added and how many are gone, e.g. “+3” over “−2”, and say it after the update time.
+ * Show next to the count how many PRs the last load added and how many are gone, e.g. “+3” over “−2”.
+ * Say it after the update time too.
  * Both or neither, so each keeps its place, e.g. “+3” over a gray “−0”. Without a delta, it clears both.
  * @param {{ added: number, left: number }} [delta]
  */
@@ -675,7 +680,7 @@ function showDelta (delta) {
 
 async function login (repo) {
 	try {
-		// NOTE: Can hang on a dropped connection as inTime() describes, e.g. when it fetches the user, and then Refresh stays disabled
+		// NOTE: Has no timeout, so a dropped connection, e.g. after the laptop slept, can hang it when it fetches the user. Refresh then stays disabled
 		await github.login({ passive: true });
 	}
 	catch {
@@ -690,7 +695,7 @@ async function login (repo) {
 		signIn.querySelector(".repo").textContent = repo;
 		progress.hidden = true;
 		signIn.hidden = false;
-		// Waits for the sign-in, not the click: Madata’s login() never settles if the popup is closed, so the button stays to try again
+		// Waits for the sign-in, not the click. Madata’s login() never settles if the popup is closed, so the button stays for another try
 		await new Promise(resolve => github.addEventListener("mv-login", resolve, { once: true }));
 		signIn.hidden = true;
 		progress.hidden = false;
@@ -699,8 +704,9 @@ async function login (repo) {
 }
 
 /**
- * Show a card that says what went wrong, e.g. the form after a failed load: a bold line, then the reason.
- * Focus moves to it, so a screen reader reads it even when the card was hidden until now, and focus doesn’t drop to the page, e.g. from Refresh, which hides.
+ * Show a card that says what went wrong, e.g. the form after a failed load, with a bold line and then the reason.
+ * Focus moves to it, so a screen reader reads it even when the card was hidden until now.
+ * Focus then doesn’t drop to the page either, e.g. from Refresh, which hides.
  */
 function showNotice (card, title, reason) {
 	let notice = card.querySelector(".notice");
@@ -722,7 +728,7 @@ function showFailure (reason) {
 	header.classList.add("failed");
 	showReason(failure, reason);
 	changes.textContent = reason;
-	// The header says it instead: the form of an earlier failure has nothing left to fix, and the status says nothing stale, e.g. “Loading”
+	// The header says it instead. The form of an earlier failure has nothing left to fix, and the status says nothing stale, e.g. “Loading”
 	repoForm.hidden = true;
 	status.textContent = "";
 }

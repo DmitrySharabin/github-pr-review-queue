@@ -127,7 +127,7 @@ export function query ({ repo, user, role, filter }) {
 }
 
 /**
- * GraphQL query for the rest of what {@link summarize} needs, for a few PRs: these fields are the slow ones.
+ * GraphQL query for the rest of what {@link summarize} needs, for a few PRs. These fields are the slow ones.
  * @param {{ user: string, role?: Role | null, ids: string[] }} options
  * @returns {string}
  */
@@ -165,7 +165,7 @@ export function details ({ user, role, ids }) {
 
 /**
  * GraphQL query for the sizes of commits, e.g. of a {@link Diff}’s `commits`.
- * They are apart from {@link details}: their sizes are the slowest field, e.g. 1–2 s for the last 100 commits of a PR, and a PR needs few of them.
+ * They are apart from {@link details}, since their sizes are the slowest field, e.g. 1–2 s for the last 100 commits of a PR, and a PR needs few of them.
  * @param {string[]} ids - At most 100
  * @returns {string}
  */
@@ -235,7 +235,7 @@ export function summarize (pr, user, role) {
 						url: `${pr.url}/changes/${reviewed}..${commits.at(-1).oid}`,
 						range: exact ? `${reviewed}...${last.oid}` : undefined,
 					},
-		// A round is a request that follows a review: requests with no review between them add none
+		// A round is a request that follows a review. Requests with no review between them add no round
 		iterations: requests.filter((request, i) =>
 			reviews.some(
 				review =>
@@ -261,7 +261,7 @@ const states = {
 function reviewers (pr) {
 	let found = new Map();
 
-	// Later entries win: an approval outranks a comment after it, and a pending request outranks any review
+	// Later entries win. So an approval outranks a comment after it, and a pending request outranks any review
 	let reviews = [...pr.latestReviews.nodes, ...pr.latestOpinionatedReviews.nodes];
 	for (let { state, url, author } of reviews) {
 		// A dismissed review says nothing anymore. A deleted account has no author
@@ -276,7 +276,7 @@ function reviewers (pr) {
 	}
 
 	for (let { requestedReviewer: reviewer } of pr.reviewRequests.nodes) {
-		// NOTE: Skips teams: their fields need the read:org scope, which the sign-in doesn’t ask for
+		// NOTE: Skips teams, whose fields need the read:org scope. The sign-in doesn’t ask for it
 		if (reviewer?.login) {
 			found.set(reviewer.login, {
 				name: reviewer.login,
@@ -292,7 +292,7 @@ function reviewers (pr) {
 
 /**
  * Total of several diffs, e.g. of commits or of the files in a comparison.
- * Over commits, it is an estimate: a line that two commits change counts twice.
+ * Over commits, it is an estimate, since a line that two commits change counts twice.
  * @param {{ additions: number, deletions: number }[]} diffs
  * @returns {Pick<Diff, "additions" | "deletions">}
  */

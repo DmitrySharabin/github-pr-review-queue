@@ -9,8 +9,8 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;700&display=swap">
 	<link rel="stylesheet" href="style.css">
-	<!-- Madata’s modules, at the commit github.js imports, load at once instead of one import level after another.
-	     Madata then asks auth.madata.dev for its services on every visit, and the queue comes from api.github.com -->
+	<!-- Madata, the library that talks to GitHub, at the commit github.js imports.
+	     Preloaded, its modules load at once instead of one import level after another -->
 	<link rel="modulepreload" href="https://cdn.jsdelivr.net/gh/madatajs/madata@063fc247b1a03924c836d74ea2f3d8fdc86ded2c/backends/github/api/github-api.js">
 	<link rel="modulepreload" href="https://cdn.jsdelivr.net/gh/madatajs/madata@063fc247b1a03924c836d74ea2f3d8fdc86ded2c/backends/github/github.js">
 	<link rel="modulepreload" href="https://cdn.jsdelivr.net/gh/madatajs/madata@063fc247b1a03924c836d74ea2f3d8fdc86ded2c/src/oauth-backend.js">
@@ -21,6 +21,7 @@
 	<link rel="modulepreload" href="https://cdn.jsdelivr.net/gh/madatajs/madata@063fc247b1a03924c836d74ea2f3d8fdc86ded2c/src/backend.js">
 	<link rel="modulepreload" href="https://cdn.jsdelivr.net/gh/madatajs/madata@063fc247b1a03924c836d74ea2f3d8fdc86ded2c/src/format.js">
 	<link rel="modulepreload" href="https://cdn.jsdelivr.net/gh/madatajs/madata@063fc247b1a03924c836d74ea2f3d8fdc86ded2c/formats/json/index.js">
+	<!-- Madata asks auth.madata.dev for its services on every visit. The queue comes from api.github.com -->
 	<link rel="preconnect" href="https://auth.madata.dev" crossorigin>
 	<link rel="preconnect" href="https://api.github.com" crossorigin>
 	<script type="module" src="index.js"></script>
