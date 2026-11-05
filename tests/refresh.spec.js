@@ -298,3 +298,40 @@ test("A refresh whose details fail shows the rows it rechecked as they were, not
 
 	await expect(page.locator("#queue tr.stale")).toHaveCount(0);
 });
+
+test("A refresh marks a row whose other reviewer approved, though avatars are all that cell shows", async ({
+	page,
+	github,
+}) => {
+	let reviewer = { login: "user", avatarUrl: "https://github.com/user.png" };
+	github.details = answer => {
+		let pr = answer.data.nodes.find(node => node?.id === "A");
+		if (pr) {
+			pr.reviewRequests.nodes = [{ requestedReviewer: reviewer }];
+		}
+	};
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+
+	github.search = answer => {
+		answer.data.search.nodes[0].updatedAt = "2026-11-05T12:00:00Z";
+	};
+	github.details = answer => {
+		let pr = answer.data.nodes.find(node => node?.id === "A");
+		if (pr) {
+			pr.latestReviews.nodes = [
+				{
+					state: "APPROVED",
+					url: "https://github.com/foo/bar/pull/65#review",
+					author: reviewer,
+				},
+			];
+		}
+	};
+	await page.getByRole("button", { name: "Refresh" }).click();
+	await expect(page.locator("progress")).toBeHidden();
+
+	await expect(page.locator("#queue tbody small:has(mark:not([hidden]))")).toHaveText([
+		"#65 by ghost changed",
+	]);
+});
