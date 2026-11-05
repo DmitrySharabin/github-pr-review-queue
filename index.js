@@ -22,6 +22,7 @@ let empty = document.querySelector("#empty");
 let strip = document.querySelector("#summary");
 let updated = document.querySelector("#updated time");
 let changes = document.querySelector("#updated .changes");
+let delta = strip.querySelector(".delta");
 let filterForm = narrow.querySelector("form");
 let forms = [repoForm, filterForm, ...strip.querySelectorAll("form")];
 
@@ -310,6 +311,7 @@ async function load () {
 
 	// aria-disabled, unlike disabled, keeps focus on the button while it waits
 	refresh.ariaDisabled = "true";
+	delta.classList.add("stale");
 	status.textContent = "Loading pull requests…";
 	progress.hidden = false;
 
@@ -422,6 +424,7 @@ async function load () {
 
 	progress.hidden = true;
 	refresh.ariaDisabled = null;
+	delta.classList.remove("stale");
 }
 
 /** Show the rows, sorted, with what goes around them: the strip above them, or why there are none. */

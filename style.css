@@ -223,11 +223,12 @@ main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #upd
 
 		> * {
 			transition: color 150ms ease;
+		}
 
-			/* About the last load, so it dims while the next one runs, e.g. a refresh */
-			:root:has(#refresh[aria-disabled]) & {
-				color: var(--muted);
-			}
+		/* About the last load, so it dims while the next one runs, e.g. a refresh.
+		   A class set by the load, since :root:has(#refresh[aria-disabled]) would restyle the whole page on every load */
+		&.stale > * {
+			color: var(--muted);
 		}
 	}
 
