@@ -869,6 +869,7 @@ hgroup {
 progress {
 	--duration: 1.5s;
 	--animation: none;
+	--gleam: none;
 
 	position: absolute;
 	inset-block-start: calc(100% + var(--block-gap) / 2);
@@ -901,6 +902,14 @@ progress {
 		--animation: progress-indeterminate var(--duration) infinite linear;
 	}
 
+	/* A counted load can wait seconds on one request, e.g. at “4 of 10”: a gleam sweeping the track and the fill shows it still works */
+	&:not(:indeterminate) {
+		--animation: gleam var(--duration) infinite linear;
+		--gleam: linear-gradient(to right, transparent, color-mix(in oklch, white 40%, transparent), transparent) 0 0 / 40cqi 100% no-repeat;
+		background: linear-gradient(to right, transparent, color-mix(in oklch, var(--text) 35%, transparent), transparent) 0 0 / 40cqi 100% no-repeat, var(--border);
+		animation: var(--animation);
+	}
+
 	@media (prefers-reduced-motion: reduce) {
 		/* Slowed, not stopped: without its animation the indeterminate fill has no width */
 		--duration: 10s;
@@ -911,7 +920,7 @@ progress {
 	}
 
 	&::-webkit-progress-value {
-		background: var(--text);
+		background: var(--gleam), var(--text);
 		border-radius: 1e5px;
 		animation: var(--animation);
 		transition: inline-size 300ms var(--ease-out);
@@ -919,9 +928,20 @@ progress {
 
 	/* Firefox, e.g. Zen; a rule shared with the WebKit pseudo-element would be dropped as invalid in both */
 	&::-moz-progress-bar {
-		background: var(--text);
+		background: var(--gleam), var(--text);
 		border-radius: 1e5px;
 		animation: var(--animation);
+	}
+}
+
+/* Across the track and the fill as one bar: cqi is the bar’s width on both, since the fill’s container is the bar, and the bar spans main, its own container */
+@keyframes gleam {
+	from {
+		background-position-x: -40cqi;
+	}
+
+	to {
+		background-position-x: 100cqi;
 	}
 }
 
