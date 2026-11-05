@@ -142,7 +142,7 @@ main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #ref
 }
 
 /* After a failed load, the time is the rows’ age, e.g. “Couldn’t refresh · Last updated at 4:09 PM”, over the reason */
-header:not(.failed) :is(#updated :is(strong, .last), #failure),
+header:not(.failed) :is(#updated strong, #updated .last, #failure),
 header.failed #updated .now {
 	display: none;
 }
@@ -159,11 +159,11 @@ header.failed #updated .now {
 		block-size: 1em;
 		margin-inline-end: 0.3em;
 		vertical-align: -0.15em;
-		background: currentColor;
-		mask: var(--alert) center / contain no-repeat;
+		background-color: currentColor;
+		mask: var(--alert) no-repeat center / contain;
 	}
 
-	/* Pauses a screen reader before the time, e.g. “Couldn’t refresh, Updated at 4:09 PM” */
+	/* Pauses a screen reader before the time, e.g. “Couldn’t refresh, Last updated at 4:09 PM” */
 	&::after {
 		content: "·" / ", ";
 		margin-inline: 0.4em;

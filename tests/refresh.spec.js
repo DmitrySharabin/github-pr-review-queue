@@ -129,3 +129,39 @@ test("A failed refresh calls the time the last update, so it doesn’t read as i
 
 	await expect(page.getByText("Last updated at")).toBeVisible();
 });
+
+test("A failed refresh after one that showed the form hides the form, whose reason no longer holds", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+	github.search = answer => {
+		answer.errors = [{ message: "Could not resolve to a Repository with the name 'foo/bar'." }];
+	};
+	await page.getByRole("button", { name: "Refresh" }).click();
+	await expect(page.locator("#repo-form .notice")).toBeVisible();
+
+	github.search = () => 502;
+	await page.getByRole("button", { name: "Refresh" }).click();
+	await expect(page.getByText("Couldn’t refresh")).toBeVisible();
+
+	await expect(page.locator("#repo-form")).toBeHidden();
+});
+
+test("A failed refresh of an empty queue doesn’t leave a screen reader hearing that it still loads", async ({
+	page,
+	github,
+}) => {
+	github.search = answer => {
+		answer.data.search.nodes = [];
+	};
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("#empty")).toBeVisible();
+
+	github.search = () => 502;
+	await page.getByRole("button", { name: "Refresh" }).click();
+	await expect(page.getByText("Couldn’t refresh")).toBeVisible();
+
+	await expect(page.locator("#status")).not.toHaveText("Loading pull requests…");
+});

@@ -66,6 +66,9 @@ const reviewerPhrases = {
 
 const queuePrefix = "review-queue:queue:";
 
+/** GitHub’s answer for a repo or user it can’t find, e.g. “Could not resolve to a Repository with the name 'foo/bar'.” */
+const notFound = /Could not resolve to a (Repository|User)/;
+
 /** How many labels a row shows before a button for the rest */
 const labelLimit = 5;
 
@@ -533,12 +536,9 @@ async function load () {
 		}
 
 		showDelta();
-		// A repo or user that GitHub can’t find, as describe() tells them, needs the form to fix them.
+		// A repo or user that GitHub can’t find needs the form to fix them.
 		// So does a failure with no finished load on screen, e.g. on a first visit, where most failures come from the repo or the user
-		if (
-			updated.textContent &&
-			!/Could not resolve to a (Repository|User)/.test(error?.message)
-		) {
+		if (updated.textContent && !notFound.test(error?.message)) {
 			showFailure(describe(error));
 		}
 		else {
@@ -896,6 +896,9 @@ function showFailure (reason) {
 	header.classList.add("failed");
 	showReason(failure, reason);
 	changes.textContent = reason;
+	// The header says it instead: the form of an earlier failure has nothing left to fix, and the status says nothing stale, e.g. “Loading”
+	repoForm.hidden = true;
+	status.textContent = "";
 }
 
 /**
@@ -935,12 +938,14 @@ function describe (error, advice = "Try again.") {
 	// Madata joins GraphQL errors with line breaks, and the fields of one query may each fail with the same one
 	message = [...new Set(message.split("\n"))].join("\n");
 
+	let [, missing] = message.match(notFound) ?? [];
+
 	// GitHub answers the same for a private repo the user can’t access, e.g. with a token for other repos
-	if (message.includes("Could not resolve to a Repository")) {
+	if (missing === "Repository") {
 		return "GitHub can’t find this repository, or your account or token can’t access it. Check the name, then try again.";
 	}
 
-	if (message.includes("Could not resolve to a User")) {
+	if (missing === "User") {
 		return "GitHub can’t find this user. Check the name, or leave User empty to see your own queue.";
 	}
 
