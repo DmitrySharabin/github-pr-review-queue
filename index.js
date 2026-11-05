@@ -8,6 +8,7 @@ import {
 	outdated,
 	query,
 	search,
+	sizes,
 	summarize,
 	sum,
 	withLabel,
@@ -442,6 +443,7 @@ async function load () {
 
 							let summary = summarize({ ...row.pr, ...pr }, user, role);
 							await compare(repo, summary.diffSinceReview);
+							await estimate(summary.diffSinceReview);
 							// A newer load may have started during the comparison
 							if (signal.aborted) {
 								return;
@@ -814,14 +816,28 @@ async function compare (repo, diff) {
 			github.load(`https://api.github.com/repos/${repo}/compare/${diff.range}`),
 		);
 		Object.assign(diff, sum(files));
-		// Exact now, so a later load of the unchanged PR needn’t compare again
+		// Exact now, so neither estimate() nor a later load of the unchanged PR needs to count again
 		delete diff.range;
+		delete diff.commits;
 	}
 	catch (error) {
 		// One failed comparison should not hide the queue: the estimate stays
 		// NOTE: A refresh whose comparison fails, or succeeds after one that failed, marks the cell as changed
 		console.warn(`Couldn’t compare ${diff.range}, showing the estimate.`, error);
 	}
+}
+
+/** Count a diff by the sizes of its commits, when it lists them and nothing counted it exactly. */
+async function estimate (diff) {
+	if (!diff.commits) {
+		return;
+	}
+
+	let text = sizes(diff.commits);
+	// Retries once, as the details do
+	let { nodes } = await graphql(text).catch(() => graphql(text));
+	Object.assign(diff, sum(nodes));
+	delete diff.commits;
 }
 
 async function login (repo) {

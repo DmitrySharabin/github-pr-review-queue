@@ -198,3 +198,34 @@ test("A repository GitHub can’t find still fails the load", async ({ page, git
 		"GitHub can’t find this repository",
 	);
 });
+
+test("Changes since the last review add up the sizes of the author’s commits since then", async ({
+	page,
+	github,
+}) => {
+	// A merge of the base branch comes before the author’s last commit, so no comparison is exact and the sizes are the count
+	github.details = answer => {
+		let [pr] = answer.data.nodes;
+		if (pr.id !== "A") {
+			return;
+		}
+
+		let commit = (id, parents = 1) => ({
+			commit: { id, oid: id, parents: { totalCount: parents } },
+		});
+		pr.commits.nodes = [commit("L"), commit("M", 2), commit("N")];
+		pr.reviews.nodes = [
+			{
+				submittedAt: "2026-11-01T12:00:00Z",
+				author: { login: "DmitrySharabin" },
+				commit: { oid: "L" },
+			},
+		];
+	};
+	await page.goto("/?repo=foo/bar");
+
+	// The sizes of N, the only one of the author’s commits since the review
+	await expect(
+		page.locator("#queue tbody tr").filter({ hasText: "#65" }).locator(".since-review"),
+	).toContainText("+780 −2");
+});

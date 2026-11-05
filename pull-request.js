@@ -4,6 +4,7 @@
  * @property {number} deletions
  * @property {string} url - The diff on GitHub
  * @property {string} [range] - `base...head` to compare for an exact count, when the sum of commits is only an estimate
+ * @property {string[]} [commits] - The commits to add up for the estimate, with {@link sizes}, until then no `additions` and `deletions`
  * @property {"unreviewed" | "force-pushed"} [whole] - Why the diff is the whole PR
  *
  * @typedef {"reviewer" | "author"} Role - Whose view of the PRs: `user` reviews them, or wrote them
@@ -152,7 +153,7 @@ export function details ({ user, role, ids }) {
 				nodes { ... on ReviewRequestedEvent { createdAt requestedReviewer { ... on Actor { login } } } }
 			}
 			commits(last: 100) {
-				nodes { commit { oid additions deletions parents { totalCount } } }
+				nodes { commit { id oid parents { totalCount } } }
 			}
 			reviewRequests(first: 20) {
 				nodes { requestedReviewer { ... on Actor { login avatarUrl(size: 48) } } }
@@ -167,6 +168,18 @@ export function details ({ user, role, ids }) {
 	}
 }`,
 	);
+}
+
+/**
+ * GraphQL query for the sizes of commits, e.g. of a {@link Diff}’s `commits`.
+ * They are apart from {@link details}: their sizes are the slowest field, e.g. 1–2 s for the last 100 commits of a PR, and a PR needs few of them.
+ * @param {string[]} ids - At most 100
+ * @returns {string}
+ */
+export function sizes (ids) {
+	return `query {
+	nodes(ids: ${JSON.stringify(ids)}) { ... on Commit { additions deletions } }
+}`;
 }
 
 /**
@@ -223,7 +236,7 @@ export function summarize (pr, user, role) {
 			index === -1
 				? { ...diff, whole: reviewed ? "force-pushed" : "unreviewed" }
 				: {
-						...sum(own),
+						...(own.length > 0 ? { commits: own.map(commit => commit.id) } : sum(own)),
 						url: `${pr.url}/changes/${reviewed}..${commits.at(-1).oid}`,
 						range: exact ? `${reviewed}...${last.oid}` : undefined,
 					},
