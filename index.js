@@ -986,11 +986,12 @@ function showTime (time, date) {
 	let elapsed = Date.now() - date;
 	// The largest unit the wait rounds to at least one of, so 23.8 hours read “yesterday”, not “24 hr. ago”
 	let [unit, length] = units.find(([, length], i) => elapsed >= length - (units[i + 1]?.[1] ?? 0) / 2) ?? units.at(-1);
-	// Months and years round off days, so the tooltip adds them, e.g. “1/4/2024, 11:05:31 AM · 1,036 days”
+	// Months and years round off days, so the tooltip adds them, e.g. “Jan 4, 2024, 11:05 AM · 1,036 days”
 	let rounded = Boolean(date) && length >= month;
 
 	time.dateTime = date?.toISOString() ?? "";
-	time.title = date?.toLocaleString("en") ?? "";
+	// To the minute, as GitHub’s own tooltips
+	time.title = date?.toLocaleString("en", { dateStyle: "medium", timeStyle: "short" }) ?? "";
 	if (rounded) {
 		time.title += ` · ${days.format(Math.round(elapsed / day))}`;
 	}
