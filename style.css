@@ -19,6 +19,8 @@
 	--inset: 1rem;
 	/* Points right. Turned, it points down */
 	--chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 4l4 4-4 4'/%3E%3C/svg%3E");
+	/* A white tick, on the green of an approval or of an empty queue */
+	--check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
 }
 
 /* The footer starts at the bottom of the window, so the queue arriving above it doesn’t push it down */
@@ -135,7 +137,7 @@ main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #ref
    and by the card that shows, e.g. the sign-in, whose changes a screen reader hears from the status */
 caption,
 #updated .changes,
-main:has(> :is(#repo-form, #sign-in):not([hidden])) > #status,
+main:has(> :is(#repo-form, #sign-in, #empty):not([hidden])) > #status,
 main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #updated {
 	position: absolute;
 	/* One pixel wide, so a long one, e.g. an error, doesn’t widen the page */
@@ -1224,6 +1226,102 @@ tbody {
 	}
 }
 
+/* Framed as the table it replaces, so a queue that empties keeps its place on the page */
+#empty {
+	display: grid;
+	justify-items: center;
+	gap: 1.25rem;
+	padding: 3rem var(--inset) 3.25rem;
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	text-align: center;
+
+	&[hidden] {
+		display: none;
+	}
+
+	hgroup {
+		justify-items: center;
+		max-inline-size: 26rem;
+	}
+
+	h2 {
+		text-wrap: balance;
+	}
+
+	p {
+		text-wrap: pretty;
+	}
+
+	a {
+		color: inherit;
+		font-weight: 500;
+		text-underline-offset: 0.2em;
+	}
+
+	/* The filter above, with the terms still in it, is the way out */
+	&.filtered a {
+		display: none;
+	}
+}
+
+/* The faded rows say what would be here. The icons are Octicons (MIT, GitHub) */
+.picture {
+	display: grid;
+	place-items: center;
+	color: var(--muted);
+
+	> * {
+		grid-area: 1 / 1;
+	}
+
+	.rows {
+		inline-size: 11rem;
+		color: var(--border);
+		mask: linear-gradient(black 20%, transparent);
+	}
+
+	.tile {
+		--icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M16 19.25a3.25 3.25 0 1 1 6.5 0 3.25 3.25 0 0 1-6.5 0Zm-14.5 0a3.25 3.25 0 1 1 6.5 0 3.25 3.25 0 0 1-6.5 0Zm0-14.5a3.25 3.25 0 1 1 6.5 0 3.25 3.25 0 0 1-6.5 0ZM4.75 3a1.75 1.75 0 1 0 .001 3.501A1.75 1.75 0 0 0 4.75 3Zm0 14.5a1.75 1.75 0 1 0 .001 3.501A1.75 1.75 0 0 0 4.75 17.5Zm14.5 0a1.75 1.75 0 1 0 .001 3.501 1.75 1.75 0 0 0-.001-3.501Z'/%3E%3Cpath d='M13.405 1.72a.75.75 0 0 1 0 1.06L12.185 4h4.065A3.75 3.75 0 0 1 20 7.75v8.75a.75.75 0 0 1-1.5 0V7.75a2.25 2.25 0 0 0-2.25-2.25h-4.064l1.22 1.22a.75.75 0 0 1-1.061 1.06l-2.5-2.5a.75.75 0 0 1 0-1.06l2.5-2.5a.75.75 0 0 1 1.06 0ZM4.75 7.25A.75.75 0 0 1 5.5 8v8A.75.75 0 0 1 4 16V8a.75.75 0 0 1 .75-.75Z'/%3E%3C/svg%3E");
+		position: relative;
+		display: grid;
+		place-items: center;
+		inline-size: 3rem;
+		aspect-ratio: 1;
+		background: var(--surface);
+		border: 1px solid var(--border);
+		border-radius: calc(var(--radius) * 1.5);
+		box-shadow: 0 0.25rem 0.75rem color-mix(in oklch, var(--text) 8%, transparent);
+
+		&::before {
+			content: "";
+			inline-size: 1.5rem;
+			aspect-ratio: 1;
+			background-color: currentColor;
+			mask: var(--icon) no-repeat center / contain;
+		}
+	}
+}
+
+#empty.filtered .tile {
+	--icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M10.25 2a8.25 8.25 0 0 1 6.34 13.53l5.69 5.69a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215l-5.69-5.69A8.25 8.25 0 1 1 10.25 2ZM3.5 10.25a6.75 6.75 0 1 0 13.5 0 6.75 6.75 0 0 0-13.5 0Z'/%3E%3C/svg%3E");
+}
+
+/* Good news only for a reviewer with the whole queue in view */
+#empty:not(.filtered, .author) .tile::after {
+	content: "";
+	position: absolute;
+	inset-block-start: -0.5rem;
+	inset-inline-end: -0.5rem;
+	inline-size: 1.375rem;
+	aspect-ratio: 1;
+	border-radius: 50%;
+	background: var(--positive) var(--check) center / 75% no-repeat;
+	/* Cuts the badge out of the tile */
+	box-shadow: 0 0 0 2px var(--surface);
+}
+
 /* Avatars with a badge for what each did */
 .reviewers ul {
 	display: flex;
@@ -1270,7 +1368,7 @@ tbody {
 
 	&.approved {
 		--badge: var(--positive);
-		--icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
+		--icon: var(--check);
 	}
 
 	&.changes-requested {

@@ -18,6 +18,7 @@ let reviewerTemplate = document.querySelector("#reviewer");
 let labelTemplate = document.querySelector("#label");
 let repoForm = document.querySelector("#repo-form");
 let narrow = document.querySelector("#narrow");
+let empty = document.querySelector("#empty");
 let strip = document.querySelector("#summary");
 let updated = document.querySelector("#updated time");
 let changes = document.querySelector("#updated .changes");
@@ -409,6 +410,7 @@ async function load () {
 		if (!sameView && shown !== view) {
 			strip.hidden = true;
 			table.parentElement.hidden = true;
+			empty.hidden = true;
 			narrow.hidden = true;
 			updated.textContent = "";
 		}
@@ -433,16 +435,34 @@ function showQueue ({ repo, user, role, filter }) {
 	showSummary({ repo, user, role, filter });
 
 	table.parentElement.hidden = rows.length === 0;
+	empty.hidden = rows.length > 0;
 	repoForm.hidden = true;
-	narrow.hidden = false;
+	// Nothing to narrow down, unless a filter is why nothing is left. Open, it may hold focus, e.g. on Apply after the terms were cleared
+	narrow.hidden = rows.length === 0 && !filter && !narrow.open;
 	// The status names the progress bar, so it says “Loading” until there is nothing left to load
 	if (rows.length === 0) {
-		let matching = filter ? ` matching “${filter}”` : "";
-		status.textContent = role === "author"
-			? `${user} has no open pull requests${matching} in ${repo}.`
-			: `Nothing${matching} awaits ${user}’s review in ${repo}.`;
+		showEmpty({ repo, user, role, filter });
 	}
 	status.hidden = rows.length > 0;
+}
+
+/** Say why the queue is empty, e.g. “Nothing to review”, in the card and in the status, which a screen reader hears. */
+function showEmpty ({ repo, user, role, filter }) {
+	let author = role === "author";
+	let title = author ? "No open pull requests" : "Nothing to review";
+	let text = author ? `${user} has no open pull requests in ${repo}.` : `No pull requests in ${repo} are waiting for ${user}’s review.`;
+	if (filter) {
+		title = "No matching pull requests";
+		text = author ? `None of ${user}’s open pull requests in ${repo}` : `None of the pull requests waiting for ${user}’s review in ${repo}`;
+		text += ` match “${filter}”. Try other search terms, or clear the filter.`;
+	}
+
+	empty.classList.toggle("author", author);
+	empty.classList.toggle("filtered", Boolean(filter));
+	empty.querySelector("h2").textContent = title;
+	empty.querySelector("p").textContent = text;
+	empty.querySelector("a").href = `https://github.com/${repo}/pulls`;
+	status.textContent = text;
 }
 
 function showUpdated (date) {
@@ -605,6 +625,7 @@ async function login (repo) {
 		forget();
 		strip.hidden = true;
 		table.parentElement.hidden = true;
+		empty.hidden = true;
 		narrow.hidden = true;
 		showDelta();
 		status.hidden = false;

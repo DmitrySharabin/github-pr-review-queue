@@ -168,6 +168,35 @@
 			</table>
 		</section>
 
+		<!-- In place of the table when the queue is empty. The status says its text to a screen reader -->
+		<section id="empty" aria-labelledby="empty-title" hidden>
+			<!-- The faded rows stand for the table -->
+			<div class="picture" aria-hidden="true">
+				<svg class="rows" viewBox="0 0 176 104" fill="currentColor">
+					<rect x="0.5" y="0.5" width="175" height="103" rx="8" fill="none" stroke="currentColor"/>
+					<path d="M1 35h174M1 69h174" stroke="currentColor"/>
+					<circle cx="18" cy="18" r="7"/>
+					<rect x="32" y="12" width="72" height="5" rx="2.5"/>
+					<rect x="32" y="21" width="40" height="4" rx="2"/>
+					<rect x="140" y="15" width="22" height="5" rx="2.5"/>
+					<circle cx="18" cy="52" r="7"/>
+					<rect x="32" y="46" width="88" height="5" rx="2.5"/>
+					<rect x="32" y="55" width="48" height="4" rx="2"/>
+					<rect x="140" y="49" width="22" height="5" rx="2.5"/>
+					<circle cx="18" cy="86" r="7"/>
+					<rect x="32" y="80" width="60" height="5" rx="2.5"/>
+					<rect x="32" y="89" width="36" height="4" rx="2"/>
+					<rect x="140" y="83" width="22" height="5" rx="2.5"/>
+				</svg>
+				<span class="tile"></span>
+			</div>
+			<hgroup>
+				<h2 id="empty-title"></h2>
+				<p></p>
+			</hgroup>
+			<a target="_blank">See all open pull requests on GitHub</a>
+		</section>
+
 		<template id="row">
 			<tr>
 				<th scope="row">
