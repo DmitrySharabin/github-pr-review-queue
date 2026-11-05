@@ -33,6 +33,8 @@ let repoForm = document.querySelector("#repo-form");
 let narrow = document.querySelector("#narrow");
 let empty = document.querySelector("#empty");
 let strip = document.querySelector("#summary");
+let header = document.querySelector("header");
+let failure = document.querySelector("#failure");
 let updated = document.querySelector("#updated time");
 let changes = document.querySelector("#updated .changes");
 let delta = strip.querySelector(".delta");
@@ -126,7 +128,7 @@ for (let type of ["click", "auxclick"]) {
 }
 
 // A toggle, not a one-way reveal, so the focus stays on it
-for (let button of document.querySelectorAll(".notice button")) {
+for (let button of document.querySelectorAll(":is(.notice, #failure) > button")) {
 	button.addEventListener("click", () => {
 		let expanded = button.parentElement.classList.toggle("expanded");
 		button.textContent = expanded ? "Show less" : "Show all";
@@ -371,6 +373,7 @@ async function load () {
 		changes.textContent = "Refreshing…";
 	}
 
+	header.classList.remove("failed");
 	// aria-disabled, unlike disabled, keeps focus on the button while it waits
 	refresh.ariaDisabled = "true";
 	delta.classList.add("stale");
@@ -531,12 +534,21 @@ async function load () {
 		}
 
 		showDelta();
-		// Most failures come from the repo or the user, so the form lets the user check and fix them
-		showNotice(
-			repoForm,
-			`Couldn’t load the pull requests in ${repo}`,
-			describe(error, "Check the repository and the user, then try again."),
-		);
+		// A repo or user that GitHub can’t find, as describe() tells them, needs the form to fix them.
+		// So does a failure with no finished load on screen, e.g. on a first visit, where most failures come from the repo or the user
+		if (
+			updated.textContent &&
+			!/Could not resolve to a (Repository|User)/.test(error?.message)
+		) {
+			showFailure(describe(error));
+		}
+		else {
+			showNotice(
+				repoForm,
+				`Couldn’t load the pull requests in ${repo}`,
+				describe(error, "Check the repository and the user, then try again."),
+			);
+		}
 	}
 
 	progress.hidden = true;
@@ -874,20 +886,36 @@ async function login (repo) {
 function showNotice (card, title, reason) {
 	let notice = card.querySelector(".notice");
 	notice.querySelector("strong").textContent = title;
-	let text = notice.querySelector("span");
-	text.textContent = reason;
 	notice.hidden = false;
 	card.hidden = false;
-
-	// A long reason, e.g. GitHub’s whole answer with a link in it, shows its first lines, so the card keeps its size.
-	// Measured clamped: a reason that fits in them needs no button
-	let all = notice.querySelector("button");
-	notice.classList.remove("expanded");
-	all.textContent = "Show all";
-	all.hidden = text.scrollHeight <= text.clientHeight;
+	showReason(notice, reason);
 	notice.focus();
 	// The card says it instead, and the status, hidden while a card shows, says nothing stale, e.g. “Loading”
 	status.textContent = "";
+}
+
+/**
+ * Say next to Refresh that a load failed and why, e.g. “Couldn’t refresh · Updated at 4:09 PM” over “You’re offline. …”.
+ * The rows stay as the last finished load left them, and focus stays where it was, e.g. on Refresh to try again.
+ * A screen reader hears the reason after the update time, e.g. “Couldn’t refresh, Updated at 4:09 PM, You’re offline. …”
+ */
+function showFailure (reason) {
+	header.classList.add("failed");
+	showReason(failure, reason);
+	changes.textContent = reason;
+}
+
+/**
+ * Put why a load failed in an element on screen, e.g. a notice. A long reason, e.g. GitHub’s whole answer with a link in it,
+ * shows its first lines and a button for the rest, so the page keeps its layout. Measured clamped: a reason that fits needs no button.
+ */
+function showReason (element, reason) {
+	let text = element.querySelector("span");
+	text.textContent = reason;
+	let all = element.querySelector("button");
+	element.classList.remove("expanded");
+	all.textContent = "Show all";
+	all.hidden = text.scrollHeight <= text.clientHeight;
 }
 
 /**

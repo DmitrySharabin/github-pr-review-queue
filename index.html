@@ -31,10 +31,12 @@
 			<h1>GitHub PR review queue</h1>
 			<div id="controls" inert>
 				<p id="counter" hidden></p>
-				<p id="updated" role="status" aria-atomic="true">Updated at <time></time><span class="changes"></span></p>
+				<p id="updated" role="status" aria-atomic="true"><strong>Couldn’t refresh</strong>Updated at <time></time><span class="changes"></span></p>
 				<button id="refresh" aria-disabled="true">Refresh</button>
 				<button id="sign-out">Sign out</button>
 			</div>
+			<!-- Why the last load failed, which a screen reader also hears after the update time -->
+			<p id="failure"><span></span> <button type="button" hidden>Show all</button></p>
 			<progress aria-labelledby="status"></progress>
 		</header>
 		<script>

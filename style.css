@@ -139,6 +139,38 @@ main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #ref
 	content: "" / ", ";
 }
 
+/* Only after a failed load, e.g. “Couldn’t refresh · Updated at 4:09 PM”, over the reason */
+header:not(.failed) :is(#updated strong, #failure) {
+	display: none;
+}
+
+/* Amber, as the notices: worth a look, not alarming. Darkened to read as text */
+#updated strong {
+	color: color-mix(in oklch, var(--attention) 55%, var(--text));
+	font-weight: 500;
+
+	/* Pauses a screen reader before the time, e.g. “Couldn’t refresh, Updated at 4:09 PM” */
+	&::after {
+		content: "·" / ", ";
+		margin-inline: 0.4em;
+		color: var(--muted);
+	}
+}
+
+/* A line of its own, under the controls, closer to them than the header’s gap.
+   Two lines at most until Show all, so the header stays small */
+#failure {
+	--lines: 2;
+
+	flex-basis: 100%;
+	margin: -0.5em 0 0;
+	/* At most 40em wide, flush with the buttons, so it reads with them rather than across the page */
+	padding-inline-start: max(0px, 100% - 40em);
+	color: var(--muted);
+	text-align: end;
+	text-wrap: pretty;
+}
+
 /* Fades in as each load ends, so even a refresh in the same minute shows it finished */
 #controls:has(#refresh:not([aria-disabled])) time {
 	animation: appear 200ms var(--ease-out);
@@ -480,6 +512,22 @@ button {
 		grid-area: 2 / 2;
 	}
 
+	/* Over the time, which would otherwise break inside, e.g. “Updated at” over “4:26 PM” */
+	#updated strong {
+		display: block;
+
+		&::after {
+			content: "" / ", ";
+		}
+	}
+
+	#failure {
+		grid-area: 3 / 1 / 4 / 3;
+		margin-block-start: 0.25em;
+		padding-inline-start: 0;
+		text-align: start;
+	}
+
 	#refresh,
 	#sign-out {
 		min-block-size: 2rem;
@@ -589,16 +637,24 @@ hgroup {
 		color: var(--text);
 	}
 
+	/* Focused by a script, so a screen reader reads it. Not operable itself, so no ring */
+	&:focus {
+		outline: none;
+	}
+}
+
+/* Why a load failed, in a notice or under the controls */
+:is(.notice, #failure) {
 	/* A word too long for the card, e.g. a link, breaks instead of widening it */
 	span {
 		overflow-wrap: anywhere;
 	}
 
-	/* Three lines until Show all shows the rest */
+	/* The first lines until Show all shows the rest */
 	&:not(.expanded) span {
 		display: -webkit-box;
 		-webkit-box-orient: vertical;
-		-webkit-line-clamp: 3;
+		-webkit-line-clamp: var(--lines, 3);
 		overflow: hidden;
 	}
 
@@ -607,11 +663,6 @@ hgroup {
 		font-weight: 500;
 		text-decoration: underline;
 		text-underline-offset: 0.15em;
-	}
-
-	/* Focused by a script, so a screen reader reads it. Not operable itself, so no ring */
-	&:focus {
-		outline: none;
 	}
 }
 
