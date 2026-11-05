@@ -770,6 +770,9 @@ function describe (error, advice = "Try again.") {
 		return slow;
 	}
 
+	// Madata joins GraphQL errors with line breaks, and the fields of one query may each fail with the same one
+	message = [...new Set(message.split("\n"))].join("\n");
+
 	// GitHub answers the same for a private repo the user can’t access, e.g. with a token for other repos
 	if (message.includes("Could not resolve to a Repository")) {
 		return "GitHub can’t find this repository, or your account or token can’t access it. Check the name, then try again.";
