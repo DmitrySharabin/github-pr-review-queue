@@ -181,7 +181,7 @@ main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #upd
 		font-size: 0.85em;
 	}
 
-	/* Room for the times up to “99 days ago”, which arrive after the rest: the cells before it share what it leaves, so a wider one would move them */
+	/* Room for the times up to “30 days ago”, which arrive after the rest: the cells before it share what it leaves, so a wider one would move them */
 	.latest {
 		min-inline-size: 9ch;
 	}
@@ -1016,7 +1016,7 @@ td:not(.requested) {
 	color: var(--muted);
 }
 
-/* Room for the times up to “99 days ago”, which arrive after the rows: a wider one would move every column, title wraps included */
+/* Room for the times up to “30 days ago”, which arrive after the rows: a wider one would move every column, title wraps included */
 td.requested {
 	min-inline-size: 9ch;
 }
@@ -1160,6 +1160,13 @@ tbody {
 			color: var(--text);
 		}
 	}
+}
+
+/* A wait rounded to months or years has its days in the tooltip. The dotted line says so, as under an abbreviation */
+time.rounded {
+	text-decoration: underline dotted color-mix(in oklch, currentColor 40%, transparent);
+	text-underline-offset: 0.2em;
+	cursor: help;
 }
 
 /* A line tall, as the text that replaces it. A time that lays out as a flex box, e.g. in the summary, has no line around its bar: without this, the bar sits at the top */
