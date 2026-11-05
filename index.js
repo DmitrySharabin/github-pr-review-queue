@@ -306,7 +306,9 @@ async function load () {
 		let previous = new Map(rows.map(row => [row.pr.id, row]));
 		rows = stored.rows.map(({ pr, summary }) => {
 			let row = previous.get(pr.id) ?? {};
-			row.pr = row.detailed = pr;
+			row.pr = pr;
+			// A row stored without details, e.g. of a PR deleted during its load, asks for them again
+			row.detailed = summary.diffSinceReview && pr;
 			fill(row, summary);
 			return row;
 		});
@@ -374,12 +376,18 @@ async function load () {
 			// A batch retries once on its own: GitHub drops a slow query without a readable response, or answers that it timed out
 			let { nodes } = await graphql(text).catch(() => graphql(text));
 			await Promise.all(nodes.map(async pr => {
-				let row = rows.find(row => row.pr.id === pr.id);
-
-				// A PR the search no longer finds, e.g. merged meanwhile, or rows a newer load owns, e.g. after a role switch
-				if (!row || signal.aborted) {
+				// Rows a newer load owns, e.g. after a role switch
+				if (signal.aborted) {
 					return;
 				}
+
+				// A PR deleted since the search, which GitHub answers with null: nothing to fill, and the next search drops its row
+				if (!pr) {
+					showProgress(task, ++done, ids.length);
+					return;
+				}
+
+				let row = rows.find(row => row.pr.id === pr.id);
 
 				let summary = summarize({ ...row.pr, ...pr }, user, role);
 				await compare(repo, summary.diffSinceReview);
@@ -677,16 +685,28 @@ function showDelta (delta) {
 	changes.textContent = delta ? [added && `${added} new`, left && `${left} gone`].filter(Boolean).join(", ") || "No changes" : "";
 }
 
-function graphql (text) {
-	return request(`https://api.github.com/graphql#${text}`);
+/**
+ * GitHub’s answer to a GraphQL query, through Madata’s request() rather than load(): for a PR deleted since the search,
+ * GitHub answers null and an error, and load() throws the whole answer away for it, the other PRs included.
+ */
+async function graphql (text) {
+	let { data, errors = [] } = await inTime(github.request("https://api.github.com/graphql", { query: text }, "POST"));
+	errors = errors.filter(error => error.type !== "NOT_FOUND" || error.path?.[0] !== "nodes");
+
+	// Joined as load() joins them, which describe() matches, e.g. “Could not resolve to a Repository”
+	if (errors.length > 0) {
+		throw new Error(errors.map(error => error.message).join("\n"));
+	}
+
+	return data;
 }
 
 /**
- * Load from GitHub, but give up after 20 s, twice the time GitHub gives a query: the promise rejects with nothing, which describe() reads as “took too long”.
- * A dropped connection, e.g. after the laptop slept, never answers, and Madata’s load() passes no signal to fetch, so the request runs on unheard.
+ * GitHub’s answer, or after 20 s a rejection with nothing, which describe() reads as “took too long”. That is twice the time GitHub gives a query.
+ * A dropped connection, e.g. after the laptop slept, never answers, and Madata’s load() takes no signal to stop it, so the request runs on unheard.
  */
-function request (url) {
-	return Promise.race([github.load(url), new Promise((resolve, reject) => setTimeout(reject, 20_000))]);
+function inTime (answer) {
+	return Promise.race([answer, new Promise((resolve, reject) => setTimeout(reject, 20_000))]);
 }
 
 /** Replace a diff’s estimate with GitHub’s exact count, when it has a range to compare. */
@@ -697,7 +717,7 @@ async function compare (repo, diff) {
 
 	try {
 		// NOTE: GitHub lists at most 300 files in a comparison
-		let { files } = await request(`https://api.github.com/repos/${repo}/compare/${diff.range}`);
+		let { files } = await inTime(github.load(`https://api.github.com/repos/${repo}/compare/${diff.range}`));
 		Object.assign(diff, sum(files));
 		// Exact now, so a later load of the unchanged PR needn’t compare again
 		delete diff.range;
@@ -711,7 +731,7 @@ async function compare (repo, diff) {
 
 async function login (repo) {
 	try {
-		// NOTE: Can hang on a dropped connection as request() can, e.g. when it fetches the user, and then Refresh stays disabled
+		// NOTE: Can hang on a dropped connection as inTime() describes, e.g. when it fetches the user, and then Refresh stays disabled
 		await github.login({ passive: true });
 	}
 	catch {
@@ -761,7 +781,7 @@ function showNotice (card, title, reason) {
 
 /**
  * Say in the user’s words what went wrong and what to do, e.g. “You’re offline. Check your connection, then try again.”
- * @param {unknown} error - What Madata threw, or nothing when request() gave up
+ * @param {unknown} error - What Madata threw, or nothing when inTime() gave up
  * @param {string} [advice] - What to do about an error not known here, which shows GitHub’s own words
  */
 function describe (error, advice = "Try again.") {
