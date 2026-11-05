@@ -320,7 +320,7 @@ test("A click on a label keeps the rows that have it while the search runs", asy
 }) => {
 	github.search = answer => {
 		for (let pr of answer.data.search.nodes) {
-			if ("AC".includes(pr.id)) {
+			if (["A", "C"].includes(pr.id)) {
 				pr.labels.nodes = [{ name: "bug", color: "d73a4a", description: null }];
 			}
 		}

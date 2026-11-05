@@ -388,7 +388,7 @@ async function load () {
 			showProgress(task, 0, stale.length);
 		}
 
-		let failed = await update(stale, task, { ...view, user }, signal);
+		let failed = await fillDetails(stale, task, { ...view, user }, signal);
 		signal.throwIfAborted();
 		sort(rows, { animate: true });
 		showSummary({ ...view, user });
@@ -452,13 +452,14 @@ async function load () {
 
 /**
  * Fill in the slow fields of these rows, a few PRs per query, and count them on the progress bar.
- * A failed query leaves its rows as they were, and the others fill in still. Resolves to the first failure, if any
+ * A failed query leaves its rows as they were, and the others fill in still.
  * @param {Row[]} stale
  * @param {string} task - What the progress bar counts, e.g. “rechecked” on a refresh
  * @param {View} view - The load’s, with the user it is for
  * @param {AbortSignal} signal - The load’s
+ * @returns {Promise<PromiseRejectedResult | undefined>} The first failure, if any
  */
-async function update (stale, task, { repo, user, role }, signal) {
+async function fillDetails (stale, task, { repo, user, role }, signal) {
 	let done = 0;
 	// GitHub stops a query that runs too long, so each asks for a few PRs
 	let size = 10;
@@ -467,8 +468,11 @@ async function update (stale, task, { repo, user, role }, signal) {
 
 	let results = await Promise.allSettled(
 		batches.map(async batch => {
-			let ids = batch.map(row => row.pr.id);
-			let prs = await nodes(ids => details({ user, role, ids }), ids, signal);
+			let prs = await nodes(
+				ids => details({ user, role, ids }),
+				batch.map(row => row.pr.id),
+				signal,
+			);
 			return Promise.allSettled(
 				prs.map(async pr => {
 					// Rows a newer load owns, e.g. after a role switch
