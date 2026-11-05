@@ -1,4 +1,4 @@
-/** @import { Summary, View } from "./pull-request.js" */
+/** @import { Summary } from "./pull-request.js" */
 // The commit is also in index.html, which preloads the modules this one imports
 import GithubAPI from "https://cdn.jsdelivr.net/gh/madatajs/madata@063fc247b1a03924c836d74ea2f3d8fdc86ded2c/backends/github/api/github-api.js";
 import {
@@ -13,6 +13,7 @@ import {
 	sum,
 	withLabel,
 } from "./pull-request.js";
+import { forget, restore, store, storedQueues } from "./queues.js";
 import { offerRecent } from "./recent.js";
 
 let github = new GithubAPI("https://api.github.com/graphql");
@@ -63,8 +64,6 @@ const reviewerPhrases = {
 	"changes-requested": "requested changes",
 	commented: "commented",
 };
-
-const queuePrefix = "review-queue:queue:";
 
 /** GitHub’s answer for a repo or user it can’t find, e.g. “Could not resolve to a Repository with the name 'foo/bar'.” */
 const notFound = /Could not resolve to a (Repository|User)/;
@@ -670,87 +669,6 @@ function showUpdated (date) {
 			? { timeStyle: "short" }
 			: { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" },
 	);
-}
-
-/**
- * The key a view’s queue is stored under, e.g. `review-queue:queue:repo=foo%2Fbar&role=author`.
- * @param {View} view
- */
-function queueKey (view) {
-	return `${queuePrefix}${new URLSearchParams(Object.entries(view).filter(([, value]) => value))}`;
-}
-
-/**
- * What a view showed after its last full load, with when and for which user.
- * @param {View} view
- * @returns {{ user: string, at: string, rows: { pr: object, summary: Summary }[] } | undefined}
- */
-function restore (view) {
-	// JSON has no dates
-	let revive = (key, value) => (key === "waitingSince" && value ? new Date(value) : value);
-	return JSON.parse(localStorage.getItem(queueKey(view)), revive) ?? undefined;
-}
-
-/**
- * The keys of the stored queues, with the view each is of, e.g. `repo=foo%2Fbar` for `?repo=foo/bar`.
- * @returns {{ key: string, view: URLSearchParams }[]}
- */
-function storedViews () {
-	return Object.keys(localStorage)
-		.filter(key => key.startsWith(queuePrefix))
-		.map(key => ({ key, view: new URLSearchParams(key.slice(queuePrefix.length)) }));
-}
-
-/**
- * The stored queues, the latest first. Each read parses a whole queue, so it is slower than {@link storedViews}.
- * @returns {{ key: string, view: URLSearchParams, at: string }[]}
- */
-function storedQueues () {
-	return storedViews()
-		.map(queue => ({ ...queue, at: JSON.parse(localStorage.getItem(queue.key)).at }))
-		.sort((a, b) => b.at.localeCompare(a.at));
-}
-
-/**
- * Remove the stored queues, e.g. the titles of private repos when the signed-in user may change, or those of one repo.
- * @param {(view: URLSearchParams) => boolean} [test] - Which ones, e.g. `view => view.get("repo") === "foo/bar"`
- */
-function forget (test = () => true) {
-	for (let { key, view } of storedViews()) {
-		if (test(view)) {
-			localStorage.removeItem(key);
-		}
-	}
-}
-
-function store (view, queue) {
-	let key = queueKey(view);
-	let text = JSON.stringify(queue);
-	let others;
-
-	// A full storage drops the queues stored longest ago, e.g. of a label looked at once, until this one fits
-	for (;;) {
-		try {
-			localStorage.setItem(key, text);
-			return;
-		}
-		catch (error) {
-			// Newest first, so the last one is the oldest
-			// NOTE: Storage full of other data, e.g. of another app on the origin, loses every queue before this one gives up
-			others ??=
-				error.name === "QuotaExceededError"
-					? storedQueues().filter(other => other.key !== key)
-					: [];
-
-			if (others.length === 0) {
-				// Only the next visit’s head start is lost
-				console.warn("Couldn’t store the queue.", error);
-				return;
-			}
-
-			localStorage.removeItem(others.pop().key);
-		}
-	}
 }
 
 /** Fill the strip above the table: where, for whom, how many, since when. */
