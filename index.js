@@ -307,7 +307,7 @@ function showView () {
 }
 
 /**
- * Load the queue the URL asks for, and drop the results of a load still in flight.
+ * Load the queue the URL asks for, and stop a load still in flight.
  * The rows on screen stay until the new ones arrive, and those of the same queue, e.g. on a refresh or a new filter, update in place.
  */
 async function load () {
@@ -435,7 +435,7 @@ async function load () {
 			Promise.all(
 				details({ user, role, ids }).map(async text => {
 					// A batch retries once on its own: GitHub drops a slow query without a readable response, or answers that it timed out
-					let { nodes } = await graphql(text).catch(() => graphql(text));
+					let { nodes } = await graphql(text, signal).catch(() => graphql(text, signal));
 					await Promise.all(
 						nodes.map(async pr => {
 							// Rows a newer load owns, e.g. after a role switch
@@ -452,7 +452,7 @@ async function load () {
 							let row = rows.find(row => row.pr.id === pr.id);
 
 							let summary = summarize({ ...row.pr, ...pr }, user, role);
-							await count(repo, summary.diffSinceReview);
+							await count(repo, summary.diffSinceReview, signal);
 							// A newer load may have started during the count
 							if (signal.aborted) {
 								return;
@@ -474,7 +474,7 @@ async function load () {
 		// Rows of another queue, e.g. before a role switch, stay on screen until the search replaces them, but don’t update
 		let kept = sameQueue || stored ? rows : [];
 
-		let { search: found } = await graphql(query({ ...view, user }));
+		let { search: found } = await graphql(query({ ...view, user }), signal);
 		signal.throwIfAborted();
 		shown = view;
 		shownUser = user;
@@ -800,9 +800,12 @@ function showDelta (delta) {
  * GitHub’s answer to a GraphQL query, through Madata’s request() rather than load(): for a PR deleted since the search,
  * GitHub answers null and an error, and load() throws the whole answer away for it, the other PRs included.
  */
-async function graphql (text) {
-	let { data, errors = [] } = await inTime(
-		github.request("https://api.github.com/graphql", { query: text }, "POST"),
+async function graphql (text, signal) {
+	let { data, errors = [] } = await github.request(
+		"https://api.github.com/graphql",
+		{ query: text },
+		"POST",
+		{ signal: inTime(signal) },
 	);
 	errors = errors.filter(error => error.type !== "NOT_FOUND" || error.path?.[0] !== "nodes");
 
@@ -815,20 +818,24 @@ async function graphql (text) {
 }
 
 /**
- * GitHub’s answer, or after 20 s a rejection with nothing, which describe() reads as “took too long”. That is twice the time GitHub gives a query.
- * A dropped connection, e.g. after the laptop slept, never answers, and Madata’s load() takes no signal to stop it, so the request runs on unheard.
+ * The signal for a request: it aborts with the load’s, or after 20 s, which describe() reads as “took too long”. That is twice the time GitHub gives a query.
+ * A dropped connection, e.g. after the laptop slept, never answers otherwise.
+ * @param {AbortSignal} signal - The load’s
  */
-function inTime (answer) {
-	return Promise.race([answer, new Promise((resolve, reject) => setTimeout(reject, 20_000))]);
+function inTime (signal) {
+	return AbortSignal.any([signal, AbortSignal.timeout(20_000)]);
 }
 
 /** Count a diff that summarize() left uncounted: exactly, when it has a range to compare, or else by the sizes of its commits. */
-async function count (repo, diff) {
+async function count (repo, diff, signal) {
 	if (diff.range) {
 		try {
 			// NOTE: GitHub lists at most 300 files in a comparison
-			let { files } = await inTime(
-				github.load(`https://api.github.com/repos/${repo}/compare/${diff.range}`),
+			let { files } = await github.request(
+				`https://api.github.com/repos/${repo}/compare/${diff.range}`,
+				{},
+				"GET",
+				{ signal: inTime(signal) },
 			);
 			Object.assign(diff, sum(files));
 			// Exact now, so a later load of the unchanged PR needn’t compare again
@@ -837,6 +844,7 @@ async function count (repo, diff) {
 			return;
 		}
 		catch (error) {
+			signal.throwIfAborted();
 			// One failed comparison should not hide the queue: the commits’ sizes estimate the count instead
 			// NOTE: A refresh whose comparison fails, or succeeds after one that failed, marks the cell as changed
 			console.warn(`Couldn’t compare ${diff.range}, adding up its commits instead.`, error);
@@ -846,7 +854,7 @@ async function count (repo, diff) {
 	if (diff.commits) {
 		let text = sizes(diff.commits);
 		// Retries once, as the details do. NOTE: A commit GitHub can’t resolve answers null, which fails the load
-		let { nodes } = await graphql(text).catch(() => graphql(text));
+		let { nodes } = await graphql(text, signal).catch(() => graphql(text, signal));
 		Object.assign(diff, sum(nodes));
 		delete diff.commits;
 	}
@@ -924,7 +932,7 @@ function showReason (element, reason) {
 
 /**
  * Say in the user’s words what went wrong and what to do, e.g. “You’re offline. Check your connection, then try again.”
- * @param {unknown} error - What Madata threw, or nothing when inTime() gave up
+ * @param {unknown} error - What Madata threw
  * @param {string} [advice] - What to do about an error not known here, which shows GitHub’s own words
  */
 function describe (error, advice = "Try again.") {
@@ -933,12 +941,12 @@ function describe (error, advice = "Try again.") {
 	let message = error?.message;
 	let slow = "GitHub took too long to respond. Try again in a minute.";
 
-	// Madata drops the failed fetch’s error, so only its own message tells a network failure apart
+	// Madata drops the failed fetch’s error, so only its own message tells a network failure apart, e.g. a request inTime() stopped
 	if (message === GithubAPI.phrase("something_went_wrong_while_connecting", GithubAPI.name)) {
 		return navigator.onLine ? slow : "You’re offline. Check your connection, then try again.";
 	}
 
-	// A text body, e.g. a 502’s HTML page, or no answer in time
+	// A text body, e.g. a 502’s HTML page
 	if (message === undefined) {
 		return slow;
 	}

@@ -99,6 +99,28 @@ test("Failed details keep the rows the search found on screen", async ({ page, g
 	await expect(page.locator("#queue tbody .number").filter({ visible: true })).toHaveCount(6);
 });
 
+test("A role switch stops the requests of the load it leaves, so GitHub doesn’t work on answers nobody sees", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+
+	let stopped = 0;
+	page.on("requestfailed", request => {
+		if (request.url() === "https://api.github.com/graphql") {
+			stopped++;
+		}
+	});
+	let { promise, resolve } = Promise.withResolvers();
+	github.search = () => promise;
+	await page.getByRole("button", { name: "Refresh" }).click();
+	await page.getByRole("link", { name: "Author" }).click();
+
+	await expect.poll(() => stopped).toBe(1);
+	resolve();
+});
+
 test("A sort chosen while the bars show keeps them, and sorts the rows that replace them", async ({
 	page,
 	github,
