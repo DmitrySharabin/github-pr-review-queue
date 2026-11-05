@@ -28,7 +28,7 @@ let forms = [repoForm, filterForm, ...strip.querySelectorAll("form")];
 
 /** Sort value of each column. `null` and `undefined` (still loading) sort last in both directions. */
 const sortKeys = {
-	diff: summary => size(summary.diff),
+	diff: summary => summary.diff && size(summary.diff),
 	diffSinceReview: summary => summary.diffSinceReview && size(summary.diffSinceReview),
 	iterations: summary => summary.iterations,
 	waitingSince: summary => summary.waitingSince && -summary.waitingSince,

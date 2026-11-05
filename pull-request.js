@@ -32,7 +32,7 @@
  * @property {string} author
  * @property {string} avatar - The author’s avatar URL
  * @property {Label[]} labels
- * @property {Diff} diff - The whole PR
+ * @property {Diff} [diff] - The whole PR
  * @property {Diff} [diffSinceReview] - What the user has left to review, or the whole PR when that is unknown
  * @property {number} [iterations] - How many times review was asked for again after a review
  * @property {Date | null} [waitingSince] - The latest review request to the user, or for an author to anyone
@@ -116,7 +116,7 @@ export function query ({ repo, user, role, filter }) {
 	search(type: ISSUE, first: 100, query: ${JSON.stringify(search({ repo, user, role, filter }))}) {
 		nodes {
 			... on PullRequest {
-				id number title url additions deletions updatedAt headRefOid
+				id number title url updatedAt headRefOid
 				author { login avatarUrl(size: 64) }
 				labels(first: 100) { nodes { name color description } }
 			}
@@ -142,7 +142,7 @@ export function details ({ user, role, ids }) {
 	return batches.map(batch => `query {
 	nodes(ids: ${JSON.stringify(batch)}) {
 		... on PullRequest {
-			id
+			id additions deletions
 			reviews(${byUser}states: [APPROVED, CHANGES_REQUESTED, COMMENTED, DISMISSED], last: 100) {
 				nodes { submittedAt author { login } commit { oid } }
 			}
@@ -181,7 +181,6 @@ export function summarize (pr, user, role) {
 		author: pr.author?.login ?? "ghost",
 		avatar: pr.author?.avatarUrl ?? "https://github.com/ghost.png",
 		labels: pr.labels.nodes,
-		diff: { additions: pr.additions, deletions: pr.deletions, url: `${pr.url}/changes` },
 	};
 
 	if (!pr.commits) {
@@ -207,9 +206,12 @@ export function summarize (pr, user, role) {
 	let last = own.at(-1);
 	let exact = last && since.indexOf(last) === own.length - 1;
 
+	let diff = { additions: pr.additions, deletions: pr.deletions, url: `${pr.url}/changes` };
+
 	return {
 		...summary,
-		diffSinceReview: index === -1 ? { ...summary.diff, whole: reviewed ? "force-pushed" : "unreviewed" } : {
+		diff,
+		diffSinceReview: index === -1 ? { ...diff, whole: reviewed ? "force-pushed" : "unreviewed" } : {
 			...sum(own),
 			url: `${pr.url}/changes/${reviewed}..${commits.at(-1).oid}`,
 			range: exact ? `${reviewed}...${last.oid}` : undefined,
