@@ -565,7 +565,27 @@ hgroup {
 		color: var(--text);
 	}
 
-	/* Focused by a script, so a screen reader reads it. Nothing to operate in it, so no ring */
+	/* A word too long for the card, e.g. a link, breaks instead of widening it */
+	span {
+		overflow-wrap: anywhere;
+	}
+
+	/* Three lines until Show all shows the rest */
+	&:not(.expanded) span {
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 3;
+		overflow: hidden;
+	}
+
+	button {
+		color: var(--text);
+		font-weight: 500;
+		text-decoration: underline;
+		text-underline-offset: 0.15em;
+	}
+
+	/* Focused by a script, so a screen reader reads it. Not operable itself, so no ring */
 	&:focus {
 		outline: none;
 	}

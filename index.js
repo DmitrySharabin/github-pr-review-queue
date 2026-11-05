@@ -104,7 +104,15 @@ for (let type of ["click", "auxclick"]) {
 	});
 }
 
-signIn.querySelector("button").addEventListener("click", () => github.login().catch(error => showNotice(signIn, "Couldn’t sign in", describe(error))));
+// A toggle, not a one-way reveal, so the focus stays on it
+for (let button of document.querySelectorAll(".notice button")) {
+	button.addEventListener("click", () => {
+		let expanded = button.parentElement.classList.toggle("expanded");
+		button.textContent = expanded ? "Show less" : "Show all";
+	});
+}
+
+signIn.querySelector(":scope > button").addEventListener("click", () => github.login().catch(error => showNotice(signIn, "Couldn’t sign in", describe(error))));
 
 tokenForm.addEventListener("submit", event => {
 	event.preventDefault();
@@ -726,9 +734,17 @@ async function login (repo) {
 function showNotice (card, title, reason) {
 	let notice = card.querySelector(".notice");
 	notice.querySelector("strong").textContent = title;
-	notice.querySelector("span").textContent = reason;
+	let text = notice.querySelector("span");
+	text.textContent = reason;
 	notice.hidden = false;
 	card.hidden = false;
+
+	// A long reason, e.g. GitHub’s whole answer with a link in it, shows its first lines, so the card keeps its size.
+	// Measured clamped: a reason that fits in them needs no button
+	let all = notice.querySelector("button");
+	notice.classList.remove("expanded");
+	all.textContent = "Show all";
+	all.hidden = text.scrollHeight <= text.clientHeight;
 	notice.focus();
 	// The card says it instead, and the status, hidden while a card shows, says nothing stale, e.g. “Loading”
 	status.textContent = "";
