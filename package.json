@@ -17,6 +17,10 @@
 		"test": "playwright test"
 	},
 	"devDependencies": {
-		"@playwright/test": "^1.64.1"
+		"@playwright/test": "^1.64.1",
+		"prettier": "^3.9.10",
+		"prettier-plugin-brace-style": "^0.10.4",
+		"prettier-plugin-merge": "^0.10.2",
+		"prettier-plugin-space-before-function-paren": "^0.1.0"
 	}
 }
