@@ -366,7 +366,7 @@ async function load () {
 		}
 
 		// Unless values on screen are being checked, e.g. on a refresh
-		let task = "Loading details";
+		let task = "loaded";
 		let done = 0;
 
 		/** Fill in the slow fields of these PRs’ rows, a few PRs per query. */
@@ -421,7 +421,7 @@ async function load () {
 				stale.push(pr.id);
 				if (row.detailed) {
 					row.tr.classList.add("stale");
-					task = "Checking changed";
+					task = "updated";
 				}
 			}
 			return row;
@@ -520,7 +520,7 @@ function showRole (role) {
 	}
 }
 
-/** Count the PRs whose details arrived, on the progress bar and next to the buttons, e.g. “Checking changed 3 of 7” on a refresh. */
+/** Count the PRs whose details arrived, on the progress bar and next to the buttons, e.g. “3 of 7 pull requests updated” on a refresh. */
 function showProgress (task, done, total) {
 	progress.max = total;
 	progress.value = done;
@@ -528,7 +528,7 @@ function showProgress (task, done, total) {
 
 	let count = document.createElement("b");
 	count.textContent = done;
-	counter.replaceChildren(`${task} `, count, ` of ${total}`);
+	counter.replaceChildren(count, ` of ${total} pull requests ${task}`);
 	counter.hidden = false;
 }
 
@@ -678,7 +678,15 @@ function showDelta (delta) {
 }
 
 function graphql (text) {
-	return github.load(`https://api.github.com/graphql#${text}`);
+	return request(`https://api.github.com/graphql#${text}`);
+}
+
+/**
+ * Load from GitHub, but give up after 20 s, twice the time GitHub gives a query: the promise rejects with nothing, which describe() reads as “took too long”.
+ * A dropped connection, e.g. after the laptop slept, never answers, and Madata’s load() passes no signal to fetch, so the request runs on unheard.
+ */
+function request (url) {
+	return Promise.race([github.load(url), new Promise((resolve, reject) => setTimeout(reject, 20_000))]);
 }
 
 /** Replace a diff’s estimate with GitHub’s exact count, when it has a range to compare. */
@@ -689,7 +697,7 @@ async function compare (repo, diff) {
 
 	try {
 		// NOTE: GitHub lists at most 300 files in a comparison
-		let { files } = await github.load(`https://api.github.com/repos/${repo}/compare/${diff.range}`);
+		let { files } = await request(`https://api.github.com/repos/${repo}/compare/${diff.range}`);
 		Object.assign(diff, sum(files));
 		// Exact now, so a later load of the unchanged PR needn’t compare again
 		delete diff.range;
@@ -703,6 +711,7 @@ async function compare (repo, diff) {
 
 async function login (repo) {
 	try {
+		// NOTE: Can hang on a dropped connection as request() can, e.g. when it fetches the user, and then Refresh stays disabled
 		await github.login({ passive: true });
 	}
 	catch {
@@ -752,7 +761,7 @@ function showNotice (card, title, reason) {
 
 /**
  * Say in the user’s words what went wrong and what to do, e.g. “You’re offline. Check your connection, then try again.”
- * @param {unknown} error - What Madata threw
+ * @param {unknown} error - What Madata threw, or nothing when request() gave up
  * @param {string} [advice] - What to do about an error not known here, which shows GitHub’s own words
  */
 function describe (error, advice = "Try again.") {
@@ -766,6 +775,7 @@ function describe (error, advice = "Try again.") {
 		return navigator.onLine ? slow : "You’re offline. Check your connection, then try again.";
 	}
 
+	// A text body, e.g. a 502’s HTML page, or no answer in time
 	if (message === undefined) {
 		return slow;
 	}
