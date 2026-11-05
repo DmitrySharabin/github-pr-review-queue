@@ -11,6 +11,7 @@
 	--radius: 0.5rem;
 	/* Buttons and text fields */
 	--control-size: 2.5rem;
+	--control-radius: calc(var(--radius) * 0.75);
 	--gutter: clamp(1rem, 3vw, 1.5rem);
 	/* Between the header, the summary and what follows */
 	--block-gap: 1.5rem;
@@ -307,7 +308,7 @@ main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #upd
 		min-block-size: 1.5rem;
 		padding: 0;
 		border: none;
-		border-radius: calc(var(--radius) * 0.75);
+		border-radius: var(--control-radius);
 		background: transparent;
 		color: var(--muted);
 		cursor: pointer;
@@ -352,7 +353,7 @@ form button,
 	min-block-size: var(--control-size);
 	padding-inline: 1em;
 	border: none;
-	border-radius: calc(var(--radius) * 0.75);
+	border-radius: var(--control-radius);
 	font: inherit;
 	font-weight: 500;
 	cursor: pointer;
@@ -483,7 +484,7 @@ form {
 		min-block-size: var(--control-size);
 		padding-inline: 0.75em;
 		border: 1px solid color-mix(in oklch, var(--text) 20%, var(--surface));
-		border-radius: calc(var(--radius) * 0.75);
+		border-radius: var(--control-radius);
 		background: var(--surface);
 		font: inherit;
 		font-weight: 400;
@@ -536,7 +537,7 @@ hgroup {
 	margin: 0;
 	padding: 0.75em 1em;
 	border: 1px solid color-mix(in oklch, var(--attention) 35%, var(--surface));
-	border-radius: calc(var(--radius) * 0.75);
+	border-radius: var(--control-radius);
 	background: color-mix(in oklch, var(--attention) 14%, var(--surface));
 	color: color-mix(in oklch, var(--text) 75%, var(--surface));
 	text-wrap: pretty;
@@ -642,7 +643,7 @@ hgroup {
 		align-items: center;
 		min-block-size: var(--control-size);
 		padding-inline-start: 0.5rem;
-		border-radius: calc(var(--radius) * 0.75);
+		border-radius: var(--control-radius);
 		cursor: pointer;
 		overflow-wrap: anywhere;
 
