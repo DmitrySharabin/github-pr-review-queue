@@ -333,3 +333,25 @@ test("A click on a label keeps the rows that have it while the search runs", asy
 
 	await expect(page.locator("#queue tbody .number")).toHaveText(["#65", "#67"]);
 });
+
+test("A queue stored for another user marks nothing new for the one signed in now", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+	// As if whoever was signed in before saw three PRs fewer
+	await page.evaluate(() => {
+		let key = Object.keys(localStorage).find(key => key.startsWith("review-queue:queue:"));
+		let queue = JSON.parse(localStorage.getItem(key));
+		queue.user = "other-user";
+		queue.rows = queue.rows.slice(0, 3);
+		localStorage.setItem(key, JSON.stringify(queue));
+	});
+
+	await page.reload();
+	await expect(page.locator("#summary .count")).toHaveText("6");
+	await expect(page.locator("progress")).toBeHidden();
+
+	await expect(page.locator("#queue tbody mark:not([hidden])")).toHaveCount(0);
+});

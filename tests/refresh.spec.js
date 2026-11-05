@@ -196,3 +196,42 @@ test("A refresh that finds nothing new marks nothing, even after one that marked
 
 	await expect(page.locator("#queue tbody mark:not([hidden])")).toHaveCount(0);
 });
+
+test("A refresh keeps showing the labels the user showed", async ({ page, github }) => {
+	github.search = answer => {
+		answer.data.search.nodes[0].labels.nodes = [..."1234567"].map(n => ({
+			name: `label ${n}`,
+			color: "d73a4a",
+			description: null,
+		}));
+	};
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+	await page.getByRole("button", { name: "+2 more labels" }).click();
+
+	await page.getByRole("button", { name: "Refresh" }).click();
+	await expect(page.locator("progress")).toBeHidden();
+
+	await expect(page.getByRole("link", { name: "Filter by label label 7" })).toBeVisible();
+});
+
+test("A click on a link in a marked row removes its mark, since the user has seen what changed", async ({
+	page,
+	context,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+	github.search = answer => {
+		let { nodes } = answer.data.search;
+		nodes.push({ ...nodes[0], id: "G", number: 71, title: "A pull request titled G" });
+	};
+	await page.getByRole("button", { name: "Refresh" }).click();
+	await expect(page.locator("#queue tbody mark:not([hidden])")).toHaveText(["new"]);
+
+	// The PR opens in a new tab
+	await context.route("https://github.com/foo/**", route => route.fulfill({ body: "" }));
+	await page.getByRole("link", { name: "A pull request titled G" }).click();
+
+	await expect(page.locator("#queue tbody mark:not([hidden])")).toHaveCount(0);
+});
