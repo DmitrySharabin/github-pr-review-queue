@@ -85,7 +85,8 @@ table.addEventListener("command", event => {
 	let sorted = { column: event.source.value, direction: th.ariaSort === "descending" ? "ascending" : "descending" };
 	markSort(sorted);
 	localStorage.setItem("review-queue:sort", JSON.stringify(sorted));
-	sort({ animate: true });
+	// No transition: its capture holds the new order back up to 300 ms on 100 rows, and when every row moves no one follows one
+	sort();
 });
 
 // Opening a link in a marked row, e.g. its PR, is seeing what changed in it. A middle click opens it too, a right click opens a menu
