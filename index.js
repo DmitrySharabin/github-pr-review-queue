@@ -845,14 +845,15 @@ function unmark (tr) {
 }
 
 /**
- * Whether two cells show the same thing. A time compares by its date, since its text, e.g. “5 min. ago”, changes as time passes.
+ * Whether two cells show the same thing. A time compares by its date alone, since its text, tooltip and class change as time passes,
+ * e.g. “5 min. ago”, or “· 1,036 days” in the tooltip.
  * Labels compare all of them, shown or not, since the user may have shown them after the last load.
  */
 function same (cell, other) {
 	let [x, y] = [cell, other].map(element => {
 		let clone = element.cloneNode(true);
 		for (let time of clone.querySelectorAll("time")) {
-			time.textContent = time.dateTime;
+			time.replaceWith(time.dateTime);
 		}
 		showAllLabels(clone);
 		return clone;
