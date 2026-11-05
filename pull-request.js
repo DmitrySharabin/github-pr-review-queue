@@ -127,23 +127,17 @@ export function query ({ repo, user, role, filter }) {
 }
 
 /**
- * GraphQL queries for the rest of what {@link summarize} needs, a few PRs each:
- * GitHub stops a query that runs too long, and these fields are the slow ones.
+ * GraphQL query for the rest of what {@link summarize} needs, for a few PRs: these fields are the slow ones.
  * @param {{ user: string, role?: Role | null, ids: string[] }} options
- * @returns {string[]}
+ * @returns {string}
  */
 export function details ({ user, role, ids }) {
-	let size = 10;
-	let batches = Array.from({ length: Math.ceil(ids.length / size) }, (_, i) =>
-		ids.slice(i * size, (i + 1) * size));
-
 	// A reviewer needs only their own reviews, an author everyone else’s
 	let byUser = role === "author" ? "" : `author: ${JSON.stringify(user)}, `;
 
 	// NOTE: Gets only the last 100 commits, reviews and review requests of each PR, and 20 other reviewers
-	return batches.map(
-		batch => `query {
-	nodes(ids: ${JSON.stringify(batch)}) {
+	return `query {
+	nodes(ids: ${JSON.stringify(ids)}) {
 		... on PullRequest {
 			id additions deletions
 			reviews(${byUser}states: [APPROVED, CHANGES_REQUESTED, COMMENTED, DISMISSED], last: 100) {
@@ -166,8 +160,7 @@ export function details ({ user, role, ids }) {
 			}
 		}
 	}
-}`,
-	);
+}`;
 }
 
 /**

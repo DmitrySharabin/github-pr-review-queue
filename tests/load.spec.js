@@ -99,6 +99,18 @@ test("Failed details keep the rows the search found on screen", async ({ page, g
 	await expect(page.locator("#queue tbody .number").filter({ visible: true })).toHaveCount(6);
 });
 
+test("Details GitHub stops for running too long load in two halves, so a slow batch doesn’t fail the load", async ({
+	page,
+	github,
+}) => {
+	// The 6 PRs take one query, and GitHub times out on more than 3
+	github.details = answer => (answer.data.nodes.length > 3 ? 502 : undefined);
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+
+	await expect(page.locator("#queue td.diff .added")).toHaveCount(6);
+});
+
 test("A role switch stops the requests of the load it leaves, so GitHub doesn’t work on answers nobody sees", async ({
 	page,
 	github,

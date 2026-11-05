@@ -431,13 +431,17 @@ async function load () {
 		let done = 0;
 
 		/** Fill in the slow fields of these PRs’ rows, a few PRs per query. */
-		let update = ids =>
-			Promise.all(
-				details({ user, role, ids }).map(async text => {
-					// A batch retries once on its own: GitHub drops a slow query without a readable response, or answers that it timed out
-					let { nodes } = await graphql(text, signal).catch(() => graphql(text, signal));
+		let update = async ids => {
+			// GitHub stops a query that runs too long, and these fields are the slow ones
+			let size = 10;
+			let batches = Array.from({ length: Math.ceil(ids.length / size) }, (_, i) =>
+				ids.slice(i * size, (i + 1) * size));
+
+			await Promise.all(
+				batches.map(async batch => {
+					let found = await nodes(ids => details({ user, role, ids }), batch, signal);
 					await Promise.all(
-						nodes.map(async pr => {
+						found.map(async pr => {
 							// Rows a newer load owns, e.g. after a role switch
 							if (signal.aborted) {
 								return;
@@ -470,6 +474,7 @@ async function load () {
 					);
 				}),
 			);
+		};
 
 		// Rows of another queue, e.g. before a role switch, stay on screen until the search replaces them, but don’t update
 		let kept = sameQueue || stored ? rows : [];
@@ -818,6 +823,27 @@ async function graphql (text, signal) {
 }
 
 /**
+ * The nodes that a `nodes(ids:)` query finds, e.g. {@link details}. GitHub stops a query that runs too long,
+ * so a failed one asks again in two halves, each faster. Only once: a failure of another kind, e.g. offline, would fan out into many requests
+ * @param {(ids: string[]) => string} query
+ * @param {string[]} ids
+ * @param {AbortSignal} signal - The load’s
+ */
+async function nodes (query, ids, signal) {
+	try {
+		return (await graphql(query(ids), signal)).nodes;
+	}
+	catch {
+		signal.throwIfAborted();
+		let half = Math.ceil(ids.length / 2);
+		// One PR asks again as it is
+		let halves = [ids.slice(0, half), ids.slice(half)].filter(half => half.length > 0);
+		let answers = await Promise.all(halves.map(ids => graphql(query(ids), signal)));
+		return answers.flatMap(answer => answer.nodes);
+	}
+}
+
+/**
  * The signal for a request: it aborts with the load’s, or after 20 s, which describe() reads as “took too long”. That is twice the time GitHub gives a query.
  * A dropped connection, e.g. after the laptop slept, never answers otherwise.
  * @param {AbortSignal} signal - The load’s
@@ -852,10 +878,8 @@ async function count (repo, diff, signal) {
 	}
 
 	if (diff.commits) {
-		let text = sizes(diff.commits);
-		// Retries once, as the details do. NOTE: A commit GitHub can’t resolve answers null, which fails the load
-		let { nodes } = await graphql(text, signal).catch(() => graphql(text, signal));
-		Object.assign(diff, sum(nodes));
+		// NOTE: A commit GitHub can’t resolve answers null, which fails the load
+		Object.assign(diff, sum(await nodes(sizes, diff.commits, signal)));
 		delete diff.commits;
 	}
 }
