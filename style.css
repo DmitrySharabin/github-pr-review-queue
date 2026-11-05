@@ -185,6 +185,11 @@ header.failed #updated .now {
 	text-wrap: pretty;
 }
 
+/* Unseen while a retry runs, under a counter it would read as the caption of, but in place, so the queue under it doesn’t move */
+#failure.stale {
+	visibility: hidden;
+}
+
 /* Fades in as each load ends, so even a refresh in the same minute shows it finished */
 #controls:has(#refresh:not([aria-disabled])) time {
 	animation: appear 200ms var(--ease-out);
@@ -533,6 +538,11 @@ button {
 		&::after {
 			content: "" / ", ";
 		}
+	}
+
+	/* As tall as the two lines it replaces during a retry, e.g. “Couldn’t refresh” over the time, so the reason under it stays put */
+	header.failed #counter {
+		min-block-size: var(--control-size);
 	}
 
 	#failure {

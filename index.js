@@ -376,10 +376,14 @@ async function load () {
 		changes.textContent = "Refreshing…";
 	}
 
-	header.classList.remove("failed");
+	// A retry keeps the last failure in place until it ends, so the queue under it doesn’t move. Another view’s rows didn’t fail
+	if (!sameView) {
+		header.classList.remove("failed");
+	}
 	// aria-disabled, unlike disabled, keeps focus on the button while it waits
 	refresh.ariaDisabled = "true";
 	delta.classList.add("stale");
+	failure.classList.add("stale");
 	status.textContent = "Loading pull requests…";
 	// Indeterminate until the search tells how many PRs need details
 	progress.removeAttribute("value");
@@ -506,6 +510,7 @@ async function load () {
 
 		let now = new Date();
 		showUpdated(now);
+		header.classList.remove("failed");
 		store(view, { user, at: now, rows: rows.map(({ pr, summary }) => ({ pr, summary })) });
 
 		let last = seen;
@@ -542,6 +547,7 @@ async function load () {
 			showFailure(describe(error));
 		}
 		else {
+			header.classList.remove("failed");
 			showNotice(
 				repoForm,
 				`Couldn’t load the pull requests in ${repo}`,
@@ -554,6 +560,7 @@ async function load () {
 	counter.hidden = true;
 	refresh.ariaDisabled = null;
 	delta.classList.remove("stale");
+	failure.classList.remove("stale");
 }
 
 /** Show the rows, sorted, with what goes around them: the strip above them, or why there are none. */
@@ -859,6 +866,7 @@ async function login (repo) {
 		empty.hidden = true;
 		narrow.hidden = true;
 		showDelta();
+		header.classList.remove("failed");
 		status.hidden = false;
 		status.textContent = `Sign in to see the pull requests in ${repo}.`;
 		signIn.querySelector(".repo").textContent = repo;

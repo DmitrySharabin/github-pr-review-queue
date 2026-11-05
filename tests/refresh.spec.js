@@ -165,3 +165,25 @@ test("A failed refresh of an empty queue doesn’t leave a screen reader hearing
 
 	await expect(page.locator("#status")).not.toHaveText("Loading pull requests…");
 });
+
+test("A retry after a failed refresh keeps the queue in place while it runs, instead of moving it up and back", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+	github.search = () => 502;
+	await page.getByRole("button", { name: "Refresh" }).click();
+	await expect(page.getByText("Couldn’t refresh")).toBeVisible();
+
+	let strip = page.locator("#summary");
+	let { y } = await strip.boundingBox();
+
+	let { promise, resolve } = Promise.withResolvers();
+	github.search = () => promise;
+	await page.getByRole("button", { name: "Refresh" }).click();
+	await expect(page.locator("progress")).toBeVisible();
+
+	expect((await strip.boundingBox()).y).toBe(y);
+	resolve(502);
+});
