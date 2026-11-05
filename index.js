@@ -974,13 +974,13 @@ function describe (error, advice = "Try again.") {
 	let message = error?.message;
 	let slow = "GitHub took too long to respond. Try again in a minute.";
 
-	// Madata drops the failed fetch’s error, so only its own message tells a network failure apart, e.g. a request inTime() stopped
+	// Madata drops the failed fetch’s error, so only its own message tells a network failure apart, e.g. a request inTime() stopped before GitHub answered
 	if (message === GithubAPI.phrase("something_went_wrong_while_connecting", GithubAPI.name)) {
 		return navigator.onLine ? slow : "You’re offline. Check your connection, then try again.";
 	}
 
-	// A text body, e.g. a 502’s HTML page
-	if (message === undefined) {
+	// A text body, e.g. a 502’s HTML page, or an answer inTime() stopped as it arrived, which Madata throws as fetch did
+	if (message === undefined || error.name === "TimeoutError") {
 		return slow;
 	}
 
