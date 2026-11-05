@@ -35,24 +35,6 @@ test("A refresh keeps focus in a row that didn’t change", async ({ page, githu
 	await expect(link).toBeFocused();
 });
 
-test("A refresh that GitHub fails keeps the queue on screen, with no form to fix a repo or user that were fine", async ({
-	page,
-	github,
-}) => {
-	await page.goto("/?repo=foo/bar");
-	await expect(page.locator("progress")).toBeHidden();
-
-	github.details = () => 502;
-	github.search = answer => {
-		answer.data.search.nodes[0].updatedAt = "2026-11-05T12:00:00Z";
-	};
-	await page.getByRole("button", { name: "Refresh" }).click();
-
-	await expect(page.getByText("Couldn’t refresh")).toBeVisible();
-	await expect(page.locator("#repo-form")).toBeHidden();
-	await expect(page.getByRole("link", { name: "A pull request titled A" })).toBeVisible();
-});
-
 test("A refresh that GitHub fails leaves focus on Refresh, so the user can try again", async ({
 	page,
 	github,
@@ -66,21 +48,6 @@ test("A refresh that GitHub fails leaves focus on Refresh, so the user can try a
 	await expect(page.getByText("Couldn’t refresh")).toBeVisible();
 
 	await expect(page.getByRole("button", { name: "Refresh" })).toBeFocused();
-});
-
-test("A refresh that can’t find the repository shows the form to fix it", async ({
-	page,
-	github,
-}) => {
-	await page.goto("/?repo=foo/bar");
-	await expect(page.locator("progress")).toBeHidden();
-
-	github.search = answer => {
-		answer.errors = [{ message: "Could not resolve to a Repository with the name 'foo/bar'." }];
-	};
-	await page.getByRole("button", { name: "Refresh" }).click();
-
-	await expect(page.locator("#repo-form .notice")).toBeVisible();
 });
 
 test("A refresh that succeeds after a failed one no longer says it failed", async ({

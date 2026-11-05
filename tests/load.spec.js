@@ -94,7 +94,8 @@ test("On a phone, the counter shows below the title, not over it", async ({ page
 test("Failed details keep the rows the search found on screen", async ({ page, github }) => {
 	github.details = () => 500;
 	await page.goto("/?repo=foo/bar");
-	await expect(page.getByText("Couldn’t refresh")).toBeVisible();
+	// GitHub’s own words, as the fake fails
+	await expect(page.locator("#failure")).toContainText("Boom");
 
 	await expect(page.locator("#queue tbody .number").filter({ visible: true })).toHaveCount(6);
 });
@@ -128,6 +129,40 @@ test("A role switch stops the requests of the load it leaves", async ({ page, gi
 
 	await expect.poll(() => stopped).toBe(1);
 	resolve();
+});
+
+test("A role switch stops the details requests of the load it leaves too", async ({
+	page,
+	github,
+}) => {
+	let stopped = 0;
+	page.on("requestfailed", request => {
+		if (request.url() === "https://api.github.com/graphql") {
+			stopped++;
+		}
+	});
+	let { promise, resolve } = Promise.withResolvers();
+	github.details = () => promise;
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("#counter")).toBeVisible();
+	await page.getByRole("link", { name: "Author" }).click();
+
+	await expect.poll(() => stopped).toBe(1);
+	resolve();
+});
+
+test("A request GitHub doesn’t answer in time stops, and says GitHub took too long", async ({
+	page,
+	github,
+}) => {
+	// Any time limit runs out at once
+	await page.addInitScript(() => {
+		AbortSignal.timeout = () => AbortSignal.abort(new DOMException("", "TimeoutError"));
+	});
+	github.search = () => new Promise(() => {});
+	await page.goto("/?repo=foo/bar");
+
+	await expect(page.locator("#repo-form .notice")).toContainText("GitHub took too long");
 });
 
 test("A sort chosen while the bars show keeps them, and sorts the rows that replace them", async ({
@@ -206,10 +241,14 @@ test("A PR stored without details, after GitHub said it was deleted, asks for th
 	await page.goto("/?repo=foo/bar");
 	await expect(page.locator("progress")).toBeHidden();
 
+	let asked = [];
+	github.details = answer => {
+		asked.push(...answer.data.nodes.map(pr => pr.id));
+	};
 	await page.reload();
 	await expect(page.locator("progress")).toBeHidden();
 
-	await expect(page.locator("#repo-form .notice")).toBeHidden();
+	expect(asked).toEqual(["B"]);
 });
 
 test("A repository GitHub can’t find still fails the load", async ({ page, github }) => {
@@ -230,37 +269,6 @@ test("A repository GitHub can’t find still fails the load", async ({ page, git
 	);
 });
 
-test("Changes since the last review add up the sizes of the author’s commits since then", async ({
-	page,
-	github,
-}) => {
-	// A merge of the base branch comes before the author’s last commit, so no comparison is exact and the sizes are the count
-	github.details = answer => {
-		let [pr] = answer.data.nodes;
-		if (pr.id !== "A") {
-			return;
-		}
-
-		let commit = (id, parents = 1) => ({
-			commit: { id, oid: id, parents: { totalCount: parents } },
-		});
-		pr.commits.nodes = [commit("L"), commit("M", 2), commit("N")];
-		pr.reviews.nodes = [
-			{
-				submittedAt: "2026-11-01T12:00:00Z",
-				author: { login: "DmitrySharabin" },
-				commit: { oid: "L" },
-			},
-		];
-	};
-	await page.goto("/?repo=foo/bar");
-
-	// The sizes of N, the only one of the author’s commits since the review
-	await expect(
-		page.locator("#queue tbody tr").filter({ hasText: "#65" }).locator(".since-review"),
-	).toContainText("+780 −2");
-});
-
 test("A PR whose commit sizes fail ends the load only once the other PRs are counted, so no row fills in after it", async ({
 	page,
 	github,
@@ -271,7 +279,7 @@ test("A PR whose commit sizes fail ends the load only once the other PRs are cou
 	let failed = Promise.withResolvers();
 	let held = Promise.withResolvers();
 	let asked = 0;
-	// A and B each have one of the author’s commits since the review, after a merge: N for A, whose sizes GitHub fails twice, and O for B
+	// A and B each have one of the author’s commits since the review, after a merge, so their sizes are the count: N for A, which GitHub fails twice, and O for B
 	github.details = answer => {
 		let [node] = answer.data.nodes;
 		if (node.id === "N") {
@@ -302,5 +310,6 @@ test("A PR whose commit sizes fail ends the load only once the other PRs are cou
 	await expect(
 		page.locator("#queue tbody tr").filter({ hasText: "#66" }).locator(".since-review"),
 	).toContainText("+790");
+	await expect(page.getByText("Couldn’t refresh")).toBeVisible();
 	await expect(page.locator("#counter")).toBeHidden();
 });
