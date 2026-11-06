@@ -9,6 +9,11 @@ let review = oid => ({
 	commit: oid ? { oid } : null,
 });
 
+/** A request to the user to review a PR, made at `createdAt`. */
+function request (createdAt) {
+	return { createdAt, requestedReviewer: { login: "DmitrySharabin" } };
+}
+
 /** Give PRs their details from `fields`, e.g. `{ A: { additions: 1 } }`. */
 function detail (github, fields) {
 	github.details = answer => {
@@ -151,21 +156,35 @@ test("A PR asked only of the user’s team shows no count of rounds, since the t
 	page,
 	github,
 }) => {
-	// No one asked the user by name for A, so GitHub’s search found it through a team. B asks the user once
+	// No request names the user on A, so GitHub’s search found it through a team. B asks the user once
 	detail(github, {
 		B: {
-			timelineItems: {
-				nodes: [
-					{
-						createdAt: "2026-11-01T12:00:00Z",
-						requestedReviewer: { login: "DmitrySharabin" },
-					},
-				],
-			},
+			timelineItems: { nodes: [request("2026-11-01T12:00:00Z")] },
+			reviewRequests: { nodes: [{ requestedReviewer: { login: "DmitrySharabin" } }] },
 		},
 	});
 	await page.goto("/?repo=foo/bar");
 
 	await expect(row(page, "A").locator(".iterations")).toHaveText("—");
 	await expect(row(page, "B").locator(".iterations")).toHaveText("0");
+});
+
+test("A review after the user’s request still counts when the next request came through a team", async ({
+	page,
+	github,
+}) => {
+	// The user was asked on Oct 30 and reviewed L on Nov 1. No request names the user now
+	detail(github, {
+		A: {
+			timelineItems: { nodes: [request("2026-10-30T12:00:00Z")] },
+			commits: commits(["L", "N"]),
+			reviews: { nodes: [review("L")] },
+		},
+	});
+	github.compare = answer => {
+		answer.files = [{ additions: 5, deletions: 1 }];
+	};
+	await page.goto("/?repo=foo/bar");
+
+	await expect(row(page, "A").locator(".since-review")).toContainText("+5 −1");
 });

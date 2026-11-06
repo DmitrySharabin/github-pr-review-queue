@@ -199,9 +199,17 @@ export function summarize (pr, user, role) {
 
 	let authorView = role === "author";
 	let isUser = login => login?.toLowerCase() === user.toLowerCase();
+	// A reviewer whom no pending request names found the PR through a team, whose requests need the read:org scope.
+	// Then the user’s requests in the timeline are older ones, which a review already answered
+	let viaTeam =
+		!authorView && !pr.reviewRequests.nodes.some(node => isUser(node.requestedReviewer?.login));
 	// An author waits on everyone they asked. NOTE: Requests to a team are not counted
-	let requests = pr.timelineItems.nodes.filter(event =>
-		authorView ? event.requestedReviewer?.login : isUser(event.requestedReviewer?.login));
+	let requests = viaTeam
+		? []
+		: pr.timelineItems.nodes.filter(event =>
+				authorView
+					? event.requestedReviewer?.login
+					: isUser(event.requestedReviewer?.login));
 	// The author’s own reviews are replies to the others
 	let reviews = authorView
 		? pr.reviews.nodes.filter(review => !isUser(review.author?.login))
@@ -244,17 +252,15 @@ export function summarize (pr, user, role) {
 						url: `${pr.url}/changes/${reviewed}..${commits.at(-1).oid}`,
 						range: exact ? `${reviewed}...${last.oid}` : undefined,
 					},
-		// A round is a request that follows a review. Requests with no review between them add no round.
-		// A reviewer asked by no request found the PR through a team, whose requests need the read:org scope
-		iterations:
-			!authorView && requests.length === 0
-				? null
-				: requests.filter((request, i) =>
-						reviews.some(
-							review =>
-								review.submittedAt < request.createdAt &&
-								review.submittedAt > (requests[i - 1]?.createdAt ?? ""),
-						)).length,
+		// A round is a request that follows a review. Requests with no review between them add no round
+		iterations: viaTeam
+			? null
+			: requests.filter((request, i) =>
+					reviews.some(
+						review =>
+							review.submittedAt < request.createdAt &&
+							review.submittedAt > (requests[i - 1]?.createdAt ?? ""),
+					)).length,
 		waitingSince,
 		reviewers: reviewers(pr).filter(reviewer => !isUser(reviewer.name)),
 	};
