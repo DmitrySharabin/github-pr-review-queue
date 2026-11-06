@@ -46,11 +46,11 @@ function asked (logins, days = 5) {
 	};
 }
 
-/** A conversation on a PR, whose last comment is by `login`. */
-function thread (login, { isResolved = false, type } = {}) {
+/** A conversation on a PR, whose last comment is by `login`, with the URL `url`. */
+function thread (login, { isResolved = false, type, url } = {}) {
 	return {
 		isResolved,
-		comments: { nodes: [{ createdAt: ago(3), author: person(login, type) }] },
+		comments: { nodes: [{ createdAt: ago(3), url, author: person(login, type) }] },
 	};
 }
 
@@ -233,7 +233,7 @@ test.describe("Next step", () => {
 		await page.goto("/?repo=foo/bar&role=author");
 
 		await expect(step(page, "A")).toHaveText("Waiting for a team review");
-		await expect(row(page, "A").locator("time")).toHaveText("8 days");
+		await expect(row(page, "A").locator(".requested time")).toHaveText("8 days");
 	});
 
 	test("A review asked of a bot waits for no one, since bots don’t take turns", async ({
@@ -345,6 +345,87 @@ test.describe("Next step", () => {
 		await expect(step(page, "A").locator("strong")).toHaveText("Request a review");
 		await expect(step(page, "B").locator("strong")).toHaveCount(0);
 	});
+
+	test("Checks link to the PR’s checks, where the author sees which fail or still run", async ({
+		page,
+		github,
+	}) => {
+		detail(github, {
+			A: { ...asked(["reviewer"]), statusCheckRollup: { state: "FAILURE" } },
+			B: {
+				...reviewed([review("reviewer", "COMMENTED")]),
+				statusCheckRollup: { state: "PENDING" },
+			},
+		});
+		await page.goto("/?repo=foo/bar&role=author");
+
+		for (let id of "AB") {
+			await expect(step(page, id).getByRole("link")).toHaveAttribute(
+				"href",
+				"https://github.com/foo/bar/pull/1/checks",
+			);
+		}
+		// A link stays in bold when the step is the author’s
+		await expect(step(page, "A").locator("strong a")).toHaveText("Fix failing checks");
+	});
+
+	test("A reply links to the first conversation that waits for it", async ({ page, github }) => {
+		detail(github, {
+			A: {
+				...reviewed([review("reviewer", "COMMENTED")]),
+				reviewThreads: {
+					nodes: [
+						thread("DmitrySharabin", {
+							url: "https://github.com/foo/bar/pull/1#discussion_r1",
+						}),
+						thread("reviewer", {
+							url: "https://github.com/foo/bar/pull/1#discussion_r2",
+						}),
+						thread("reviewer", {
+							url: "https://github.com/foo/bar/pull/1#discussion_r3",
+						}),
+					],
+				},
+			},
+		});
+		await page.goto("/?repo=foo/bar&role=author");
+
+		await expect(step(page, "A").getByRole("link")).toHaveAttribute(
+			"href",
+			"https://github.com/foo/bar/pull/1#discussion_r2",
+		);
+	});
+
+	test("A step done on the PR’s page doesn’t link, since its title already does, nor do changes its reviewer’s avatar links to", async ({
+		page,
+		github,
+	}) => {
+		github.search = answer => {
+			answer.data.search.nodes[5].isDraft = true;
+		};
+		detail(github, {
+			B: { ...asked(["reviewer"]), mergeable: "CONFLICTING" },
+			C: reviewed([review("reviewer", "APPROVED")]),
+			D: asked(["reviewer"]),
+			E: reviewed([review("reviewer", "CHANGES_REQUESTED")]),
+		});
+		await page.goto("/?repo=foo/bar&role=author");
+
+		await expect(step(page, "E")).toHaveText("Make the changes @reviewer requested");
+		await expect(page.locator("#queue .step a")).toHaveCount(0);
+	});
+});
+
+test("An author’s PR says when it was opened, not by whom, since all of them are theirs", async ({
+	page,
+	github,
+}) => {
+	github.search = answer => {
+		answer.data.search.nodes[0].createdAt = ago(21);
+	};
+	await page.goto("/?repo=foo/bar&role=author");
+
+	await expect(row(page, "A").locator("small")).toHaveText("#65 opened 21 days ago");
 });
 
 test("Waiting shows how long the PR waits for its step, and nothing for a step no review decides", async ({
@@ -357,8 +438,8 @@ test("Waiting shows how long the PR waits for its step, and nothing for a step n
 	});
 	await page.goto("/?repo=foo/bar&role=author");
 
-	await expect(row(page, "A").locator("time")).toHaveText("20 days");
-	await expect(row(page, "B").locator("time")).toHaveText("—");
+	await expect(row(page, "A").locator(".requested time")).toHaveText("20 days");
+	await expect(row(page, "B").locator(".requested time")).toHaveText("—");
 });
 
 test("Waiting counts from the oldest pending request, each reviewer’s latest", async ({
@@ -385,7 +466,7 @@ test("Waiting counts from the oldest pending request, each reviewer’s latest",
 	});
 	await page.goto("/?repo=foo/bar&role=author");
 
-	await expect(row(page, "A").locator("time")).toHaveText("10 days");
+	await expect(row(page, "A").locator(".requested time")).toHaveText("10 days");
 });
 
 test("The author’s turn sorts first, the longest wait first, and a draft last", async ({
@@ -532,6 +613,36 @@ test("A queue stored before PRs had steps shows while it loads, then counts the 
 	resolve();
 
 	await expect(page.locator("#summary .turns")).toHaveText("6");
+});
+
+test("A stored queue says when each PR was opened while it loads, though storage keeps no dates", async ({
+	page,
+	context,
+	github,
+}) => {
+	await context.addInitScript(opened => {
+		let summary = {
+			number: 65,
+			title: "A pull request titled A",
+			url: "",
+			author: "ghost",
+			avatar: "",
+			labels: [],
+			opened,
+		};
+		localStorage.setItem(
+			"review-queue:queue:repo=foo%2Fbar&role=author",
+			JSON.stringify({
+				user: "DmitrySharabin",
+				at: new Date().toISOString(),
+				rows: [{ pr: { id: "A", labels: { nodes: [] } }, summary }],
+			}),
+		);
+	}, ago(21));
+	github.search = () => new Promise(() => {});
+	await page.goto("/?repo=foo/bar&role=author");
+
+	await expect(row(page, "A").locator("small")).toHaveText("#65 opened 21 days ago");
 });
 
 test("The author’s own stored queue says “Your turn” while the sign-in runs", async ({

@@ -165,6 +165,7 @@ function render ({
 	author,
 	avatar,
 	labels,
+	opened,
 	step,
 	diff,
 	diffSinceReview,
@@ -180,6 +181,11 @@ function render ({
 	showLabels(tr.querySelector(".headline"), labels);
 	tr.querySelector(".number").textContent = `#${number}`;
 	tr.querySelector(".author").textContent = author;
+	// An author’s PRs are all theirs, so the byline says when, not by whom
+	tr.querySelector(opened ? ".by" : ".opened").remove();
+	if (opened) {
+		showTime(tr.querySelector(".opened time"), opened);
+	}
 	tr.querySelector(".avatar img").src = avatar;
 	for (let profile of tr.querySelectorAll(".avatar, .author")) {
 		profile.href = `https://github.com/${author}`;
@@ -191,7 +197,7 @@ function render ({
 	tr.querySelector(".iterations").textContent = iterations === null ? "—" : (iterations ?? "");
 
 	// An author’s step has waited for so long, a reviewer’s request was made so long ago
-	showTime(tr.querySelector("time"), waitingSince, { duration: Boolean(step) });
+	showTime(tr.querySelector(".requested time"), waitingSince, { duration: Boolean(step) });
 	showReviewers(tr.querySelector(".reviewers"), reviewers);
 
 	return tr;
@@ -249,11 +255,20 @@ function showAllLabels (element) {
 	element.querySelector(".labels .more")?.parentElement.remove();
 }
 
-/** The step, in bold when it is the author’s turn. */
+/** The step, in bold when it is the author’s turn, and a link to where to do it. */
 function showStep (cell, step) {
 	let text = step && stepPhrases[step.name](step);
+	if (step?.url) {
+		text = Object.assign(document.createElement("a"), {
+			href: step.url,
+			target: "_blank",
+			textContent: text,
+		});
+	}
 	if (step?.whose === "author") {
-		text = Object.assign(document.createElement("strong"), { textContent: text });
+		let strong = document.createElement("strong");
+		strong.append(text);
+		text = strong;
 	}
 	cell.append(text ?? "");
 }

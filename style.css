@@ -22,6 +22,8 @@
 	--chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 4l4 4-4 4'/%3E%3C/svg%3E");
 	/* A circled “!”, next to a failure, so color isn’t the only sign of it */
 	--alert: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round'%3E%3Ccircle cx='8' cy='8' r='6.25'/%3E%3Cpath d='M8 4.75v3.75M8 11.25v0'/%3E%3C/svg%3E");
+	/* An arrow up and right, after a link to another page. Its view box ends where its strokes do, so it lines up with the text by its box */
+	--arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='2 2 12 12' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.75 13.25l10.5-10.5M5 2.75h8.25V11'/%3E%3C/svg%3E");
 	/* A white tick, on the green of an approval or of an empty queue */
 	--check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
 }
@@ -1244,6 +1246,32 @@ td:not(.requested) {
 	strong {
 		color: var(--text);
 		font-weight: 500;
+	}
+
+	/* A step done on another page, e.g. the checks, has an arrow, since a touch screen shows no underline on hover */
+	a::after {
+		content: "";
+		display: inline-block;
+		/* On the baseline, as the letters it follows, and shorter than a capital, so it doesn’t compete with the step */
+		inline-size: 0.85cap;
+		aspect-ratio: 1;
+		margin-inline-start: 0.15em;
+		background-color: currentColor;
+		mask: var(--arrow) no-repeat center / contain;
+		opacity: 0.55;
+
+		@media (prefers-reduced-motion: no-preference) {
+			transition:
+				translate 160ms var(--ease-out),
+				opacity 150ms ease;
+		}
+	}
+
+	@media (hover: hover) {
+		a:hover::after {
+			translate: 0.1em -0.1em;
+			opacity: 1;
+		}
 	}
 }
 

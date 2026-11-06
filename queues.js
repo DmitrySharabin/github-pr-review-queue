@@ -17,7 +17,8 @@ function queueKey (view) {
  */
 export function restore (view) {
 	// JSON has no dates
-	let revive = (key, value) => (key === "waitingSince" && value ? new Date(value) : value);
+	let revive = (key, value) =>
+		["waitingSince", "opened"].includes(key) && value ? new Date(value) : value;
 	return JSON.parse(localStorage.getItem(queueKey(view)), revive) ?? undefined;
 }
 

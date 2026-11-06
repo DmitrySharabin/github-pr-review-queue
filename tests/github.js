@@ -110,6 +110,8 @@ function found (id) {
 		number: id.charCodeAt(0),
 		title: `A pull request titled ${id}`,
 		url: "https://github.com/foo/bar/pull/1",
+		// Fixed, as GitHub’s, so a refresh changes no row
+		createdAt: "2026-01-01T00:00:00Z",
 		labels: { nodes: [] },
 		isDraft: false,
 	};

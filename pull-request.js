@@ -37,6 +37,7 @@
  * @property {string} author
  * @property {string} avatar - The author’s avatar URL
  * @property {Label[]} labels
+ * @property {Date} [opened] - When the PR was opened, in the author’s view, where it says that instead of by whom
  * @property {Step} [step] - What the PR waits for, in the author’s view
  * @property {Diff} [diff] - The whole PR
  * @property {Diff} [diffSinceReview] - What the user has left to review, or the whole PR when that is unknown
@@ -50,6 +51,7 @@
  * @property {"author" | "others" | "nobody"} whose
  * @property {string[]} [logins] - The reviewers it names, e.g. those who requested the changes
  * @property {number} [count] - How many conversations to reply to, or reviews to wait for
+ * @property {string} [url] - Where on GitHub to do it, unless on the PR’s own page, e.g. its checks
  */
 
 /**
@@ -140,7 +142,7 @@ export function query ({ repo, user, role, filter }) {
 	search(type: ISSUE, first: 100, query: ${JSON.stringify(search({ repo, user, role, filter }))}) {
 		nodes {
 			... on PullRequest {
-				id number title url updatedAt headRefOid isDraft
+				id number title url createdAt updatedAt headRefOid isDraft
 				author { login avatarUrl(size: 64) }
 				labels(first: 100) { nodes { name color description } }
 			}
@@ -161,7 +163,7 @@ export function details ({ user, role, files, ids }) {
 			? `mergeable
 			statusCheckRollup { state }
 			reviewThreads(last: 100) {
-				nodes { isResolved comments(last: 1) { nodes { createdAt author { __typename login } } } }
+				nodes { isResolved comments(last: 1) { nodes { createdAt url author { __typename login } } } }
 			}`
 			: `reviews(author: ${JSON.stringify(user)}, states: [APPROVED, CHANGES_REQUESTED, COMMENTED, DISMISSED], last: 100) {
 				nodes { submittedAt author { login } commit { oid } }
@@ -230,6 +232,9 @@ export function summarize (pr, user, role, ignore) {
 		avatar: pr.author?.avatarUrl ?? "https://github.com/ghost.png",
 		labels: pr.labels.nodes,
 	};
+	if (role === "author") {
+		summary.opened = new Date(pr.createdAt);
+	}
 
 	if (!pr.commits) {
 		return summary;
@@ -377,7 +382,7 @@ function turn (pr, user) {
 
 	let checks = pr.statusCheckRollup?.state;
 	if (checks === "FAILURE" || checks === "ERROR") {
-		return { name: "fix-checks" };
+		return { name: "fix-checks", url: `${pr.url}/checks` };
 	}
 
 	let opinions = pr.latestOpinionatedReviews.nodes.filter(review => unasked(review.author));
@@ -404,6 +409,7 @@ function turn (pr, user) {
 		return {
 			name: "reply",
 			count: unanswered.length,
+			url: unanswered[0].url,
 			since: oldest(unanswered.map(comment => comment.createdAt)),
 		};
 	}
@@ -433,7 +439,7 @@ function turn (pr, user) {
 	}
 
 	if (checks === "PENDING" || checks === "EXPECTED") {
-		return { name: "checks-running" };
+		return { name: "checks-running", url: `${pr.url}/checks` };
 	}
 
 	// Reviewers who only commented, e.g. after the author replied to their conversations
