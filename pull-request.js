@@ -137,10 +137,11 @@ export function outdated (earlier, pr) {
 export function query ({ repo, user, role, filter }) {
 	let [owner, name] = repo.split("/");
 
-	// The search finds nothing for a repo or a user that does not exist, `repository` and `user` fail with an error instead
+	// The search finds nothing for a repo or a user that does not exist, `repository` and `user` fail with an error instead.
+	// `repository` also tells what the signed-in user may do in it, see turn()
 	// NOTE: Gets only the first 100 PRs and their first 100 labels
 	return `query {
-	repository(owner: ${JSON.stringify(owner)}, name: ${JSON.stringify(name)}) { id }
+	repository(owner: ${JSON.stringify(owner)}, name: ${JSON.stringify(name)}) { viewerPermission }
 	user(login: ${JSON.stringify(user)}) { id }
 	search(type: ISSUE, first: 100, query: ${JSON.stringify(search({ repo, user, role, filter }))}) {
 		nodes {
@@ -160,12 +161,11 @@ export function query ({ repo, user, role, filter }) {
  * @returns {string}
  */
 export function details ({ user, role, files, ids }) {
-	// A reviewer needs their own reviews, to count what changed since. An author needs what decides whose turn it is, see turn()
+	// A reviewer needs their own reviews, to count what changed since. An author needs what decides whose turn it is, see turn(). The permission comes once, from query()
 	let fields =
 		role === "author"
 			? `mergeable isInMergeQueue
 			autoMergeRequest { enabledAt }
-			repository { viewerPermission }
 			statusCheckRollup { state }
 			reviewThreads(last: 100) {
 				nodes { isResolved comments(last: 1) { nodes { createdAt url author { __typename login } } } }
@@ -377,7 +377,7 @@ const whose = {
 };
 
 /**
- * What a PR’s author or others have to do next, from {@link details} for its author. One step per PR, the first of these that applies.
+ * What a PR’s author or others have to do next, from {@link details} for its author and the repository’s permission from {@link query}. One step per PR, the first of these that applies.
  * A pending review request decides the turn, not the order of events. A reviewer asked again after they requested changes has the turn.
  * @param {object} pr
  * @param {string} user - The author’s login

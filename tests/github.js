@@ -57,7 +57,15 @@ export const test = base.extend({
 			let { query } = route.request().postDataJSON();
 			let isSearch = query.includes("search(");
 			let answer = isSearch
-				? { data: { search: { nodes: [..."ABCDEF"].map(found) } } }
+				? {
+						data: {
+							// As GitHub, only when the query asks for it
+							repository: query.includes("viewerPermission")
+								? { viewerPermission: "WRITE" }
+								: {},
+							search: { nodes: [..."ABCDEF"].map(found) },
+						},
+					}
 				: {
 						data: {
 							nodes: JSON.parse(query.match(/nodes\(ids: (\[.*?\])\)/)[1]).map(
@@ -146,7 +154,6 @@ function detailed (id) {
 		mergeable: "MERGEABLE",
 		isInMergeQueue: false,
 		autoMergeRequest: null,
-		repository: { viewerPermission: "WRITE" },
 		statusCheckRollup: null,
 		reviewThreads: { nodes: [] },
 	};

@@ -54,6 +54,13 @@ function thread (login, { isResolved = false, type, url } = {}) {
 	};
 }
 
+/** Give the signed-in user this access to the repository, e.g. `READ`, as the search answers it. */
+function permit (github, permission) {
+	github.search = answer => {
+		answer.data.repository.viewerPermission = permission;
+	};
+}
+
 /** The Next step cell of a PR, e.g. of A, #65. */
 function step (page, id) {
 	return row(page, id).locator(".step");
@@ -214,10 +221,6 @@ test.describe("Next step", () => {
 				review("other-user", "APPROVED", { days: 3 }),
 			]),
 			B: { ...reviewed([review("reviewer", "APPROVED")]), ...asked(["other-user"]) },
-			C: {
-				...reviewed([review("reviewer", "APPROVED")]),
-				repository: { viewerPermission: "ADMIN" },
-			},
 		});
 		await page.goto("/?repo=foo/bar&role=author");
 
@@ -225,39 +228,44 @@ test.describe("Next step", () => {
 		// Since the last approval, when the PR came back to the author
 		await expect(row(page, "A").locator(".requested time")).toHaveText("3 days");
 		await expect(step(page, "B")).toHaveText("Waiting for @other-user");
-		await expect(step(page, "C")).toHaveText("Merge pull request");
 	});
 
 	test("An author without write access can’t request reviews or merge, so a maintainer has the turn", async ({
 		page,
 		github,
 	}) => {
-		let reader = { repository: { viewerPermission: "READ" } };
+		permit(github, "READ");
 		detail(github, {
-			A: reader,
-			B: { ...reviewed([review("reviewer", "APPROVED")]), ...reader },
+			B: reviewed([review("reviewer", "APPROVED")]),
+			C: reviewed([review("reviewer", "CHANGES_REQUESTED")]),
 		});
 		await page.goto("/?repo=foo/bar&role=author");
 
 		await expect(step(page, "A")).toHaveText("Waiting for a review");
 		await expect(step(page, "B")).toHaveText("Waiting for a maintainer to merge");
 		await expect(row(page, "B").locator(".requested time")).toHaveText("10 days");
-		await expect(page.locator("#summary .turns")).toHaveText("4");
+		// Changes a reviewer asked for are the author’s to make at any access
+		await expect(page.locator("#summary .turns")).toHaveText("1");
 	});
 
 	test("Triage access is enough to request reviews, but not to merge", async ({
 		page,
 		github,
 	}) => {
-		let triager = { repository: { viewerPermission: "TRIAGE" } };
-		detail(github, {
-			A: triager,
-			B: { ...reviewed([review("reviewer", "APPROVED")]), ...triager },
-		});
+		permit(github, "TRIAGE");
+		detail(github, { B: reviewed([review("reviewer", "APPROVED")]) });
 		await page.goto("/?repo=foo/bar&role=author");
 
 		await expect(step(page, "A")).toHaveText("Request a review");
 		await expect(step(page, "B")).toHaveText("Waiting for a maintainer to merge");
+	});
+
+	test("Admin access merges, as write access does", async ({ page, github }) => {
+		permit(github, "ADMIN");
+		detail(github, { A: reviewed([review("reviewer", "APPROVED")]) });
+		await page.goto("/?repo=foo/bar&role=author");
+
+		await expect(step(page, "A")).toHaveText("Merge pull request");
 	});
 
 	test("An approved PR whose checks still run waits for them, since GitHub merges only once they pass", async ({

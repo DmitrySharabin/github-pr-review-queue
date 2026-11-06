@@ -394,7 +394,7 @@ async function load () {
 		// Rows of another queue, e.g. before a role switch, stay on screen until the search replaces them, but don’t update
 		let kept = sameQueue || stored ? rows : [];
 
-		let { search: found } = await graphql(query({ ...view, user }), signal);
+		let { repository, search: found } = await graphql(query({ ...view, user }), signal);
 		signal.throwIfAborted();
 		shown = view;
 		shownUser = user;
@@ -403,7 +403,8 @@ async function load () {
 		let stale = [];
 		rows = found.nodes.map(pr => {
 			let row = previous.get(pr.id) ?? {};
-			row.pr = pr;
+			// The search asks for the repository once. turn() reads it on each PR, as `pr.repository` in GitHub’s model
+			row.pr = { ...pr, repository };
 			// Without details the summary has no slow fields, so a refreshed row keeps its old ones, dimmed, until they arrive
 			fill(row, { ...row.summary, ...summarize(pr, user, role) });
 
