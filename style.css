@@ -252,6 +252,14 @@ main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #upd
 		align-items: center;
 		/* As tall as the role switch, so that every value starts at the same height */
 		min-block-size: 1.5rem;
+		/* A label too long for its cell, e.g. the role switch and ✎ in a narrow cell, scrolls inside it as the value does.
+		   The padding leaves room for the focus rings and for the switch’s pill, which starts 0.5em before the text. The margin cancels it */
+		padding: 0.25rem;
+		padding-inline-start: calc(0.5em + 0.25rem);
+		margin: -0.25rem;
+		margin-inline-start: calc(-0.5em - 0.25rem);
+		overflow-x: auto;
+		scrollbar-width: thin;
 		color: var(--muted);
 		font-size: 0.85em;
 	}
@@ -1124,7 +1132,7 @@ progress {
    Each fade grows with the distance from its edge, up to `--fade`, and stays off while nothing scrolls.
    Without scroll timelines the animations would end at once, fading the start for good */
 @supports (animation-timeline: scroll()) {
-	#summary dd,
+	#summary :is(dt, dd),
 	.scroller {
 		--fade: 2rem;
 		mask: linear-gradient(
