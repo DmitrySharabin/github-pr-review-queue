@@ -362,8 +362,8 @@ function forAuthor (pr, user, others) {
 	};
 }
 
-/** GitHub’s repository roles, each with more access than the one before */
-const roles = ["READ", "TRIAGE", "WRITE", "MAINTAIN", "ADMIN"];
+/** GitHub’s repository permissions, each with more access than the one before */
+const permissions = ["READ", "TRIAGE", "WRITE", "MAINTAIN", "ADMIN"];
 
 /** Whose turn each step is, where it isn’t the author’s */
 const whose = {
@@ -400,7 +400,7 @@ function turn (pr, user) {
 
 	// GitHub lets triage access request reviewers, and write access merge. An author without them waits for a maintainer.
 	// NOTE: The permission is the signed-in user’s, so someone else’s view shows the steps as if that user wrote the PRs
-	let access = roles.indexOf(pr.repository.viewerPermission);
+	let access = permissions.indexOf(pr.repository.viewerPermission);
 
 	// A team the token can’t see comes as `null`, or with no login, so its request counts but names no one
 	let requested = pr.reviewRequests.nodes
@@ -412,7 +412,9 @@ function turn (pr, user) {
 	let reviewed = pr.latestReviews.nodes.some(review => human(review.author));
 
 	if (requested.length === 0 && !reviewed) {
-		return { name: access >= roles.indexOf("TRIAGE") ? "request-review" : "await-review" };
+		return {
+			name: access >= permissions.indexOf("TRIAGE") ? "request-review" : "await-review",
+		};
 	}
 
 	// UNKNOWN, while GitHub still computes it, counts as no conflict. The next Refresh asks again
@@ -479,7 +481,7 @@ function turn (pr, user) {
 
 	// NOTE: Without reviewDecision, which is slow to ask for, the app can’t tell how many approvals the repo requires, so GitHub may still refuse the merge
 	let approvals = opinions.filter(review => review.state === "APPROVED");
-	// GitHub merges it on its own once the checks pass. Without an approval, it waits for the author to ask for one
+	// GitHub merges it on its own once the checks pass. Without an approval, the steps below decide, e.g. a review to ask for again
 	if (approvals.length > 0 && pr.autoMergeRequest) {
 		return { name: "auto-merge", since: new Date(pr.autoMergeRequest.enabledAt) };
 	}
@@ -492,7 +494,7 @@ function turn (pr, user) {
 	if (approvals.length > 0) {
 		// Waits since the last of them approved
 		return {
-			name: access >= roles.indexOf("WRITE") ? "approved" : "await-merge",
+			name: access >= permissions.indexOf("WRITE") ? "approved" : "await-merge",
 			since: new Date(Math.max(...approvals.map(review => new Date(review.submittedAt)))),
 		};
 	}

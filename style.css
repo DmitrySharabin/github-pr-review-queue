@@ -1289,10 +1289,9 @@ td:not(.requested) {
 	}
 }
 
-/* Forced colors paint backgrounds as the page, which would hide icons drawn as a mask, e.g. the draft’s and the sort arrow */
+/* Forced colors paint backgrounds as the page, which would hide an icon drawn as a mask */
 @media (forced-colors: active) {
-	#queue.author .pull-request .kind,
-	thead button::after {
+	#queue.author .pull-request .kind {
 		forced-color-adjust: none;
 		background-color: CanvasText;
 	}
@@ -1885,6 +1884,8 @@ thead button {
 		margin-inline: 0.3em -1.3em;
 		vertical-align: -0.1em;
 		background-color: currentColor;
+		/* In forced colors, the label’s color, where the page background would hide it */
+		forced-color-adjust: preserve-parent-color;
 		mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 3v10M4 9l4 4 4-4'/%3E%3C/svg%3E")
 			no-repeat center / contain;
 

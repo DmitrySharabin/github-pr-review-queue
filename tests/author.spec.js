@@ -294,13 +294,26 @@ test.describe("Next step", () => {
 		await expect(step(page, "A")).toHaveText("Queued to merge");
 		await expect(step(page, "B")).toHaveText("Auto-merge enabled");
 		await expect(row(page, "B").locator(".requested time")).toHaveText("2 days");
-		await expect(page.locator("#queue tbody .step")).toHaveText([
-			"Request a review",
-			"Request a review",
-			"Request a review",
-			"Request a review",
-			"Auto-merge enabled",
-			"Queued to merge",
+	});
+
+	test("A PR that waits for GitHub to merge it is others’ turn, so it sorts after the author’s and doesn’t count", async ({
+		page,
+		github,
+	}) => {
+		let approved = reviewed([review("reviewer", "APPROVED")]);
+		detail(github, {
+			A: { ...approved, isInMergeQueue: true },
+			B: { ...approved, autoMergeRequest: { enabledAt: ago(2) } },
+		});
+		await page.goto("/?repo=foo/bar&role=author");
+
+		await expect(page.locator("#queue tbody .number")).toHaveText([
+			"#67",
+			"#68",
+			"#69",
+			"#70",
+			"#66",
+			"#65",
 		]);
 		await expect(page.locator("#summary .turns")).toHaveText("4");
 	});
