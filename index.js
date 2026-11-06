@@ -712,7 +712,7 @@ function showSummary ({ repo, user, role, filter }) {
 		? "Latest request"
 		: you
 			? "Your turn"
-			: `${user}’s turn`;
+			: "Author’s turn";
 	time.hidden = author;
 	turns.hidden = !author;
 

@@ -551,7 +551,7 @@ test("A refresh asks for every PR’s details again, since a finished check chan
 	expect(asked.toSorted()).toEqual([..."ABCDEF"]);
 });
 
-test("The summary counts the PRs whose turn is the author’s, by name for someone else", async ({
+test("The summary counts the PRs whose turn is the author’s, as “Author’s turn” for someone else", async ({
 	page,
 	github,
 }) => {
@@ -559,7 +559,7 @@ test("The summary counts the PRs whose turn is the author’s, by name for someo
 	await page.goto("/?repo=foo/bar&role=author&user=reviewer");
 
 	await expect(page.locator("#summary .turns")).toHaveText("4");
-	await expect(page.locator("#summary .tally")).toHaveText("reviewer’s turn");
+	await expect(page.locator("#summary .tally")).toHaveText("Author’s turn");
 });
 
 test("The summary counts the author’s own turns as theirs", async ({ page, github }) => {
