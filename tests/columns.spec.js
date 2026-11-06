@@ -261,7 +261,7 @@ test.describe("Exclude from counts", () => {
 		expect(queries.some(query => query.includes("files("))).toBe(false);
 	});
 
-	test("A comparison counts the changes since the review apart from the ignored files", async ({
+	test("A comparison counts the changes since the review apart from the excluded files", async ({
 		page,
 		github,
 	}) => {
@@ -271,7 +271,7 @@ test.describe("Exclude from counts", () => {
 		github.compare = answer => {
 			answer.files = [
 				{ filename: "src/a.js", additions: 5, deletions: 1 },
-				{ filename: "package-lock.json", additions: 900, deletions: 40 },
+				{ filename: "deps.lock", additions: 900, deletions: 40 },
 			];
 		};
 		await page.goto(`/?repo=foo/bar&files=${encodeURIComponent("lock")}`);
@@ -362,5 +362,50 @@ test.describe("Exclude from counts", () => {
 		await page.locator("#ignored").getByRole("link", { name: "Clear exclusions" }).click();
 
 		await expect(page).toHaveURL(/\?repo=foo%2Fbar&filter=label%3Abug$/);
+	});
+
+	test("Clear leaves the focus in the emptied field, not on the page", async ({
+		page,
+		github,
+	}) => {
+		await page.goto("/?repo=foo/bar&files=test");
+		await page.locator("#ignored summary").click();
+
+		await page
+			.locator("#ignored")
+			.getByRole("link", { name: "Clear exclusions" })
+			.press("Enter");
+
+		await expect(page.getByRole("searchbox", { name: "Exclude from counts" })).toBeFocused();
+	});
+
+	test("A total alone keeps the column’s edge, so its figures line up with the others", async ({
+		page,
+		github,
+	}) => {
+		detail(github, {
+			A: files({ "src/a.js": 10, "test/a.test.js": 500 }),
+			B: files({ "src/a.js": 10, "test/a.test.js": 500 }, 101),
+		});
+		await page.goto("/?repo=foo/bar&files=test");
+		await expect(page.locator("progress")).toBeHidden();
+
+		let [split, unsplit] = await Promise.all(
+			["A", "B"].map(id => row(page, id).locator(".diff .figures").first().boundingBox()),
+		);
+		expect(unsplit.x + unsplit.width).toBeCloseTo(split.x + split.width, 0);
+	});
+
+	test("The author view asks for no files, as it counts no lines", async ({ page, github }) => {
+		let queries = [];
+		page.on("request", request => {
+			if (request.url().endsWith("/graphql")) {
+				queries.push(request.postData());
+			}
+		});
+		await page.goto("/?repo=foo/bar&role=author&files=test");
+		await expect(page.locator("progress")).toBeHidden();
+
+		expect(queries.some(query => query.includes("files("))).toBe(false);
 	});
 });

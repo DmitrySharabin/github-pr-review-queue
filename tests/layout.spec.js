@@ -126,3 +126,27 @@ test("A step that wraps, as long ones do, leaves its row as tall as the bars", a
 
 	expect(after).toEqual(before);
 });
+
+test("A size with its total under it leaves its row as tall as the bars", async ({
+	page,
+	github,
+}) => {
+	github.details = answer => {
+		for (let pr of answer.data.nodes) {
+			pr.files = {
+				totalCount: 2,
+				nodes: [
+					{ filename: "src/a.js", additions: 10, deletions: 0 },
+					{ filename: "test/a.test.js", additions: 500, deletions: 0 },
+				],
+			};
+		}
+	};
+
+	let [before, after] = await starts(page, github, "#queue tbody tr", {
+		url: "/?repo=foo/bar&files=test",
+		edge: "bottom",
+	});
+
+	expect(after).toEqual(before);
+});

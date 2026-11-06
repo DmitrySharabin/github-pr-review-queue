@@ -609,6 +609,11 @@ form {
 		background: var(--surface);
 		font: inherit;
 		font-weight: 400;
+
+		/* Past the browser’s bubble, e.g. a pattern that isn’t a regular expression */
+		&:user-invalid {
+			border-color: var(--negative);
+		}
 	}
 }
 
@@ -1497,7 +1502,7 @@ tbody td {
 /* The figures over the lines of every file, e.g. “+650 −32 total”, in one column, so their right edges meet.
    The word goes under the diffstat, the push icon after it */
 td:is(.diff, .since-review) a {
-	/* The diffstat’s own margin and the space a grid drops before it */
+	/* A margin and the width of the space that a grid drops before the diffstat */
 	--bar-gap: calc(0.3em + 0.25em);
 
 	display: inline-grid;
@@ -1527,7 +1532,6 @@ td:is(.diff, .since-review) a {
 		/* Beside the figures, which are the total */
 		.unsplit & {
 			grid-row: 1;
-			margin-block-start: 0;
 		}
 	}
 
@@ -1538,7 +1542,6 @@ td:is(.diff, .since-review) a {
 
 .total,
 td:is(.diff, .since-review) small {
-	margin-block-start: 0.15em;
 	color: var(--muted);
 	font-size: 0.8em;
 }
@@ -1547,9 +1550,10 @@ td:is(.diff, .since-review) small {
 	color: inherit;
 }
 
-/* The figures count excluded files too, so they are the total, and no diffstat stands for the rest */
+/* The figures count excluded files too, so they are the total, and no diffstat stands for the rest.
+   Its slot stays, so the figures keep the column’s edge */
 .unsplit .diffstat {
-	display: none;
+	visibility: hidden;
 }
 
 /* The whole PR, standing in for a diff since a review */
@@ -1793,7 +1797,6 @@ td:is(.diff, .since-review) small {
 	display: inline-block;
 	inline-size: calc(5 * 0.6em + 4px);
 	block-size: 0.6em;
-	margin-inline-start: 0.3em;
 	background: linear-gradient(
 		to right,
 		var(--positive) calc(var(--added) * 20%),

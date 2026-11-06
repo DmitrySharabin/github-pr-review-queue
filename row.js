@@ -332,27 +332,24 @@ function showDiff (cell, diff) {
 
 	// The lines of every file, ignored ones too, under those of the rest, e.g. “+650 −32 total”.
 	// Without a split, e.g. in a sum of commits, the figures are the total already
-	let word = Object.assign(document.createElement("small"), { textContent: "total" });
+	let word = cell.querySelector("small");
 	if (diff.ignored === null) {
 		cell.classList.add("unsplit");
-		link.append(word);
+		word.hidden = false;
 	}
 	else if (total && size(diff.ignored) > 0) {
 		let all = figures.cloneNode(true);
 		all.classList.add("total");
 		showFigures(all, total);
-		link.append(all, " ", word);
-		// The total under them says it on screen, e.g. “+585 −2 without excluded files, +650 −2 total”
+		word.before(all, " ");
+		word.hidden = false;
+		// Sighted users tell the two lines apart by the word “total” under the first,
+		// so a screen reader hears “+585 −2 without excluded files, +650 −2 total”
 		let spoken = Object.assign(document.createElement("span"), {
 			className: "spoken",
 			textContent: " without excluded files,",
 		});
 		figures.after(spoken);
-	}
-	// Last, so a screen reader hears “+650 −32 total, Force-pushed”
-	let icon = cell.querySelector(".force-pushed");
-	if (icon) {
-		link.append(icon);
 	}
 
 	if (diff.whole) {
