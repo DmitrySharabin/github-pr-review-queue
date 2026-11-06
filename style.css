@@ -285,6 +285,23 @@ main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #upd
 				display: none;
 			}
 		}
+
+		/* A link wider than the cell, e.g. a long user name on a phone, scrolls under its edge, and its ring with it.
+		   The cell draws the ring instead, around the part of the link it shows */
+		&:has(> a:focus-visible) {
+			/* No wider than the link, and no wider than the cell, whose margins give it 0.5rem */
+			inline-size: fit-content;
+			max-inline-size: calc(100% + 0.5rem);
+			box-sizing: border-box;
+			outline: auto;
+			/* The browser’s own ring color, as on a link. Chrome draws `auto` alone in the text color */
+			outline-color: -webkit-focus-ring-color;
+			outline-offset: -0.25rem;
+
+			> a {
+				outline: none;
+			}
+		}
 	}
 
 	/* Each line box centers on its figures about as the count’s does, so the two center on each other.

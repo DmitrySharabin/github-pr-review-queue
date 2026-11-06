@@ -150,3 +150,69 @@ test("A size with its total under it leaves its row as tall as the bars", async 
 
 	expect(after).toEqual(before);
 });
+
+test("On a phone, the ring of a focused name too long for its cell stays inside the cell", async ({
+	page,
+	github,
+}) => {
+	await page.setViewportSize({ width: 375, height: 812 });
+	await page.goto("/?repo=foo/bar");
+	let link = page.locator("#summary .user");
+	await expect(link).toHaveText("DmitrySharabin");
+
+	await link.focus();
+
+	// Whichever draws the ring, the link or the cell that scrolls it, e.g. `{ ring: 330, cell: 342 }`
+	let { ring, cell } = await link.evaluate(link => {
+		let owner = [link, link.parentElement].find(
+			element => getComputedStyle(element).outlineStyle !== "none",
+		);
+		return {
+			ring: owner.getBoundingClientRect().right,
+			cell: link.closest("#summary > div").getBoundingClientRect().right,
+		};
+	});
+	expect(ring).toBeLessThanOrEqual(cell);
+});
+
+test("The field that edits the user is as tall as the name it replaces, so the strip doesn’t move", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	let cell = page.locator("#summary > div").filter({ has: page.locator(".user") });
+	await expect(cell.locator(".user")).toHaveText("DmitrySharabin");
+	let before = await cell.boundingBox();
+
+	await page.getByRole("button", { name: "Change user" }).click();
+	await expect(page.getByRole("textbox", { name: "User" })).toBeFocused();
+
+	expect((await cell.boundingBox()).height).toBe(before.height);
+});
+
+test("The ring of the field that edits the user stays inside the cell that scrolls it", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	await page.getByRole("button", { name: "Change user" }).click();
+	let field = page.getByRole("textbox", { name: "User" });
+	await expect(field).toBeFocused();
+
+	// The ring’s outer edge, e.g. 3px out, against the edges of the cell’s scrolling box
+	let { ring, box } = await field.evaluate(field => {
+		let style = getComputedStyle(field);
+		let width = Math.max(parseFloat(style.outlineWidth), 2) + parseFloat(style.outlineOffset);
+		let rect = field.getBoundingClientRect();
+		let dd = field.closest("dd");
+		let outer = dd.getBoundingClientRect();
+		return {
+			ring: { top: rect.top - width, bottom: rect.bottom + width },
+			box: {
+				top: outer.top + dd.clientTop,
+				bottom: outer.top + dd.clientTop + dd.clientHeight,
+			},
+		};
+	});
+	expect(ring.top >= box.top && ring.bottom <= box.bottom).toBe(true);
+});
