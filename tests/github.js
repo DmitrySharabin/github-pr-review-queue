@@ -128,7 +128,7 @@ function detailed (id) {
 		latestReviews: { nodes: [] },
 		latestOpinionatedReviews: { nodes: [] },
 		mergeable: "MERGEABLE",
-		head: { nodes: [{ commit: { statusCheckRollup: null } }] },
+		statusCheckRollup: null,
 		reviewThreads: { nodes: [] },
 	};
 }

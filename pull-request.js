@@ -144,7 +144,7 @@ export function details ({ user, role, ids }) {
 	let fields =
 		role === "author"
 			? `mergeable
-			head: commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
+			statusCheckRollup { state }
 			reviewThreads(last: 100) {
 				nodes { isResolved comments(last: 1) { nodes { createdAt author { __typename login } } } }
 			}`
@@ -342,7 +342,7 @@ function turn (pr, user) {
 		return { name: "resolve-conflicts" };
 	}
 
-	let checks = pr.head.nodes[0]?.commit.statusCheckRollup?.state;
+	let checks = pr.statusCheckRollup?.state;
 	if (checks === "FAILURE" || checks === "ERROR") {
 		return { name: "fix-checks" };
 	}
@@ -375,17 +375,6 @@ function turn (pr, user) {
 		};
 	}
 
-	// Never “ready to merge”. Without reviewDecision, which is slow to ask for, the app can’t tell how many approvals the repo requires.
-	// An approval with a review still asked of someone else waits for that review
-	let approvals = opinions.filter(review => review.state === "APPROVED");
-	if (approvals.length > 0 && requested.length === 0) {
-		// Back with the author since the last of them approved
-		return {
-			name: "approved",
-			since: new Date(Math.max(...approvals.map(review => new Date(review.submittedAt)))),
-		};
-	}
-
 	if (requested.length > 0) {
 		// A team’s request matches the latest event that names no one either
 		let requestedAt = login =>
@@ -397,6 +386,16 @@ function turn (pr, user) {
 			logins: asked,
 			count: requested.length,
 			since: oldest(requested.map(reviewer => requestedAt(reviewer?.login ?? null))),
+		};
+	}
+
+	// Never “ready to merge”. Without reviewDecision, which is slow to ask for, the app can’t tell how many approvals the repo requires.
+	let approvals = opinions.filter(review => review.state === "APPROVED");
+	if (approvals.length > 0) {
+		// Back with the author since the last of them approved
+		return {
+			name: "approved",
+			since: new Date(Math.max(...approvals.map(review => new Date(review.submittedAt)))),
 		};
 	}
 

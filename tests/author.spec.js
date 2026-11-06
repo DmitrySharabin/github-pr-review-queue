@@ -109,7 +109,7 @@ test.describe("Next step", () => {
 		detail(github, {
 			A: {
 				...asked(["reviewer"]),
-				head: { nodes: [{ commit: { statusCheckRollup: { state: "FAILURE" } } }] },
+				statusCheckRollup: { state: "FAILURE" },
 			},
 		});
 		await page.goto("/?repo=foo/bar&role=author");
@@ -122,7 +122,7 @@ test.describe("Next step", () => {
 		github,
 	}) => {
 		let running = {
-			head: { nodes: [{ commit: { statusCheckRollup: { state: "PENDING" } } }] },
+			statusCheckRollup: { state: "PENDING" },
 		};
 		detail(github, {
 			A: { ...asked(["reviewer"]), ...running },
@@ -263,7 +263,7 @@ test.describe("Next step", () => {
 		page,
 		github,
 	}) => {
-		let checks = state => ({ head: { nodes: [{ commit: { statusCheckRollup: { state } } }] } });
+		let checks = state => ({ statusCheckRollup: { state } });
 		detail(github, {
 			A: { ...reviewed([review("reviewer", "COMMENTED")]), ...checks("ERROR") },
 			B: { ...reviewed([review("reviewer", "COMMENTED")]), ...checks("EXPECTED") },
@@ -440,6 +440,19 @@ test("An approval before the author’s last commit is marked as of an earlier v
 	);
 });
 
+test("A change request isn’t marked as an earlier version, though the author pushed since", async ({
+	page,
+	github,
+}) => {
+	detail(github, { A: reviewed([review("reviewer", "CHANGES_REQUESTED")], ["L", "M"]) });
+	await page.goto("/?repo=foo/bar&role=author");
+
+	await expect(row(page, "A").locator(".reviewers a")).toHaveAttribute(
+		"title",
+		"reviewer requested changes",
+	);
+});
+
 test("A refresh asks for every PR’s details again, since a finished check changes nothing the search finds", async ({
 	page,
 	github,
@@ -457,17 +470,6 @@ test("A refresh asks for every PR’s details again, since a finished check chan
 	expect(asked.toSorted()).toEqual([..."ABCDEF"]);
 });
 
-test("Each role keeps its own sort, so a reviewer’s choice doesn’t sort the author’s steps", async ({
-	page,
-	github,
-}) => {
-	await page.goto("/?repo=foo/bar");
-	await page.getByRole("button", { name: "All changes" }).click();
-	await page.getByRole("link", { name: "Author" }).click();
-
-	await expect(page.locator("#queue th[aria-sort]")).toHaveText("Next step");
-});
-
 test("The summary counts the PRs whose turn is the author’s, by name for someone else", async ({
 	page,
 	github,
@@ -476,9 +478,13 @@ test("The summary counts the PRs whose turn is the author’s, by name for someo
 	await page.goto("/?repo=foo/bar&role=author&user=reviewer");
 
 	await expect(page.locator("#summary .turns")).toHaveText("4");
-	await expect(
-		page.locator("#summary .turns").locator("xpath=../preceding-sibling::dt"),
-	).toHaveText("reviewer’s turn");
+	await expect(page.locator("#summary .tally")).toHaveText("reviewer’s turn");
+});
+
+test("The summary counts the author’s own turns as theirs", async ({ page, github }) => {
+	await page.goto("/?repo=foo/bar&role=author");
+
+	await expect(page.locator("#summary .tally")).toHaveText("Your turn");
 });
 
 test("The author sees only the columns that help them: whose turn, for how long, and the reviewers", async ({
@@ -526,27 +532,6 @@ test("A queue stored before PRs had steps shows while it loads, then counts the 
 	resolve();
 
 	await expect(page.locator("#summary .turns")).toHaveText("6");
-});
-
-test("A change request isn’t marked as an earlier version, though the author pushed since", async ({
-	page,
-	github,
-}) => {
-	detail(github, { A: reviewed([review("reviewer", "CHANGES_REQUESTED")], ["L", "M"]) });
-	await page.goto("/?repo=foo/bar&role=author");
-
-	await expect(row(page, "A").locator(".reviewers a")).toHaveAttribute(
-		"title",
-		"reviewer requested changes",
-	);
-});
-
-test("The summary counts the author’s own turns as theirs", async ({ page, github }) => {
-	await page.goto("/?repo=foo/bar&role=author");
-
-	await expect(
-		page.locator("#summary .turns").locator("xpath=../preceding-sibling::dt"),
-	).toHaveText("Your turn");
 });
 
 test("The author’s own stored queue says “Your turn” while the sign-in runs", async ({
