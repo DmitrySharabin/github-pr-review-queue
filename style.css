@@ -1493,6 +1493,12 @@ td:is(.diff, .since-review) a {
 		justify-self: start;
 		/* Where the diffstat starts, in the word’s smaller em */
 		margin-inline-start: calc(var(--bar-gap) / 0.8);
+
+		/* Beside the figures, which are the total */
+		.unsplit & {
+			grid-row: 1;
+			margin-block-start: 0;
+		}
 	}
 
 	.force-pushed {
@@ -1511,16 +1517,9 @@ td:is(.diff, .since-review) small {
 	color: inherit;
 }
 
-/* The figures count ignored files too, so they are the total, and no diffstat stands for the rest */
-.unsplit {
-	.diffstat {
-		display: none;
-	}
-
-	small {
-		grid-row: 1;
-		margin-block-start: 0;
-	}
+/* The figures count excluded files too, so they are the total, and no diffstat stands for the rest */
+.unsplit .diffstat {
+	display: none;
 }
 
 /* The whole PR, standing in for a diff since a review */

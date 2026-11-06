@@ -190,7 +190,7 @@ test("A review after the user’s request still counts when the next request cam
 	await expect(row(page, "A").locator("time")).toHaveText("—");
 });
 
-test.describe("Ignored files", () => {
+test.describe("Exclude from counts", () => {
 	/** A PR’s changed files, as its details list them, e.g. `files({ "src/a.js": 10 })` for +10 −0. */
 	function files (lines, totalCount = Object.keys(lines).length) {
 		return {
@@ -289,7 +289,7 @@ test.describe("Ignored files", () => {
 		await expect(row(page, "A").locator(".diff .figures").first()).toHaveText("+10 −0");
 
 		await page.locator("#ignored summary").click();
-		await page.getByRole("searchbox", { name: "Ignore files" }).fill("lock");
+		await page.getByRole("searchbox", { name: "Exclude from counts" }).fill("lock");
 		await page.locator("#ignored").getByRole("button", { name: "Apply" }).click();
 
 		// No file matches `lock`, so every line counts
@@ -307,12 +307,17 @@ test.describe("Ignored files", () => {
 		// The PR’s own count of every file, with no diffstat that would stand for the rest
 		await expect(cell).toHaveText("+650 −2 total");
 		await expect(cell.locator(".diffstat")).toBeHidden();
+		// One line: the word names the figures beside it
+		let [figures, word] = await Promise.all(
+			[cell.locator(".figures"), cell.locator("small")].map(part => part.boundingBox()),
+		);
+		expect(Math.abs(figures.y + figures.height - (word.y + word.height))).toBeLessThan(3);
 	});
 
 	test("A pattern that isn’t a regular expression stops Apply", async ({ page, github }) => {
 		await page.goto("/?repo=foo/bar");
 		await page.locator("#ignored summary").click();
-		let field = page.getByRole("searchbox", { name: "Ignore files" });
+		let field = page.getByRole("searchbox", { name: "Exclude from counts" });
 
 		await field.fill("test(");
 
@@ -325,7 +330,7 @@ test.describe("Ignored files", () => {
 	}) => {
 		await page.goto("/?repo=foo/bar&files=test");
 		await page.locator("#ignored summary").click();
-		let field = page.getByRole("searchbox", { name: "Ignore files" });
+		let field = page.getByRole("searchbox", { name: "Exclude from counts" });
 		await field.fill("test(");
 
 		// The role switch resets the field to the URL’s `test`, firing no input event
@@ -342,7 +347,7 @@ test.describe("Ignored files", () => {
 		await page.goto("/?repo=foo/bar&filter=label:bug&files=test");
 		await page.locator("#ignored summary").click();
 
-		await page.locator("#ignored").getByRole("link", { name: "Clear" }).click();
+		await page.locator("#ignored").getByRole("link", { name: "Clear exclusions" }).click();
 
 		await expect(page).toHaveURL(/\?repo=foo%2Fbar&filter=label%3Abug$/);
 	});
