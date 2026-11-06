@@ -9,6 +9,7 @@
  */
 import { size, withLabel } from "./pull-request.js";
 import { showTime } from "./time.js";
+import { plural } from "./plural.js";
 
 let rowTemplate = document.querySelector("#row");
 let reviewerTemplate = document.querySelector("#reviewer");
@@ -31,7 +32,6 @@ const reviewerPhrases = {
 };
 
 const people = new Intl.ListFormat("en");
-const plurals = new Intl.PluralRules("en");
 
 /** What each step of an author’s PR says, keyed by its `name`, e.g. “Waiting for @reviewer” */
 const stepPhrases = {
@@ -44,8 +44,7 @@ const stepPhrases = {
 		logins.length === 1
 			? `Re-request @${logins[0]}’s review`
 			: `Re-request reviews from ${mentions(logins)}`,
-	reply: ({ count }) =>
-		`Reply to ${count} ${{ one: "conversation", other: "conversations" }[plurals.select(count)]}`,
+	reply: ({ count }) => `Reply to ${count} ${plural("conversation", count)}`,
 	approved: () => "Approved",
 	// A request to a team names no one
 	waiting: ({ logins, count }) =>
@@ -229,7 +228,7 @@ function showLabels (headline, labels) {
 		let button = document.createElement("button");
 		button.className = "more";
 		button.textContent = `+${rest}`;
-		button.ariaLabel = `+${rest} more labels`;
+		button.ariaLabel = `+${rest} more ${plural("label", rest)}`;
 		button.addEventListener("click", () => {
 			let first = list.querySelector("li[hidden] a");
 			showAllLabels(list);

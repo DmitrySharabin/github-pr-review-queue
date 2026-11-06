@@ -18,6 +18,7 @@ import { fill, mark, snapshot, unmark } from "./row.js";
 import { showSort, sort, sortBy } from "./sort.js";
 import { showTime } from "./time.js";
 import { offerRecent } from "./recent.js";
+import { plural } from "./plural.js";
 
 let table = document.querySelector("#queue");
 let status = document.querySelector("#status");
@@ -593,7 +594,7 @@ function showProgress (task, done, total) {
 
 	let count = document.createElement("b");
 	count.textContent = done;
-	counter.replaceChildren(count, ` of ${total} pull requests ${task}`);
+	counter.replaceChildren(count, ` of ${total} ${plural("pull request", total)} ${task}`);
 	counter.hidden = false;
 }
 

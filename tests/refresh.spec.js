@@ -375,3 +375,16 @@ test("A switch to the author and back keeps the reviewer sort of its own tab, th
 
 	await expect(page.locator("#queue th[aria-sort]")).toHaveText("Iterations");
 });
+
+test("One label past the shown ones is offered in the singular", async ({ page, github }) => {
+	github.search = answer => {
+		answer.data.search.nodes[0].labels.nodes = [..."123456"].map(n => ({
+			name: `label ${n}`,
+			color: "d73a4a",
+			description: null,
+		}));
+	};
+	await page.goto("/?repo=foo/bar");
+
+	await expect(page.getByRole("button", { name: "+1 more label", exact: true })).toBeVisible();
+});

@@ -403,3 +403,16 @@ test("A refreshed row of a PR deleted before its details shows as it was, not di
 
 	await expect(page.locator("#queue tr.stale")).toHaveCount(0);
 });
+
+test("A queue of one PR counts it in the singular while its details load", async ({
+	page,
+	github,
+}) => {
+	github.search = answer => {
+		answer.data.search.nodes.splice(1);
+	};
+	github.details = () => new Promise(() => {});
+	await page.goto("/?repo=foo/bar");
+
+	await expect(page.locator("#counter")).toHaveText("0 of 1 pull request loaded");
+});
