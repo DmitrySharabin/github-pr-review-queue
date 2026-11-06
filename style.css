@@ -884,10 +884,11 @@ hgroup {
 		transition-property: opacity;
 	}
 
+	/* The value’s text sits on the name’s baseline, not the pill’s box on its middle, which a smaller font lifts */
 	summary {
 		display: inline-flex;
 		gap: 0.5em;
-		align-items: center;
+		align-items: baseline;
 		color: var(--muted);
 		font-weight: 500;
 		cursor: pointer;
@@ -900,6 +901,7 @@ hgroup {
 		   Closed, it starts 5.25 in, and those 2 units more are too few to notice */
 		&::before {
 			content: "";
+			align-self: center;
 			inline-size: 1em;
 			aspect-ratio: 1;
 			margin-inline: calc(-3.25em / 16);
