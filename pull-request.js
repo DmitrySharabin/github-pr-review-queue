@@ -208,10 +208,11 @@ export function summarize (pr, user, role) {
 	let waitingSince = requests.length > 0 ? new Date(requests.at(-1).createdAt) : null;
 	let commits = pr.commits.nodes.map(node => node.commit);
 	// A review clears the request, so a reviewer’s one after the latest request is only a reply in a thread
-	let reviewed = reviews.findLast(
+	let review = reviews.findLast(
 		review => authorView || !waitingSince || new Date(review.submittedAt) < waitingSince,
-	)?.commit.oid;
-	// NOTE: -1 also when the reviewed commit is older than the last 100, which then reads as a force push
+	);
+	// GitHub answers no commit for one it no longer has, e.g. after a force push
+	let reviewed = review?.commit?.oid;
 	let index = commits.findIndex(commit => commit.oid === reviewed);
 	let since = commits.slice(index + 1);
 	// Merges of the base branch bring in other PRs’ changes, e.g. +32,997 lines on a +729 PR
@@ -227,7 +228,7 @@ export function summarize (pr, user, role) {
 		diff,
 		diffSinceReview:
 			index === -1
-				? { ...diff, whole: reviewed ? "force-pushed" : "unreviewed" }
+				? { ...diff, whole: review ? "force-pushed" : "unreviewed" }
 				: {
 						...(own.length > 0
 							? { commits: own.map(commit => commit.id) }

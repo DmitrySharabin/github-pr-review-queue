@@ -1,5 +1,13 @@
 import { test, expect } from "./github.js";
 
+let commit = id => ({ commit: { id, oid: id, parents: { totalCount: 1 } } });
+// The user’s review of the commit `oid`. GitHub answers `null` for a commit it no longer has
+let review = oid => ({
+	submittedAt: "2026-11-01T12:00:00Z",
+	author: { login: "DmitrySharabin" },
+	commit: oid ? { oid } : null,
+});
+
 /** Give PRs their details from `fields`, e.g. `{ A: { additions: 1 } }`. */
 function detail (github, fields) {
 	github.details = answer => {
@@ -49,4 +57,16 @@ test("The diffstat paints GitHub’s squares: one per line below five lines, the
 		await squares(row(page, "A").locator(".diff .diffstat")),
 		await squares(row(page, "B").locator(".diff .diffstat")),
 	]).toEqual(["adnnn", "aaddn"]);
+});
+
+test("A review of a commit GitHub no longer has counts the whole PR, as after a force push", async ({
+	page,
+	github,
+}) => {
+	detail(github, {
+		A: { commits: { nodes: [commit("N")] }, reviews: { nodes: [review(null)] } },
+	});
+	await page.goto("/?repo=foo/bar");
+
+	await expect(row(page, "A").locator(".since-review .force-pushed")).toBeVisible();
 });
