@@ -20,6 +20,7 @@
  * @property {string} avatar - The avatar URL
  * @property {"awaiting" | "approved" | "changes-requested" | "commented"} state
  * @property {string} url - Their latest review, or their profile while their review is awaited
+ * @property {boolean} [outdated] - Approved before the author’s last commit, which only the author’s view tells
  *
  * @typedef {object} Label
  * @property {string} name
@@ -33,12 +34,19 @@
  * @property {string} author
  * @property {string} avatar - The author’s avatar URL
  * @property {Label[]} labels
+ * @property {Step} [step] - What the PR waits for, in the author’s view
  * @property {Diff} [diff] - The whole PR
  * @property {Diff} [diffSinceReview] - What the user has left to review, or the whole PR when that is unknown
  * @property {number | null} [iterations] - How many times review was asked for again after a review, `null` when unknown
- * @property {Date | null} [waitingSince] - The latest review request to the user, or for an author to anyone
+ * @property {Date | null} [waitingSince] - The latest review request to the user, or for an author since when the PR waits for its {@link Step}
  * @property {Reviewer[]} [reviewers] - Everyone else asked to review it or who reviewed it, but teams
  * The optional ones are `undefined` until {@link details} arrive.
+ *
+ * @typedef {object} Step - Whose turn a PR is, and what they have to do
+ * @property {"draft" | "request-review" | "resolve-conflicts" | "fix-checks" | "make-changes" | "re-request" | "reply" | "approved" | "waiting" | "checks-running"} name
+ * @property {"author" | "others" | "nobody"} whose
+ * @property {string[]} [logins] - The reviewers it names, e.g. those who requested the changes
+ * @property {number} [count] - How many conversations to reply to, or reviews to wait for
  */
 
 /**
@@ -117,7 +125,7 @@ export function query ({ repo, user, role, filter }) {
 	search(type: ISSUE, first: 100, query: ${JSON.stringify(search({ repo, user, role, filter }))}) {
 		nodes {
 			... on PullRequest {
-				id number title url updatedAt headRefOid
+				id number title url updatedAt headRefOid isDraft
 				author { login avatarUrl(size: 64) }
 				labels(first: 100) { nodes { name color description } }
 			}
@@ -132,17 +140,25 @@ export function query ({ repo, user, role, filter }) {
  * @returns {string}
  */
 export function details ({ user, role, ids }) {
-	// A reviewer needs only their own reviews, an author everyone else’s
-	let byUser = role === "author" ? "" : `author: ${JSON.stringify(user)}, `;
+	let author = role === "author";
+	// A reviewer needs their own reviews, to count what changed since. An author needs what decides whose turn it is, see turn()
+	let fields = author
+		? `mergeable
+			head: commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
+			reviewThreads(last: 100) {
+				nodes { isResolved comments(last: 1) { nodes { createdAt author { __typename login } } } }
+			}`
+		: `reviews(author: ${JSON.stringify(user)}, states: [APPROVED, CHANGES_REQUESTED, COMMENTED, DISMISSED], last: 100) {
+				nodes { submittedAt author { login } commit { oid } }
+			}`;
+	let review = author ? "state url submittedAt commit { oid }" : "state url";
 
-	// NOTE: Gets only the last 100 commits, reviews and review requests of each PR, and 20 other reviewers
+	// NOTE: Gets only the last 100 commits, review requests and conversations of each PR, the last 100 reviews of a reviewer, and 20 other reviewers
 	return `query {
 	nodes(ids: ${JSON.stringify(ids)}) {
 		... on PullRequest {
 			id additions deletions
-			reviews(${byUser}states: [APPROVED, CHANGES_REQUESTED, COMMENTED, DISMISSED], last: 100) {
-				nodes { submittedAt author { login } commit { oid } }
-			}
+			${fields}
 			timelineItems(itemTypes: [REVIEW_REQUESTED_EVENT], last: 100) {
 				nodes { ... on ReviewRequestedEvent { createdAt requestedReviewer { ... on Actor { login } } } }
 			}
@@ -151,13 +167,13 @@ export function details ({ user, role, ids }) {
 				nodes { commit { id oid parents { totalCount } } }
 			}
 			reviewRequests(first: 20) {
-				nodes { requestedReviewer { ... on Actor { login avatarUrl(size: 48) } } }
+				nodes { requestedReviewer { __typename ... on Actor { login avatarUrl(size: 48) } } }
 			}
 			latestReviews(first: 20) {
-				nodes { state url author { login avatarUrl(size: 48) } }
+				nodes { ${review} author { __typename login avatarUrl(size: 48) } }
 			}
 			latestOpinionatedReviews(first: 20) {
-				nodes { state url author { login avatarUrl(size: 48) } }
+				nodes { ${review} author { __typename login avatarUrl(size: 48) } }
 			}
 		}
 	}
@@ -197,29 +213,30 @@ export function summarize (pr, user, role) {
 		return summary;
 	}
 
-	let authorView = role === "author";
-	let isUser = login => login?.toLowerCase() === user.toLowerCase();
+	let others = reviewers(pr).filter(reviewer => !isLogin(reviewer.name, user));
+	return {
+		...summary,
+		...(role === "author" ? forAuthor(pr, user, others) : forReviewer(pr, user)),
+		reviewers: others,
+	};
+}
+
+/** What a reviewer sees of a PR: what is left to review, and since when it waits for them. */
+function forReviewer (pr, user) {
+	let isUser = login => isLogin(login, user);
 	// A reviewer whom no pending request names found the PR through a team, whose requests need the read:org scope.
 	// Then the user’s requests in the timeline are older ones, answered by a review or withdrawn.
 	// NOTE: Reads only the first 20 pending requests, so on a PR with more the user’s may be missed
-	let viaTeam =
-		!authorView && !pr.reviewRequests.nodes.some(node => isUser(node.requestedReviewer?.login));
-	// An author waits on everyone they asked. NOTE: Requests to a team are not counted
+	let viaTeam = !pr.reviewRequests.nodes.some(node => isUser(node.requestedReviewer?.login));
 	let requests = viaTeam
 		? []
-		: pr.timelineItems.nodes.filter(event =>
-				authorView
-					? event.requestedReviewer?.login
-					: isUser(event.requestedReviewer?.login));
-	// The author’s own reviews are replies to the others
-	let reviews = authorView
-		? pr.reviews.nodes.filter(review => !isUser(review.author?.login))
-		: pr.reviews.nodes;
+		: pr.timelineItems.nodes.filter(event => isUser(event.requestedReviewer?.login));
+	let reviews = pr.reviews.nodes;
 	let waitingSince = requests.length > 0 ? new Date(requests.at(-1).createdAt) : null;
 	let commits = pr.commits.nodes.map(node => node.commit);
 	// A review clears the request, so a reviewer’s one after the latest request is only a reply in a thread
 	let review = reviews.findLast(
-		review => authorView || !waitingSince || new Date(review.submittedAt) < waitingSince,
+		review => !waitingSince || new Date(review.submittedAt) < waitingSince,
 	);
 	// GitHub answers no commit for one it no longer has, e.g. after a force push
 	let reviewed = review?.commit?.oid;
@@ -234,7 +251,6 @@ export function summarize (pr, user, role) {
 	let diff = { additions: pr.additions, deletions: pr.deletions, url: `${pr.url}/changes` };
 
 	return {
-		...summary,
 		diff,
 		diffSinceReview:
 			index === -1
@@ -263,8 +279,163 @@ export function summarize (pr, user, role) {
 							review.submittedAt > (requests[i - 1]?.createdAt ?? ""),
 					)).length,
 		waitingSince,
-		reviewers: reviewers(pr).filter(reviewer => !isUser(reviewer.name)),
 	};
+}
+
+/** What an author sees of a PR: its next step, since when it waits for it, and which approvals predate the author’s last commit. */
+function forAuthor (pr, user, others) {
+	let { since, ...step } = turn(pr, user);
+	let approved = pr.latestOpinionatedReviews.nodes.filter(review => review.state === "APPROVED");
+
+	for (let reviewer of others) {
+		let approval = approved.find(review => review.author?.login === reviewer.name);
+		if (reviewer.state === "approved" && approval && pushedSince(pr, approval.commit?.oid)) {
+			reviewer.outdated = true;
+		}
+	}
+
+	return { step, waitingSince: since };
+}
+
+/**
+ * Whose turn a PR is, and what they have to do, from {@link details} for its author. One step per PR, the first of these that applies.
+ * A pending review request decides the turn, not the order of events. A reviewer asked again after they requested changes has the turn.
+ * @param {object} pr
+ * @param {string} user - The author’s login
+ * @returns {Step & { since: Date | null }} With `since`, when the PR started to wait for it. Only reviews and requests give that time, so a conflict has none
+ */
+function turn (pr, user) {
+	// Bots, e.g. Copilot, review when asked and never wait for the author. A deleted account has no login
+	let human = actor =>
+		Boolean(actor?.login) && actor.__typename !== "Bot" && !isLogin(actor.login, user);
+	let login = review => review.author.login;
+
+	if (pr.isDraft) {
+		return { name: "draft", whose: "nobody", since: null };
+	}
+
+	// A request to a team has no login without the read:org scope, so it counts but names no one
+	let requested = pr.reviewRequests.nodes
+		.map(node => node.requestedReviewer)
+		.filter(reviewer => reviewer?.__typename !== "Bot");
+	let asked = requested.map(reviewer => reviewer?.login).filter(Boolean);
+	let answered = actor => human(actor) && !asked.includes(actor.login);
+	let reviewed = [...pr.latestReviews.nodes, ...pr.latestOpinionatedReviews.nodes].some(
+		review => review.state !== "DISMISSED" && human(review.author),
+	);
+
+	if (requested.length === 0 && !reviewed) {
+		return { name: "request-review", whose: "author", since: null };
+	}
+
+	// UNKNOWN, while GitHub still computes it, counts as no conflict. The next Refresh asks again
+	if (pr.mergeable === "CONFLICTING") {
+		return { name: "resolve-conflicts", whose: "author", since: null };
+	}
+
+	let checks = pr.head.nodes[0]?.commit.statusCheckRollup?.state;
+	if (checks === "FAILURE" || checks === "ERROR") {
+		return { name: "fix-checks", whose: "author", since: null };
+	}
+
+	let opinions = pr.latestOpinionatedReviews.nodes.filter(review => answered(review.author));
+	let changes = opinions.filter(review => review.state === "CHANGES_REQUESTED");
+	let unchanged = changes.filter(review => !pushedSince(pr, review.commit?.oid));
+	if (unchanged.length > 0) {
+		return {
+			name: "make-changes",
+			whose: "author",
+			logins: unchanged.map(login),
+			since: oldest(unchanged.map(review => review.submittedAt)),
+		};
+	}
+
+	if (changes.length > 0) {
+		return {
+			name: "re-request",
+			whose: "author",
+			logins: changes.map(login),
+			since: oldest(changes.map(review => review.submittedAt)),
+		};
+	}
+
+	// A conversation waits for the author when someone else spoke last. A reviewer who is asked to review again answers it in that review
+	let unanswered = pr.reviewThreads.nodes
+		.filter(thread => !thread.isResolved)
+		.map(thread => thread.comments.nodes.at(-1))
+		.filter(comment => answered(comment?.author));
+	if (unanswered.length > 0) {
+		return {
+			name: "reply",
+			whose: "author",
+			count: unanswered.length,
+			since: oldest(unanswered.map(comment => comment.createdAt)),
+		};
+	}
+
+	// Never “ready to merge”. Without reviewDecision, which is slow to ask for, the app can’t tell how many approvals the repo requires.
+	// An approval with a review still asked of someone else waits for that review
+	let approvals = opinions.filter(review => review.state === "APPROVED");
+	if (approvals.length > 0 && requested.length === 0) {
+		// Back with the author since the last of them approved
+		return {
+			name: "approved",
+			whose: "author",
+			since: newest(approvals.map(review => review.submittedAt)),
+		};
+	}
+
+	if (requested.length > 0) {
+		let requestedAt = login =>
+			pr.timelineItems.nodes.findLast(event => event.requestedReviewer?.login === login)
+				?.createdAt;
+		return {
+			name: "waiting",
+			whose: "others",
+			logins: asked,
+			count: requested.length,
+			since: oldest(asked.map(requestedAt)),
+		};
+	}
+
+	if (checks === "PENDING" || checks === "EXPECTED") {
+		return { name: "checks-running", whose: "others", since: null };
+	}
+
+	// Reviewers who only commented, e.g. after the author replied to their conversations
+	let commented = pr.latestReviews.nodes.filter(review => answered(review.author));
+	return {
+		name: "re-request",
+		whose: "author",
+		logins: commented.map(login),
+		since: oldest(commented.map(review => review.submittedAt)),
+	};
+}
+
+/**
+ * Whether the author pushed a commit after `oid`, e.g. after a review of it. Merges of the base branch bring in others’ commits, so they don’t count.
+ * A commit the PR no longer has, e.g. after a force push, or one before the last 100, counts as pushed since.
+ */
+function pushedSince (pr, oid) {
+	let commits = pr.commits.nodes.map(node => node.commit);
+	let index = commits.findIndex(commit => commit.oid === oid);
+	return index === -1 || commits.slice(index + 1).some(commit => commit.parents.totalCount === 1);
+}
+
+/** The earliest of these times from GitHub, e.g. `createdAt`, or `null` when none is known. */
+function oldest (times, pick = Math.min) {
+	let dates = times.filter(Boolean).map(time => new Date(time));
+	return dates.length > 0 ? new Date(pick(...dates)) : null;
+}
+
+/** The latest of these times, as {@link oldest}. */
+function newest (times) {
+	return oldest(times, Math.max);
+}
+
+/** Whether two logins are the same, which GitHub matches in any case. */
+function isLogin (login, other) {
+	return login?.toLowerCase() === other.toLowerCase();
 }
 
 const states = {

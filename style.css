@@ -1220,6 +1220,29 @@ td:not(.requested) {
 	color: var(--muted);
 }
 
+/* Each role’s columns. An author sees their own PRs, so their avatar, sizes and rounds tell them nothing */
+#queue:not(.author) .step,
+#queue.author :is(.diff, .since-review, .iterations, .pull-request .avatar) {
+	display: none;
+}
+
+/* No slot for the hidden avatar */
+#queue.author .pull-request {
+	grid-template-columns: 1fr;
+}
+
+/* Text, not a figure. Room for most steps, e.g. “Waiting for @reviewer”, which arrive after the rows */
+:is(th, td).step {
+	min-inline-size: 13em;
+	text-align: start;
+	white-space: normal;
+
+	strong {
+		color: var(--text);
+		font-weight: 500;
+	}
+}
+
 /* Room for the times up to “30 days ago”, which arrive after the rows. A wider time would move every column, title wraps included */
 td.requested {
 	min-inline-size: 9ch;
@@ -1386,12 +1409,12 @@ time.rounded {
 
 /* A line tall, as the text that replaces it. A time that lays out as a flex box, e.g. in the summary, has no line around its bar.
    Without this, the bar sits at the top */
-:is(td, time, .count):empty {
+:is(td, time, .count, .turns):empty {
 	min-block-size: 1lh;
 }
 
 /* A value still loading leaves its cell or time empty. A flat bar holds its place */
-:is(td, time, .count):empty::before,
+:is(td, time, .count, .turns):empty::before,
 .user:not([href]) > span::before,
 .user:not([href])::before,
 .skeleton :is(.avatar, .headline, small)::before {
@@ -1424,7 +1447,7 @@ time.rounded {
 }
 
 /* As wide as a count of two digits, so the strip’s cells keep their widths when it arrives */
-.count:empty::before {
+:is(.count, .turns):empty::before {
 	inline-size: 1.25em;
 }
 
@@ -1640,6 +1663,11 @@ tbody td {
 	&.approved {
 		--badge: var(--positive);
 		--icon: var(--check);
+	}
+
+	/* Approved before the author’s last commit */
+	&.approved.outdated {
+		--badge: var(--muted);
 	}
 
 	&.changes-requested {

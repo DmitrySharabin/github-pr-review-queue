@@ -1,4 +1,4 @@
-import { test, expect, commit } from "./github.js";
+import { test, expect, commit, detail, row } from "./github.js";
 
 /** The last commits of a PR, of `totalCount` in all, e.g. `commits(["N"], 101)`. */
 function commits (ids, totalCount = ids.length) {
@@ -18,20 +18,6 @@ function review (oid) {
 /** A request to the user to review a PR, made at `createdAt`. */
 function request (createdAt) {
 	return { createdAt, requestedReviewer: { login: "DmitrySharabin" } };
-}
-
-/** Give PRs their details from `fields`, e.g. `{ A: { additions: 1 } }`. */
-function detail (github, fields) {
-	github.details = answer => {
-		for (let pr of answer.data.nodes) {
-			Object.assign(pr, fields[pr.id]);
-		}
-	};
-}
-
-/** The row of a PR, e.g. of A, #65. */
-function row (page, id) {
-	return page.locator("#queue tbody tr").filter({ hasText: `#${id.charCodeAt(0)}` });
 }
 
 /** The colors a diffstat paints, e.g. `adnnn` for one added square, one deleted and three neutral. */

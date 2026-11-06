@@ -1,20 +1,46 @@
-/** @import { Row } from "./row.js" */
+/**
+ * @import { Role } from "./pull-request.js"
+ * @import { Row } from "./row.js"
+ */
 import { size } from "./pull-request.js";
 
 let table = document.querySelector("#queue");
 
+/** Whose turn sorts first: the author’s, then the others’, then no one’s, e.g. a draft’s */
+const turns = { author: 2, others: 1, nobody: 0 };
+
 /** Sort value of each column. `null` and `undefined` (still loading) sort last in both directions. */
 const sortKeys = {
+	// Within a turn, the longest wait first, and steps that wait for nothing, e.g. a conflict, after those that do
+	step: summary =>
+		summary.step && turns[summary.step.whose] * 1e13 - (summary.waitingSince ?? Date.now()),
 	diff: summary => summary.diff && size(summary.diff),
 	diffSinceReview: summary => summary.diffSinceReview && size(summary.diffSinceReview),
 	iterations: summary => summary.iterations,
 	waitingSince: summary => summary.waitingSince && -summary.waitingSince,
 };
 
-// The last sort survives a reload, e.g. { column: "diff", direction: "ascending" }
-let saved = JSON.parse(localStorage.getItem("review-queue:sort"));
-if (saved) {
-	markSort(saved);
+/** Where each role’s last sort is saved, and what it sorts by until then. The reviewer’s key predates the author’s columns */
+const roles = {
+	reviewer: { key: "review-queue:sort", column: "waitingSince" },
+	author: { key: "review-queue:sort:author", column: "step" },
+};
+
+/** The role whose sort shows, see {@link showSort} */
+let shown = roles.reviewer;
+
+/**
+ * Mark the sort a role last chose, which survives a reload, e.g. { column: "diff", direction: "ascending" }.
+ * @param {Role | null} [role]
+ */
+export function showSort (role) {
+	shown = role === "author" ? roles.author : roles.reviewer;
+	markSort(
+		JSON.parse(localStorage.getItem(shown.key)) ?? {
+			column: shown.column,
+			direction: "descending",
+		},
+	);
 }
 
 /**
@@ -26,7 +52,7 @@ export function sortBy (rows, column) {
 	let th = table.tHead.querySelector(`[value="${column}"]`).closest("th");
 	let sorted = { column, direction: th.ariaSort === "descending" ? "ascending" : "descending" };
 	markSort(sorted);
-	localStorage.setItem("review-queue:sort", JSON.stringify(sorted));
+	localStorage.setItem(shown.key, JSON.stringify(sorted));
 	// No transition. Its capture holds the new order back up to 300 ms on 100 rows, and when every row moves, no one follows one.
 	// Bars wait for the search, which sorts what it finds. Sorting now would put the rows of the last queue, or none, in their place
 	if (!table.tBodies[0].querySelector(".skeleton")) {

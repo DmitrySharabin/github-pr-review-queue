@@ -13,13 +13,21 @@ const units = [
 // Short units, e.g. “11 min. ago”, keep the latest request on one line in the summary
 const relative = new Intl.RelativeTimeFormat("en", { numeric: "auto", style: "short" });
 const days = new Intl.NumberFormat("en", { style: "unit", unit: "day", unitDisplay: "long" });
+// Whole words, e.g. “35 days”, since a duration stands alone in its cell
+const durations = Object.fromEntries(
+	units.map(([unit]) => [
+		unit,
+		new Intl.NumberFormat("en", { style: "unit", unit, unitDisplay: "long" }),
+	]),
+);
 
 /**
- * Show in a `<time>` how long ago a date was, e.g. “3 yr. ago”, with the date itself in its tooltip.
+ * Show in a `<time>` how long ago a date was, e.g. “3 yr. ago”, or how long since, e.g. “35 days”, with the date itself in its tooltip.
  * @param {HTMLTimeElement} time
  * @param {Date | null} [date] - `null` shows “—”, e.g. a request to a team, and `undefined` nothing, e.g. while it loads
+ * @param {{ duration?: boolean }} [options] - Whether to show how long since
  */
-export function showTime (time, date) {
+export function showTime (time, date, { duration } = {}) {
 	let elapsed = Date.now() - date;
 	// The largest unit the wait rounds to at least one of, so 23.8 hours read “yesterday”, not “24 hr. ago”
 	let [unit, length] =
@@ -36,8 +44,11 @@ export function showTime (time, date) {
 	}
 	time.classList.toggle("rounded", rounded);
 	// To the nearest, so the count agrees with the days, e.g. 1,036 days are “3 yr. ago”, not 2
+	let count = Math.round(elapsed / length);
 	time.textContent = date
-		? relative.format(-Math.round(elapsed / length), unit)
+		? duration
+			? durations[unit].format(count)
+			: relative.format(-count, unit)
 		: date === null
 			? "—"
 			: "";

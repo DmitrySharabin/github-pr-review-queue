@@ -14,7 +14,7 @@ import {
 import { count, describe, github, graphql, nodes, notFound, signedInUser } from "./github.js";
 import { forget, restore, store, storedQueues } from "./queues.js";
 import { fill, mark, snapshot, unmark } from "./row.js";
-import { sort, sortBy } from "./sort.js";
+import { showSort, sort, sortBy } from "./sort.js";
 import { showTime } from "./time.js";
 import { offerRecent } from "./recent.js";
 
@@ -287,7 +287,7 @@ async function load () {
 			let row = previous.get(pr.id) ?? {};
 			row.pr = pr;
 			// A row stored without details, e.g. of a PR deleted during its load, asks for them again
-			row.detailed = summary.diffSinceReview && pr;
+			row.detailed = summary.reviewers && pr;
 			fill(row, summary);
 			return row;
 		});
@@ -374,8 +374,14 @@ async function load () {
 			fill(row, { ...row.summary, ...summarize(pr, user, role) });
 
 			// A range left means its comparison failed, so the next load tries again.
-			// The details are checked against their own copy. A load stopped before they came, e.g. by a label click, already replaced `pr`
-			if (!row.detailed || row.summary.diffSinceReview.range || outdated(row.detailed, pr)) {
+			// The details are checked against their own copy. A load stopped before they came, e.g. by a label click, already replaced `pr`.
+			// An author’s details are checked on every load, since a finished check run changes neither `updatedAt` nor the head commit
+			if (
+				!row.detailed ||
+				role === "author" ||
+				row.summary.diffSinceReview.range ||
+				outdated(row.detailed, pr)
+			) {
 				stale.push(row);
 				if (row.detailed) {
 					row.tr.classList.add("stale");
@@ -493,10 +499,13 @@ async function fillDetails (stale, task, { repo, user, role }, signal) {
 					let row = batch.find(row => row.pr.id === pr.id);
 
 					let summary = summarize({ ...row.pr, ...pr }, user, role);
-					await count(repo, summary.diffSinceReview, signal);
-					// A newer load may have started during the count
-					if (signal.aborted) {
-						return;
+					// An author’s summary has no diffs to count
+					if (summary.diffSinceReview) {
+						await count(repo, summary.diffSinceReview, signal);
+						// A newer load may have started during the count
+						if (signal.aborted) {
+							return;
+						}
 					}
 
 					// The search may have refreshed the cheap fields during the count, e.g. a new title.
@@ -551,6 +560,7 @@ function showSkeleton ({ repo, user, role, filter }) {
 	count.textContent = "";
 	count.removeAttribute("href");
 	showTime(strip.querySelector(".latest"));
+	strip.querySelector(".turns").textContent = "";
 
 	table.parentElement.hidden = false;
 	empty.hidden = true;
@@ -566,11 +576,15 @@ function hideQueue () {
 	narrow.hidden = true;
 }
 
-/** Name things after the role, since an author sees their own PRs, e.g. “Awaiting review” becomes “Open”. */
+/** Name things after the role, since an author sees their own PRs, e.g. “Awaiting review” becomes “Open”, and show the role’s columns. */
 function showRole (role) {
+	let author = role === "author";
 	for (let element of document.querySelectorAll("[data-author]")) {
-		element.textContent = role === "author" ? element.dataset.author : element.dataset.reviewer;
+		element.textContent = author ? element.dataset.author : element.dataset.reviewer;
 	}
+
+	table.classList.toggle("author", author);
+	showSort(role);
 }
 
 /** Count the PRs whose details arrived, on the progress bar and next to the buttons, e.g. “3 of 7 pull requests rechecked” on a refresh. */
@@ -648,12 +662,33 @@ function showSummary ({ repo, user, role, filter }) {
 	count.href = `https://github.com/pulls?q=${encodeURIComponent(search({ repo, user, role, filter }))}`;
 	count.textContent = rows.length;
 
-	// Requests to a team have no date for the user
-	let dates = rows.map(row => row.summary.waitingSince);
-	let known = dates.filter(Boolean);
-	let latest = known.length > 0 ? new Date(Math.max(...known)) : null;
-	// Unknown until every row has its details
-	showTime(strip.querySelector(".latest"), dates.includes(undefined) ? undefined : latest);
+	// A reviewer sees when the last request came, an author how many PRs wait for them, or for the user they look at
+	let author = role === "author";
+	let you = user?.toLowerCase() === github.user?.username?.toLowerCase();
+	let time = strip.querySelector(".latest");
+	let turns = strip.querySelector(".turns");
+	strip.querySelector(".last").textContent = !author
+		? "Latest request"
+		: you
+			? "Your turn"
+			: `${user}’s turn`;
+	time.hidden = author;
+	turns.hidden = !author;
+
+	// Unknown until every row has its details, e.g. of a queue stored before PRs had steps
+	if (author) {
+		let steps = rows.map(row => row.summary.step);
+		turns.textContent = steps.includes(undefined)
+			? ""
+			: steps.filter(step => step.whose === "author").length;
+	}
+	else {
+		// Requests to a team have no date for the user
+		let dates = rows.map(row => row.summary.waitingSince);
+		let known = dates.filter(Boolean);
+		let latest = known.length > 0 ? new Date(Math.max(...known)) : null;
+		showTime(time, dates.includes(undefined) ? undefined : latest);
+	}
 	strip.hidden = false;
 }
 

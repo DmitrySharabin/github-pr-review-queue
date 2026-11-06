@@ -30,6 +30,29 @@ const reviewerPhrases = {
 	commented: "commented",
 };
 
+const people = new Intl.ListFormat("en");
+
+/** What each step of an author’s PR says, keyed by its `name`, e.g. “Waiting for @reviewer” */
+const stepPhrases = {
+	draft: () => "Draft",
+	"request-review": () => "Request a review",
+	"resolve-conflicts": () => "Resolve conflicts",
+	"fix-checks": () => "Fix failing checks",
+	"make-changes": ({ logins }) => `Make the changes ${mentions(logins)} requested`,
+	"re-request": ({ logins }) =>
+		logins.length === 1
+			? `Re-request @${logins[0]}’s review`
+			: `Re-request reviews from ${mentions(logins)}`,
+	reply: ({ count }) => `Reply to ${plural(count, "conversation")}`,
+	approved: () => "Approved",
+	// A request to a team names no one
+	waiting: ({ logins, count }) =>
+		logins.length === count && count === 1
+			? `Waiting for @${logins[0]}`
+			: `Waiting for ${plural(count, "review")}`,
+	"checks-running": () => "Checks are running",
+};
+
 /** How many labels a row shows before a button for the rest */
 const labelLimit = 5;
 
@@ -139,6 +162,7 @@ function render ({
 	author,
 	avatar,
 	labels,
+	step,
 	diff,
 	diffSinceReview,
 	iterations,
@@ -158,11 +182,13 @@ function render ({
 		profile.href = `https://github.com/${author}`;
 	}
 
+	showStep(tr.querySelector(".step"), step);
 	showDiff(tr.querySelector(".diff"), diff);
 	showDiff(tr.querySelector(".since-review"), diffSinceReview);
 	tr.querySelector(".iterations").textContent = iterations === null ? "—" : (iterations ?? "");
 
-	showTime(tr.querySelector("time"), waitingSince);
+	// An author’s step has waited for so long, a reviewer’s request was made so long ago
+	showTime(tr.querySelector("time"), waitingSince, { duration: Boolean(step) });
 	showReviewers(tr.querySelector(".reviewers"), reviewers);
 
 	return tr;
@@ -220,6 +246,33 @@ function showAllLabels (element) {
 	element.querySelector(".labels .more")?.parentElement.remove();
 }
 
+/** The step, in bold when it is the author’s turn. */
+function showStep (cell, step) {
+	if (!step) {
+		return;
+	}
+
+	let text = stepPhrases[step.name](step);
+	if (step.whose === "author") {
+		let strong = document.createElement("strong");
+		strong.textContent = text;
+		cell.append(strong);
+	}
+	else {
+		cell.textContent = text;
+	}
+}
+
+/** Logins as GitHub mentions them, e.g. “@foo and @bar” */
+function mentions (logins) {
+	return people.format(logins.map(login => `@${login}`));
+}
+
+/** A count of things, e.g. “1 review” or “2 reviews” */
+function plural (count, noun) {
+	return `${count} ${noun}${count === 1 ? "" : "s"}`;
+}
+
 function showReviewers (cell, reviewers) {
 	if (!reviewers?.length) {
 		cell.textContent = reviewers ? "—" : "";
@@ -228,15 +281,17 @@ function showReviewers (cell, reviewers) {
 
 	let list = document.createElement("ul");
 	list.append(
-		...reviewers.map(({ name, avatar, state, url }) => {
+		...reviewers.map(({ name, avatar, state, url, outdated }) => {
 			let item = reviewerTemplate.content.firstElementChild.cloneNode(true);
 			let link = item.querySelector("a");
 			let image = item.querySelector("img");
 			item.className = state;
+			item.classList.toggle("outdated", Boolean(outdated));
 			link.href = url;
 			image.src = avatar;
 			// On the link, so keyboard focus reaches it too
-			image.alt = link.title = `${name} ${reviewerPhrases[state]}`;
+			image.alt =
+				link.title = `${name} ${outdated ? "approved an earlier version" : reviewerPhrases[state]}`;
 			return item;
 		}),
 	);

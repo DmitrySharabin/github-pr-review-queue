@@ -14,69 +14,87 @@ export const test = base.extend({
 	// The token Madata finds stored, or none for the sign-in card: `test.use({ token: null })`
 	token: ["fake", { option: true }],
 
-	github: async ({ context, token }, use) => {
-		let github = {
-			user () {},
-			search () {},
-			details () {},
-			compare () {},
-		};
+	github: [
+		async ({ context, token }, use) => {
+			let github = {
+				user () {},
+				search () {},
+				details () {},
+				compare () {},
+			};
 
-		// Madata signs in with a stored token without asking GitHub for one
-		if (token) {
-			await context.addInitScript(
-				token => localStorage.setItem("madata:token:auth.madata.dev/github", token),
-				token,
-			);
-		}
-
-		// Nothing waits on the network. An avatar that GitHub is slow to send holds up the page’s load event, and with it `page.goto()`.
-		// Every avatar is a black square
-		await context.route("https://auth.madata.dev/services.json", route =>
-			route.fulfill({ json: { Github: { client_id: "fake" } } }));
-		await context.route("https://github.com/*.png*", route =>
-			route.fulfill({
-				contentType: "image/svg+xml",
-				body: `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><rect width="48" height="48"/></svg>`,
-			}));
-
-		await context.route("https://api.github.com/**", async route => {
-			let path = new URL(route.request().url()).pathname;
-			if (path === "/user") {
-				let answer = { login: "DmitrySharabin" };
-				let status = await github.user(answer);
-				return route.fulfill(failed(status) ?? { json: answer });
+			// Madata signs in with a stored token without asking GitHub for one
+			if (token) {
+				await context.addInitScript(
+					token => localStorage.setItem("madata:token:auth.madata.dev/github", token),
+					token,
+				);
 			}
 
-			if (path.includes("/compare/")) {
-				let answer = { files: [] };
-				let status = await github.compare(answer);
-				return route.fulfill(failed(status) ?? { json: answer });
-			}
+			// Nothing waits on the network. An avatar that GitHub is slow to send holds up the page’s load event, and with it `page.goto()`.
+			// Every avatar is a black square
+			await context.route("https://auth.madata.dev/services.json", route =>
+				route.fulfill({ json: { Github: { client_id: "fake" } } }));
+			await context.route("https://github.com/*.png*", route =>
+				route.fulfill({
+					contentType: "image/svg+xml",
+					body: `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><rect width="48" height="48"/></svg>`,
+				}));
 
-			let { query } = route.request().postDataJSON();
-			let isSearch = query.includes("search(");
-			let answer = isSearch
-				? { data: { search: { nodes: [..."ABCDEF"].map(found) } } }
-				: {
-						data: {
-							nodes: JSON.parse(query.match(/nodes\(ids: (\[.*?\])\)/)[1]).map(
-								detailed,
-							),
-						},
-					};
+			await context.route("https://api.github.com/**", async route => {
+				let path = new URL(route.request().url()).pathname;
+				if (path === "/user") {
+					let answer = { login: "DmitrySharabin" };
+					let status = await github.user(answer);
+					return route.fulfill(failed(status) ?? { json: answer });
+				}
 
-			let status = await (isSearch ? github.search : github.details)(answer);
-			route.fulfill(failed(status) ?? { json: answer });
-		});
+				if (path.includes("/compare/")) {
+					let answer = { files: [] };
+					let status = await github.compare(answer);
+					return route.fulfill(failed(status) ?? { json: answer });
+				}
 
-		await use(github);
-	},
+				let { query } = route.request().postDataJSON();
+				let isSearch = query.includes("search(");
+				let answer = isSearch
+					? { data: { search: { nodes: [..."ABCDEF"].map(found) } } }
+					: {
+							data: {
+								nodes: JSON.parse(query.match(/nodes\(ids: (\[.*?\])\)/)[1]).map(
+									detailed,
+								),
+							},
+						};
+
+				let status = await (isSearch ? github.search : github.details)(answer);
+				route.fulfill(failed(status) ?? { json: answer });
+			});
+
+			await use(github);
+		},
+		// GitHub is faked for every test, also one that doesn’t change its answers
+		{ auto: true },
+	],
 });
 
 /** A commit of a PR’s details, e.g. a merge with 2 parents. */
 export function commit (id, parents = 1) {
 	return { commit: { id, oid: id, parents: { totalCount: parents } } };
+}
+
+/** Give PRs their details from `fields`, e.g. `{ A: { additions: 1 } }`. */
+export function detail (github, fields) {
+	github.details = answer => {
+		for (let pr of answer.data.nodes) {
+			Object.assign(pr, fields[pr.id]);
+		}
+	};
+}
+
+/** The row of a PR, e.g. of A, #65. */
+export function row (page, id) {
+	return page.locator("#queue tbody tr").filter({ hasText: `#${id.charCodeAt(0)}` });
 }
 
 /** GitHub’s answer that fails with this status, if any. Its body repeats the status, which Madata reads, e.g. a 401 for a token GitHub rejects */
@@ -97,6 +115,7 @@ function found (id) {
 		title: `A pull request titled ${id}`,
 		url: "https://github.com/foo/bar/pull/1",
 		labels: { nodes: [] },
+		isDraft: false,
 	};
 }
 
@@ -112,5 +131,8 @@ function detailed (id) {
 		reviewRequests: { nodes: [] },
 		latestReviews: { nodes: [] },
 		latestOpinionatedReviews: { nodes: [] },
+		mergeable: "MERGEABLE",
+		head: { nodes: [{ commit: { statusCheckRollup: null } }] },
+		reviewThreads: { nodes: [] },
 	};
 }

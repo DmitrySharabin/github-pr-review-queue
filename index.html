@@ -139,8 +139,8 @@
 				<dd><a class="count" target="_blank"></a><span class="delta" aria-hidden="true"><span class="up"></span><span class="down"></span></span></dd>
 			</div>
 			<div>
-				<dt>Latest request</dt>
-				<dd><time class="latest"></time></dd>
+				<dt class="last"></dt>
+				<dd><time class="latest"></time><span class="turns"></span></dd>
 			</div>
 		</dl>
 
@@ -163,10 +163,11 @@
 				<thead>
 					<tr>
 						<th scope="col">Pull request</th>
-						<th scope="col"><button commandfor="queue" command="--sort" value="diff">All changes</button></th>
+						<th scope="col" class="step"><button commandfor="queue" command="--sort" value="step">Next step</button></th>
+						<th scope="col" class="diff"><button commandfor="queue" command="--sort" value="diff">All changes</button></th>
 						<th scope="col" class="since-review"><button commandfor="queue" command="--sort" value="diffSinceReview">Changes since last review</button></th>
-						<th scope="col"><button commandfor="queue" command="--sort" value="iterations">Iterations</button></th>
-						<th scope="col" aria-sort="descending"><button commandfor="queue" command="--sort" value="waitingSince">Requested</button></th>
+						<th scope="col" class="iterations"><button commandfor="queue" command="--sort" value="iterations">Iterations</button></th>
+						<th scope="col" aria-sort="descending"><button commandfor="queue" command="--sort" value="waitingSince" data-author="Waiting" data-reviewer="Requested"></button></th>
 						<th scope="col" data-author="Reviewers" data-reviewer="Other reviewers"></th>
 					</tr>
 				</thead>
@@ -212,6 +213,7 @@
 						<small><span class="number"></span> by <a class="author" target="_blank"></a> <mark hidden></mark></small>
 					</div>
 				</th>
+				<td class="step"></td>
 				<td class="diff"><a target="_blank"><span class="added"></span> <span class="deleted"></span> <span class="diffstat" aria-hidden="true"></span></a></td>
 				<td class="since-review"><a target="_blank"><span class="added"></span> <span class="deleted"></span> <span class="diffstat" aria-hidden="true"></span><span class="force-pushed" role="img" aria-label="Force-pushed" hidden></span></a></td>
 				<td class="iterations"></td>
@@ -223,6 +225,7 @@
 		<template id="skeleton">
 			<tr class="skeleton" aria-hidden="true">
 				<th scope="row"><div class="pull-request"><span class="avatar"></span><span class="headline"></span><small></small></div></th>
+				<td class="step"></td>
 				<td class="diff"></td>
 				<td class="since-review"></td>
 				<td class="iterations"></td>
