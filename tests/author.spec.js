@@ -178,6 +178,18 @@ test.describe("Next step", () => {
 		await expect(step(page, "A")).toHaveText("Reply to 2 conversations");
 	});
 
+	test("One conversation reads in the singular", async ({ page, github }) => {
+		detail(github, {
+			A: {
+				...reviewed([review("reviewer", "COMMENTED")]),
+				reviewThreads: { nodes: [thread("reviewer")] },
+			},
+		});
+		await page.goto("/?repo=foo/bar&role=author");
+
+		await expect(step(page, "A")).toHaveText("Reply to 1 conversation");
+	});
+
 	test("An approval with no one asked is the author’s to merge, though the app can’t tell it is enough", async ({
 		page,
 		github,

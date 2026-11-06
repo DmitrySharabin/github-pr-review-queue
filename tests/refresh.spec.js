@@ -354,3 +354,24 @@ test("A refresh keeps the sort of its own tab, though another tab saved a differ
 
 	await expect(page.locator("#queue th[aria-sort]")).toHaveText("Iterations");
 });
+
+test("A switch to the author and back keeps the reviewer sort of its own tab, though another tab saved a different one", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	await page.getByRole("button", { name: "Iterations" }).click();
+	await expect(page.locator("progress")).toBeHidden();
+
+	await page.evaluate(() =>
+		localStorage.setItem(
+			"review-queue:sort",
+			JSON.stringify({ column: "diff", direction: "descending" }),
+		));
+	await page.getByRole("link", { name: "Author" }).click();
+	await expect(page.locator("#queue th[aria-sort]")).toHaveText("Next step");
+	await page.getByRole("link", { name: "Reviewer" }).click();
+	await expect(page.locator("progress")).toBeHidden();
+
+	await expect(page.locator("#queue th[aria-sort]")).toHaveText("Iterations");
+});

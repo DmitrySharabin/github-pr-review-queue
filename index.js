@@ -499,13 +499,10 @@ async function fillDetails (stale, task, { repo, user, role }, signal) {
 					let row = batch.find(row => row.pr.id === pr.id);
 
 					let summary = summarize({ ...row.pr, ...pr }, user, role);
-					// An author’s summary has no diffs to count
-					if (summary.diffSinceReview) {
-						await count(repo, summary.diffSinceReview, signal);
-						// A newer load may have started during the count
-						if (signal.aborted) {
-							return;
-						}
+					await count(repo, summary.diffSinceReview, signal);
+					// A newer load may have started during the count
+					if (signal.aborted) {
+						return;
 					}
 
 					// The search may have refreshed the cheap fields during the count, e.g. a new title.

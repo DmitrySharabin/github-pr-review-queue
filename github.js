@@ -71,9 +71,9 @@ function inTime (signal) {
 	return AbortSignal.any([signal, AbortSignal.timeout(20_000)]);
 }
 
-/** Count a diff that summarize() left uncounted. One with a range to compare counts exactly, others by the sizes of their commits. */
+/** Count a diff that summarize() left uncounted, if any. An author’s summary has none. One with a range to compare counts exactly, others by the sizes of their commits. */
 export async function count (repo, diff, signal) {
-	if (diff.range) {
+	if (diff?.range) {
 		try {
 			let { files } = await github.request(
 				`https://api.github.com/repos/${repo}/compare/${diff.range}`,
@@ -98,7 +98,7 @@ export async function count (repo, diff, signal) {
 		}
 	}
 
-	if (diff.commits) {
+	if (diff?.commits) {
 		Object.assign(diff, sum(await nodes(sizes, diff.commits, signal)));
 		delete diff.commits;
 	}

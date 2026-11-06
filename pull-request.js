@@ -284,7 +284,8 @@ function forReviewer (pr, user) {
 
 /** What an author sees of a PR: its next step, since when it waits for it, and which approvals predate the author’s last commit. */
 function forAuthor (pr, user, others) {
-	let { since, ...step } = turn(pr, user);
+	let { since = null, ...step } = turn(pr, user);
+	step.whose = whose[step.name] ?? "author";
 
 	for (let reviewer of others) {
 		let review = pr.latestOpinionatedReviews.nodes.find(
@@ -298,21 +299,29 @@ function forAuthor (pr, user, others) {
 	return { step, waitingSince: since };
 }
 
+/** Whose turn each step is, where it isn’t the author’s */
+const whose = { draft: "nobody", waiting: "others", "checks-running": "others" };
+
 /**
- * Whose turn a PR is, and what they have to do, from {@link details} for its author. One step per PR, the first of these that applies.
+ * What a PR’s author or others have to do next, from {@link details} for its author. One step per PR, the first of these that applies.
  * A pending review request decides the turn, not the order of events. A reviewer asked again after they requested changes has the turn.
  * @param {object} pr
  * @param {string} user - The author’s login
- * @returns {Step & { since: Date | null }} With `since`, when the PR started to wait for it. Only reviews and requests give that time, so a conflict has none
+ * @returns {Omit<Step, "whose"> & { since?: Date | null }} With `since`, when the PR started to wait for it. Only reviews and requests give that time, so a conflict has none
  */
 function turn (pr, user) {
 	// Bots, e.g. Copilot, review when asked and never wait for the author. A deleted account has no login
 	let human = actor =>
 		Boolean(actor?.login) && actor.__typename !== "Bot" && !isLogin(actor.login, user);
-	let login = review => review.author.login;
+	// A step that names the reviewers of these reviews, and waits since the oldest
+	let naming = (name, reviews) => ({
+		name,
+		logins: reviews.map(review => review.author.login),
+		since: oldest(reviews.map(review => review.submittedAt)),
+	});
 
 	if (pr.isDraft) {
-		return { name: "draft", whose: "nobody", since: null };
+		return { name: "draft" };
 	}
 
 	// A team the token can’t see comes as `null`, or with no login, so its request counts but names no one
@@ -326,43 +335,32 @@ function turn (pr, user) {
 		human(review.author));
 
 	if (requested.length === 0 && !reviewed) {
-		return { name: "request-review", whose: "author", since: null };
+		return { name: "request-review" };
 	}
 
 	// UNKNOWN, while GitHub still computes it, counts as no conflict. The next Refresh asks again
 	if (pr.mergeable === "CONFLICTING") {
-		return { name: "resolve-conflicts", whose: "author", since: null };
+		return { name: "resolve-conflicts" };
 	}
 
 	let checks = pr.head.nodes[0]?.commit.statusCheckRollup?.state;
 	if (checks === "FAILURE" || checks === "ERROR") {
-		return { name: "fix-checks", whose: "author", since: null };
+		return { name: "fix-checks" };
 	}
 
 	let opinions = pr.latestOpinionatedReviews.nodes.filter(review => unasked(review.author));
 	let changes = opinions.filter(review => review.state === "CHANGES_REQUESTED");
 	let unchanged = changes.filter(review => !pushedSince(pr, review.commit?.oid));
 	if (unchanged.length > 0) {
-		return {
-			name: "make-changes",
-			whose: "author",
-			logins: unchanged.map(login),
-			since: oldest(unchanged.map(review => review.submittedAt)),
-		};
+		return naming("make-changes", unchanged);
 	}
 
 	// A dismissed review no longer counts, so its reviewer is asked again, as after changes pushed since a request
 	let dismissed = pr.latestReviews.nodes.filter(
 		review => review.state === "DISMISSED" && unasked(review.author),
 	);
-	let again = [...changes, ...dismissed];
-	if (again.length > 0) {
-		return {
-			name: "re-request",
-			whose: "author",
-			logins: again.map(login),
-			since: oldest(again.map(review => review.submittedAt)),
-		};
+	if (changes.length + dismissed.length > 0) {
+		return naming("re-request", [...changes, ...dismissed]);
 	}
 
 	// A conversation waits for the author when someone else spoke last. A reviewer who is asked to review again answers it in that review
@@ -373,7 +371,6 @@ function turn (pr, user) {
 	if (unanswered.length > 0) {
 		return {
 			name: "reply",
-			whose: "author",
 			count: unanswered.length,
 			since: oldest(unanswered.map(comment => comment.createdAt)),
 		};
@@ -386,7 +383,6 @@ function turn (pr, user) {
 		// Back with the author since the last of them approved
 		return {
 			name: "approved",
-			whose: "author",
 			since: new Date(Math.max(...approvals.map(review => new Date(review.submittedAt)))),
 		};
 	}
@@ -399,7 +395,6 @@ function turn (pr, user) {
 			)?.createdAt;
 		return {
 			name: "waiting",
-			whose: "others",
 			logins: asked,
 			count: requested.length,
 			since: oldest(requested.map(reviewer => requestedAt(reviewer?.login ?? null))),
@@ -407,17 +402,14 @@ function turn (pr, user) {
 	}
 
 	if (checks === "PENDING" || checks === "EXPECTED") {
-		return { name: "checks-running", whose: "others", since: null };
+		return { name: "checks-running" };
 	}
 
 	// Reviewers who only commented, e.g. after the author replied to their conversations
-	let commented = pr.latestReviews.nodes.filter(review => unasked(review.author));
-	return {
-		name: "re-request",
-		whose: "author",
-		logins: commented.map(login),
-		since: oldest(commented.map(review => review.submittedAt)),
-	};
+	return naming(
+		"re-request",
+		pr.latestReviews.nodes.filter(review => unasked(review.author)),
+	);
 }
 
 /**

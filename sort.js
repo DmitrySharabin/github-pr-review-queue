@@ -20,7 +20,8 @@ const sortKeys = {
 	waitingSince: summary => summary.waitingSince && -summary.waitingSince,
 };
 
-/** Where each role’s last sort is saved, and what it sorts by until then. The reviewer’s key predates the author’s columns */
+/** Where each role’s last sort is saved, and what it sorts by until then. The reviewer’s key predates the author’s columns.
+ * Each keeps its `sort` in this tab once read, which another tab may save over */
 const roles = {
 	reviewer: { key: "review-queue:sort", column: "waitingSince" },
 	author: { key: "review-queue:sort:author", column: "step" },
@@ -31,22 +32,15 @@ let shown;
 
 /**
  * Mark the sort a role last chose, which survives a reload, e.g. { column: "diff", direction: "ascending" }.
- * Only a role switch reads it again: another load keeps this tab’s sort, which another tab may have saved over.
  * @param {Role | null} [role]
  */
 export function showSort (role) {
-	let next = role === "author" ? roles.author : roles.reviewer;
-	if (next === shown) {
-		return;
-	}
-
-	shown = next;
-	markSort(
-		JSON.parse(localStorage.getItem(shown.key)) ?? {
-			column: shown.column,
-			direction: "descending",
-		},
-	);
+	shown = role === "author" ? roles.author : roles.reviewer;
+	shown.sort ??= JSON.parse(localStorage.getItem(shown.key)) ?? {
+		column: shown.column,
+		direction: "descending",
+	};
+	markSort(shown.sort);
 }
 
 /**
@@ -58,6 +52,7 @@ export function sortBy (rows, column) {
 	let th = table.tHead.querySelector(`[value="${column}"]`).closest("th");
 	let sorted = { column, direction: th.ariaSort === "descending" ? "ascending" : "descending" };
 	markSort(sorted);
+	shown.sort = sorted;
 	localStorage.setItem(shown.key, JSON.stringify(sorted));
 	// No transition. Its capture holds the new order back up to 300 ms on 100 rows, and when every row moves, no one follows one.
 	// Bars wait for the search, which sorts what it finds. Sorting now would put the rows of the last queue, or none, in their place

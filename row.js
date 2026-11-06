@@ -31,6 +31,7 @@ const reviewerPhrases = {
 };
 
 const people = new Intl.ListFormat("en");
+const plurals = new Intl.PluralRules("en");
 
 /** What each step of an author’s PR says, keyed by its `name`, e.g. “Waiting for @reviewer” */
 const stepPhrases = {
@@ -43,12 +44,13 @@ const stepPhrases = {
 		logins.length === 1
 			? `Re-request @${logins[0]}’s review`
 			: `Re-request reviews from ${mentions(logins)}`,
-	reply: ({ count }) => `Reply to ${plural(count, "conversation")}`,
+	reply: ({ count }) =>
+		`Reply to ${count} ${{ one: "conversation", other: "conversations" }[plurals.select(count)]}`,
 	approved: () => "Approved",
 	// A request to a team names no one
 	waiting: ({ logins, count }) =>
 		count > 1
-			? `Waiting for ${plural(count, "review")}`
+			? `Waiting for ${count} ${pluralize(count, "review")}`
 			: logins.length > 0
 				? `Waiting for @${logins[0]}`
 				: "Waiting for a team review",
@@ -250,29 +252,16 @@ function showAllLabels (element) {
 
 /** The step, in bold when it is the author’s turn. */
 function showStep (cell, step) {
-	if (!step) {
-		return;
+	let text = step && stepPhrases[step.name](step);
+	if (step?.whose === "author") {
+		text = Object.assign(document.createElement("strong"), { textContent: text });
 	}
-
-	let text = stepPhrases[step.name](step);
-	if (step.whose === "author") {
-		let strong = document.createElement("strong");
-		strong.textContent = text;
-		cell.append(strong);
-	}
-	else {
-		cell.textContent = text;
-	}
+	cell.append(text ?? "");
 }
 
 /** Logins as GitHub mentions them, e.g. “@foo and @bar” */
 function mentions (logins) {
 	return people.format(logins.map(login => `@${login}`));
-}
-
-/** A count of things, e.g. “1 review” or “2 reviews” */
-function plural (count, noun) {
-	return `${count} ${noun}${count === 1 ? "" : "s"}`;
 }
 
 function showReviewers (cell, reviewers) {
