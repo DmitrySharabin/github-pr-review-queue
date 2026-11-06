@@ -99,7 +99,6 @@ export async function count (repo, diff, signal) {
 	}
 
 	if (diff.commits) {
-		// NOTE: A commit GitHub can’t resolve answers null, which fails the load
 		Object.assign(diff, sum(await nodes(sizes, diff.commits, signal)));
 		delete diff.commits;
 	}
