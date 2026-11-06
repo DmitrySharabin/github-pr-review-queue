@@ -287,7 +287,7 @@ main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #upd
 		}
 
 		/* A link wider than the cell, e.g. a long user name on a phone, scrolls under its edge, and its ring with it.
-		   The cell draws the ring instead, around the part of the link it shows. Not the count’s, whose cell holds the delta too */
+		   The cell draws the ring instead, around the part of the link it shows. Not the count, whose cell holds the delta too, which its ring would wrap */
 		&:has(> :is(.repo, .user):focus-visible) {
 			/* No wider than the link, and no wider than the cell, whose margins give it 0.5rem */
 			inline-size: fit-content;

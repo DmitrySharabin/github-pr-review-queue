@@ -67,10 +67,19 @@ export const test = base.extend({
 					};
 
 			let status = await (isSearch ? github.search : github.details)(answer);
-			// GitHub answers a field under the query’s alias for it, e.g. `filename: path`
+			// GitHub answers a field under the query’s alias for it, e.g. `filename: path`.
+			// In new objects, so a test’s files keep their paths for the next request
 			let alias = query.match(/(\w+): path\b/)?.[1] ?? "path";
-			for (let file of answer.data?.nodes?.flatMap(pr => pr?.files?.nodes ?? []) ?? []) {
-				[file.path, file[alias]] = [undefined, file.path];
+			for (let pr of answer.data?.nodes ?? []) {
+				if (pr?.files) {
+					pr.files = {
+						...pr.files,
+						nodes: pr.files.nodes.map(({ path, ...file }) => ({
+							...file,
+							[alias]: path,
+						})),
+					};
+				}
 			}
 			route.fulfill(failed(status) ?? { json: answer });
 		});

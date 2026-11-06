@@ -303,11 +303,11 @@ test.describe("Exclude from counts", () => {
 		await expect(row(page, "A").locator(".diff .figures").first()).toHaveText("+10 −0");
 
 		await page.locator("#ignored summary").click();
-		await page.getByRole("searchbox", { name: "Exclude from counts" }).fill("lock");
+		await page.getByRole("searchbox", { name: "Exclude from counts" }).fill("src");
 		await page.locator("#ignored").getByRole("button", { name: "Apply" }).click();
 
-		// No file matches `lock`, so every line counts
-		await expect(row(page, "A").locator(".diff .figures").first()).toHaveText("+510 −0");
+		// Now the tests are what is left to read
+		await expect(row(page, "A").locator(".diff .figures").first()).toHaveText("+500 −0");
 	});
 
 	test("A PR of over 100 files shows only its total, since the files left out can’t be told apart", async ({
@@ -342,14 +342,17 @@ test.describe("Exclude from counts", () => {
 		await page.goto("/?repo=foo/bar");
 		await page.locator("#ignored summary").click();
 		let field = page.getByRole("searchbox", { name: "Exclude from counts" });
-
 		await field.fill("test(");
-
-		// The message the browser shows on Apply
-		await expect(field).toHaveJSProperty(
-			"validationMessage",
-			"Enter a valid regular expression.",
+		// The browser fires `invalid` when it stops a form, and shows the field’s message
+		let stopped = field.evaluate(
+			input =>
+				new Promise(resolve =>
+					input.addEventListener("invalid", () => resolve(input.validationMessage))),
 		);
+
+		await page.locator("#ignored").getByRole("button", { name: "Apply" }).click();
+
+		expect(await stopped).toBe("Enter a valid regular expression.");
 	});
 
 	test("A pattern the URL brings back after an invalid one can be applied", async ({

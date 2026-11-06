@@ -246,8 +246,8 @@ function showView () {
 		without.delete(name);
 		let clear = details.querySelector(".clear");
 		clear.href = `?${without}`;
-		// A Clear that hides itself would drop the keyboard’s focus to the page, so the emptied field takes it.
-		// Not after a tap, which would open a phone’s keyboard
+		// A Clear pressed from the keyboard hides itself and would drop the focus to the page, so the emptied field takes it.
+		// Not after a tap, since a focused field opens the on-screen keyboard
 		if (!value && clear.matches(":focus-visible")) {
 			details.querySelector("input[type=search]").focus();
 		}

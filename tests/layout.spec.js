@@ -41,6 +41,19 @@ async function starts (page, github, selector, { url = "/?repo=foo/bar", edge = 
 	return [before, await measure()];
 }
 
+/** Give every PR a file of code and one of tests, e.g. for `files=test` to count apart. */
+function withTests (answer) {
+	for (let pr of answer.data.nodes) {
+		pr.files = {
+			totalCount: 2,
+			nodes: [
+				{ path: "src/a.js", additions: 10, deletions: 0 },
+				{ path: "test/a.test.js", additions: 500, deletions: 0 },
+			],
+		};
+	}
+}
+
 test("Columns stay put when the rows replace the bars that stood in for them", async ({
 	page,
 	github,
@@ -131,22 +144,13 @@ test("A size with its total under it leaves its row as tall as the bars", async 
 	page,
 	github,
 }) => {
-	github.details = answer => {
-		for (let pr of answer.data.nodes) {
-			pr.files = {
-				totalCount: 2,
-				nodes: [
-					{ path: "src/a.js", additions: 10, deletions: 0 },
-					{ path: "test/a.test.js", additions: 500, deletions: 0 },
-				],
-			};
-		}
-	};
+	github.details = withTests;
 
 	let [before, after] = await starts(page, github, "#queue tbody tr", {
 		url: "/?repo=foo/bar&files=test",
 		edge: "bottom",
 	});
+	await expect(page.locator("#queue tbody .total").first()).toBeVisible();
 
 	expect(after).toEqual(before);
 });
@@ -218,17 +222,7 @@ test("The ring of the field that edits the user stays inside the cell that scrol
 });
 
 test("A total sits under the figures it adds to, not over them", async ({ page, github }) => {
-	github.details = answer => {
-		for (let pr of answer.data.nodes) {
-			pr.files = {
-				totalCount: 2,
-				nodes: [
-					{ path: "src/a.js", additions: 10, deletions: 0 },
-					{ path: "test/a.test.js", additions: 500, deletions: 0 },
-				],
-			};
-		}
-	};
+	github.details = withTests;
 	await page.goto("/?repo=foo/bar&files=test");
 
 	let cell = page.locator("#queue tbody tr").first().locator(".diff");
@@ -249,7 +243,7 @@ test("The ring of a focused count hugs the count, not the change beside it", asy
 
 	await count.focus();
 
-	// Whichever draws a ring, the count or its cell, which holds the change too, e.g. `{ ring: 12, count: 12 }`
+	// Whichever draws a ring, the count or its cell, which holds the change too, e.g. `{ ring: 12, width: 12 }`
 	let { ring, width } = await count.evaluate(count => ({
 		ring: Math.max(
 			...[count, count.parentElement]
