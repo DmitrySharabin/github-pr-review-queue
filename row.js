@@ -50,7 +50,7 @@ const stepPhrases = {
 	// A request to a team names no one
 	waiting: ({ logins, count }) =>
 		count > 1
-			? `Waiting for ${count} ${pluralize(count, "review")}`
+			? `Waiting for ${count} reviews`
 			: logins.length > 0
 				? `Waiting for @${logins[0]}`
 				: "Waiting for a team review",
@@ -272,17 +272,17 @@ function showReviewers (cell, reviewers) {
 
 	let list = document.createElement("ul");
 	list.append(
-		...reviewers.map(({ name, avatar, state, url, outdated }) => {
+		...reviewers.map(({ name, avatar, state, url, earlier }) => {
 			let item = reviewerTemplate.content.firstElementChild.cloneNode(true);
 			let link = item.querySelector("a");
 			let image = item.querySelector("img");
 			item.className = state;
-			item.classList.toggle("outdated", Boolean(outdated));
+			item.classList.toggle("earlier", Boolean(earlier));
 			link.href = url;
 			image.src = avatar;
 			// On the link, so keyboard focus reaches it too
 			image.alt =
-				link.title = `${name} ${outdated ? "approved an earlier version" : reviewerPhrases[state]}`;
+				link.title = `${name} ${earlier ? "approved an earlier version" : reviewerPhrases[state]}`;
 			return item;
 		}),
 	);

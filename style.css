@@ -1666,7 +1666,7 @@ tbody td {
 	}
 
 	/* Approved before the author’s last commit */
-	&.approved.outdated {
+	&.approved.earlier {
 		--badge: var(--muted);
 	}
 

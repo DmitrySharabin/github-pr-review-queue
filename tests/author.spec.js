@@ -27,7 +27,6 @@ function review (login, state, { oid = "L", days = 10, type } = {}) {
 function reviewed (reviews, oids = ["L"]) {
 	let opinions = reviews.filter(review => review.state !== "COMMENTED");
 	return {
-		reviews: { nodes: reviews },
 		latestReviews: { nodes: reviews },
 		latestOpinionatedReviews: { nodes: opinions },
 		commits: { totalCount: oids.length, nodes: oids.map(id => commit(id)) },
@@ -548,4 +547,17 @@ test("The summary counts the author’s own turns as theirs", async ({ page, git
 	await expect(
 		page.locator("#summary .turns").locator("xpath=../preceding-sibling::dt"),
 	).toHaveText("Your turn");
+});
+
+test("The author’s own stored queue says “Your turn” while the sign-in runs", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar&role=author");
+	await expect(page.locator("progress")).toBeHidden();
+
+	github.user = () => new Promise(() => {});
+	await page.reload();
+
+	await expect(page.locator("#summary .tally")).toHaveText("Your turn");
 });

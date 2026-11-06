@@ -20,7 +20,7 @@
  * @property {string} avatar - The avatar URL
  * @property {"awaiting" | "approved" | "changes-requested" | "commented"} state
  * @property {string} url - Their latest review, or their profile while their review is awaited
- * @property {boolean} [outdated] - Approved before the author’s last commit, which only the author’s view tells
+ * @property {boolean} [earlier] - Approved an earlier version than the author’s last commit, which only the author’s view tells
  *
  * @typedef {object} Label
  * @property {string} name
@@ -140,18 +140,17 @@ export function query ({ repo, user, role, filter }) {
  * @returns {string}
  */
 export function details ({ user, role, ids }) {
-	let author = role === "author";
 	// A reviewer needs their own reviews, to count what changed since. An author needs what decides whose turn it is, see turn()
-	let fields = author
-		? `mergeable
+	let fields =
+		role === "author"
+			? `mergeable
 			head: commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
 			reviewThreads(last: 100) {
 				nodes { isResolved comments(last: 1) { nodes { createdAt author { __typename login } } } }
 			}`
-		: `reviews(author: ${JSON.stringify(user)}, states: [APPROVED, CHANGES_REQUESTED, COMMENTED, DISMISSED], last: 100) {
+			: `reviews(author: ${JSON.stringify(user)}, states: [APPROVED, CHANGES_REQUESTED, COMMENTED, DISMISSED], last: 100) {
 				nodes { submittedAt author { login } commit { oid } }
 			}`;
-	let review = author ? "state url submittedAt" : "state url";
 
 	// NOTE: Gets only the last 100 commits, review requests and conversations of each PR, the last 100 reviews of a reviewer, and 20 other reviewers
 	return `query {
@@ -170,10 +169,10 @@ export function details ({ user, role, ids }) {
 				nodes { requestedReviewer { __typename ... on Actor { login avatarUrl(size: 48) } } }
 			}
 			latestReviews(first: 20) {
-				nodes { ${review} author { __typename login avatarUrl(size: 48) } }
+				nodes { state url submittedAt author { __typename login avatarUrl(size: 48) } }
 			}
 			latestOpinionatedReviews(first: 20) {
-				nodes { ${review} ${author ? "commit { oid }" : ""} author { __typename login avatarUrl(size: 48) } }
+				nodes { state url submittedAt commit { oid } author { __typename login avatarUrl(size: 48) } }
 			}
 		}
 	}
@@ -216,8 +215,8 @@ export function summarize (pr, user, role) {
 	let others = reviewers(pr).filter(reviewer => !isLogin(reviewer.name, user));
 	return {
 		...summary,
-		...(role === "author" ? forAuthor(pr, user, others) : forReviewer(pr, user)),
 		reviewers: others,
+		...(role === "author" ? forAuthor(pr, user, others) : forReviewer(pr, user)),
 	};
 }
 
@@ -286,17 +285,18 @@ function forReviewer (pr, user) {
 function forAuthor (pr, user, others) {
 	let { since = null, ...step } = turn(pr, user);
 	step.whose = whose[step.name] ?? "author";
+	let earlier = pr.latestOpinionatedReviews.nodes
+		.filter(review => review.state === "APPROVED" && pushedSince(pr, review.commit?.oid))
+		.map(review => review.author?.login);
 
-	for (let reviewer of others) {
-		let review = pr.latestOpinionatedReviews.nodes.find(
-			review => review.author?.login === reviewer.name,
-		);
-		if (reviewer.state === "approved" && pushedSince(pr, review.commit?.oid)) {
-			reviewer.outdated = true;
-		}
-	}
-
-	return { step, waitingSince: since };
+	return {
+		step,
+		waitingSince: since,
+		reviewers: others.map(reviewer =>
+			reviewer.state === "approved" && earlier.includes(reviewer.name)
+				? { ...reviewer, earlier: true }
+				: reviewer),
+	};
 }
 
 /** Whose turn each step is, where it isn’t the author’s */
@@ -330,9 +330,8 @@ function turn (pr, user) {
 		.filter(reviewer => reviewer?.__typename !== "Bot");
 	let asked = requested.map(reviewer => reviewer?.login).filter(Boolean);
 	let unasked = actor => human(actor) && !asked.includes(actor.login);
-	// A dismissed review counts: its reviewer is asked again below
-	let reviewed = [...pr.latestReviews.nodes, ...pr.latestOpinionatedReviews.nodes].some(review =>
-		human(review.author));
+	// Everyone who reviewed has a latest review, a dismissed one too. Its reviewer is asked again below
+	let reviewed = pr.latestReviews.nodes.some(review => human(review.author));
 
 	if (requested.length === 0 && !reviewed) {
 		return { name: "request-review" };
@@ -429,7 +428,7 @@ function oldest (times) {
 }
 
 /** Whether two logins are the same, which GitHub matches in any case. */
-function isLogin (login, other) {
+export function isLogin (login, other) {
 	return login?.toLowerCase() === other.toLowerCase();
 }
 

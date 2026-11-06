@@ -6,6 +6,7 @@ import {
 	addedLabel,
 	details,
 	hasLabel,
+	isLogin,
 	outdated,
 	query,
 	search,
@@ -659,9 +660,11 @@ function showSummary ({ repo, user, role, filter }) {
 	count.href = `https://github.com/pulls?q=${encodeURIComponent(search({ repo, user, role, filter }))}`;
 	count.textContent = rows.length;
 
-	// A reviewer sees when the last request came, an author how many PRs wait for them, or for the user they look at
+	// A reviewer sees when the last request came. An author sees how many PRs wait for them, or for the user they look at.
+	// A URL with no user is the signed-in one’s, who may be unknown yet, e.g. during the sign-in
 	let author = role === "author";
-	let you = user?.toLowerCase() === github.user?.username?.toLowerCase();
+	let named = new URLSearchParams(location.search).get("user");
+	let you = !named || isLogin(named, github.user?.username ?? "");
 	let time = strip.querySelector(".latest");
 	let turns = strip.querySelector(".turns");
 	strip.querySelector(".tally").textContent = !author
