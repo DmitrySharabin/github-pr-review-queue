@@ -169,7 +169,7 @@ export function details ({ user, role, files, ids }) {
 
 	// Only to tell ignored files apart, since they slow the query, e.g. 3.1 s instead of 1.4 s for 30 PRs.
 	// `filename`, as a comparison names it, so split() reads both
-	if (files && role !== "author") {
+	if (files) {
 		fields += `
 			files(first: 100) { totalCount nodes { filename: path additions deletions } }`;
 	}
@@ -531,8 +531,10 @@ export function sum (diffs) {
  * @returns {Pick<Diff, "additions" | "deletions" | "ignored">}
  */
 export function split (files, ignore) {
-	let ignored = files.filter(file => ignore.test(file.filename));
-	return { ...sum(files.filter(file => !ignored.includes(file))), ignored: sum(ignored) };
+	return {
+		...sum(files.filter(file => !ignore.test(file.filename))),
+		ignored: sum(files.filter(file => ignore.test(file.filename))),
+	};
 }
 
 /**

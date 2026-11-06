@@ -173,11 +173,7 @@ for (let [details, field] of [
 }
 
 // A pattern that isn’t a regular expression, e.g. `test(`, stops Apply with the browser’s message
-filesForm.elements.files.addEventListener("input", ({ target }) => {
-	target.setCustomValidity(
-		target.value && !pattern(target.value) ? "Enter a regular expression." : "",
-	);
-});
+filesForm.elements.files.addEventListener("input", checkPattern);
 
 refresh.addEventListener("click", () => {
 	if (refresh.ariaDisabled !== "true") {
@@ -223,6 +219,8 @@ function showView () {
 		}
 		form.reset();
 	}
+	// A reset fires no input event, e.g. after Clear, so the last message would stay
+	checkPattern();
 
 	// Each role opens the same queue, filter and all, from the other side
 	for (let link of strip.querySelectorAll(".roles a")) {
@@ -261,6 +259,14 @@ function showView () {
 	repoForm.hidden = false;
 }
 
+/** Mark the pattern field invalid while it holds no regular expression. */
+function checkPattern () {
+	let field = filesForm.elements.files;
+	field.setCustomValidity(
+		field.value && !pattern(field.value) ? "Enter a valid regular expression." : "",
+	);
+}
+
 /**
  * Load the queue the URL asks for, and stop a load still in flight.
  * The rows on screen stay until the new ones arrive.
@@ -277,8 +283,6 @@ async function load () {
 		["repo", "user", "role", "filter", "files"].map(name => [name, params.get(name)]),
 	);
 	let { repo, role, filter } = view;
-	// NOTE: A pattern that isn’t a regular expression, e.g. typed into the URL, ignores nothing
-	let ignore = role === "author" ? undefined : pattern(view.files);
 	// Another pattern counts every PR’s lines anew, so its rows are another queue’s
 	let sameQueue = ["repo", "user", "role", "files"].every(name => view[name] === shown?.[name]);
 	let sameView = sameQueue && filter === shown.filter;
@@ -396,7 +400,7 @@ async function load () {
 			let row = previous.get(pr.id) ?? {};
 			row.pr = pr;
 			// Without details the summary has no slow fields, so a refreshed row keeps its old ones, dimmed, until they arrive
-			fill(row, { ...row.summary, ...summarize(pr, user, role, ignore) });
+			fill(row, { ...row.summary, ...summarize(pr, user, role) });
 
 			// A range left means its comparison failed, so the next load tries again.
 			// The details are checked against their own copy. A load stopped before they came, e.g. by a label click, already replaced `pr`.
@@ -420,7 +424,7 @@ async function load () {
 			showProgress(task, 0, stale.length);
 		}
 
-		let failed = await fillDetails(stale, task, { ...view, user }, ignore, signal);
+		let failed = await fillDetails(stale, task, { ...view, user }, signal);
 		signal.throwIfAborted();
 		sort(rows, { animate: true });
 		showSummary({ ...view, user });
@@ -491,11 +495,14 @@ async function load () {
  * @param {Row[]} stale
  * @param {string} task - What the progress bar counts, e.g. “rechecked” on a refresh
  * @param {View} view - The load’s, with the user it is for
- * @param {RegExp | undefined} ignore - The paths of files whose lines count apart
  * @param {AbortSignal} signal - The load’s
  * @returns {Promise<PromiseRejectedResult | undefined>} The first failure, if any
  */
-async function fillDetails (stale, task, { repo, user, role, files }, ignore, signal) {
+async function fillDetails (stale, task, { repo, user, role, files }, signal) {
+	// An author’s view counts no lines.
+	// NOTE: A pattern that isn’t a regular expression, e.g. typed into the URL, ignores nothing.
+	// One that backtracks a lot, e.g. `(.+)+x$`, freezes the tab, as it runs on every path
+	let ignore = role === "author" ? undefined : pattern(files);
 	let done = 0;
 	// GitHub stops a query that runs too long, so each asks for a few PRs
 	let size = 10;
@@ -536,7 +543,7 @@ async function fillDetails (stale, task, { repo, user, role, files }, ignore, si
 					if (row.tr.classList.contains("stale")) {
 						unmark(row.tr);
 					}
-					fill(row, { ...summary, ...summarize(row.pr, user, role, ignore) });
+					fill(row, { ...summary, ...summarize(row.pr, user, role) });
 					row.detailed = row.pr;
 					showProgress(task, ++done, stale.length);
 				}),

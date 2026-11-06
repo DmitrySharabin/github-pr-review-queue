@@ -317,10 +317,7 @@ function showDiff (cell, diff) {
 
 	// The lines of every file, ignored ones too, under those of the rest, e.g. “+650 −32 total”.
 	// Without a split, e.g. in a sum of commits, the figures are the total already
-	let word = Object.assign(document.createElement("span"), {
-		className: "total",
-		textContent: "total",
-	});
+	let word = Object.assign(document.createElement("small"), { textContent: "total" });
 	if (diff.ignored === null) {
 		cell.classList.add("unsplit");
 		link.append(word);
@@ -330,6 +327,11 @@ function showDiff (cell, diff) {
 		all.classList.add("total");
 		showFigures(all, total);
 		link.append(all, " ", word);
+	}
+	// Last, so a screen reader hears “+650 −32 total, Force-pushed”
+	let icon = cell.querySelector(".force-pushed");
+	if (icon) {
+		link.append(icon);
 	}
 
 	if (diff.whole) {

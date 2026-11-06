@@ -961,7 +961,7 @@ hgroup {
 }
 
 /* One group of two lines, closer to each other than to the table. Their margins collapse to 1rem − 0.5rem */
-#narrow + #ignored {
+#narrow:not([hidden]) + #ignored {
 	margin-block-start: -0.5rem;
 }
 
@@ -1467,6 +1467,9 @@ tbody td {
 /* The figures over the lines of every file, e.g. “+650 −32 total”, in one column, so their right edges meet.
    The word goes under the diffstat, the push icon after it */
 td:is(.diff, .since-review) a {
+	/* The diffstat’s own margin and the space a grid drops before it */
+	--bar-gap: calc(0.3em + 0.25em);
+
 	display: inline-grid;
 	grid-template-columns: repeat(3, auto);
 	align-items: center;
@@ -1482,6 +1485,14 @@ td:is(.diff, .since-review) a {
 
 	.diffstat {
 		grid-area: 1 / 2;
+		margin-inline-start: var(--bar-gap);
+	}
+
+	small {
+		grid-area: 2 / 2;
+		justify-self: start;
+		/* Where the diffstat starts, in the word’s smaller em */
+		margin-inline-start: calc(var(--bar-gap) / 0.8);
 	}
 
 	.force-pushed {
@@ -1489,21 +1500,15 @@ td:is(.diff, .since-review) a {
 	}
 }
 
-.total {
+.total,
+td:is(.diff, .since-review) small {
 	margin-block-start: 0.15em;
 	color: var(--muted);
 	font-size: 0.8em;
+}
 
-	:is(.added, .deleted) {
-		color: inherit;
-	}
-
-	/* Where the diffstat starts */
-	&:not(.figures) {
-		grid-area: 2 / 2;
-		justify-self: start;
-		margin-inline-start: calc(0.3em / 0.8);
-	}
+.total :is(.added, .deleted) {
+	color: inherit;
 }
 
 /* The figures count ignored files too, so they are the total, and no diffstat stands for the rest */
@@ -1512,7 +1517,7 @@ td:is(.diff, .since-review) a {
 		display: none;
 	}
 
-	.total {
+	small {
 		grid-row: 1;
 		margin-block-start: 0;
 	}
@@ -1540,7 +1545,7 @@ td:is(.diff, .since-review) a {
 	inline-size: var(--icon-size);
 	aspect-ratio: 1;
 	margin-inline-start: var(--icon-gap);
-	vertical-align: -0.3em;
+	translate: 0 0.075em;
 	background-color: var(--attention);
 	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0V1.5h-8a1 1 0 0 0-1 1v6.708A2.493 2.493 0 0 1 4.5 9h2.25a.75.75 0 0 1 0 1.5H4.5a1 1 0 0 0 0 2h4.75a.75.75 0 0 1 0 1.5H4.5A2.5 2.5 0 0 1 2 11.5Zm12.23 7.79h-.001l-1.224-1.224v6.184a.75.75 0 0 1-1.5 0V9.066L10.28 10.29a.75.75 0 0 1-1.06-1.061l2.505-2.504a.75.75 0 0 1 1.06 0L15.29 9.23a.751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018Z'/%3E%3C/svg%3E")
 		no-repeat center / contain;

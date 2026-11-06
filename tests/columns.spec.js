@@ -269,6 +269,33 @@ test.describe("Ignored files", () => {
 		await expect(cell.locator(".figures.total")).toHaveText("+905 −41");
 	});
 
+	test("A sum of commits shows only its total, since commits don’t list their files", async ({
+		page,
+		github,
+	}) => {
+		detail(github, {
+			A: { commits: commits(["L", "N"]), reviews: { nodes: [review("L")] } },
+		});
+		github.compare = () => 500;
+		await page.goto("/?repo=foo/bar&files=test");
+
+		// N’s own size
+		await expect(row(page, "A").locator(".since-review")).toHaveText("+780 −2 total");
+	});
+
+	test("Another pattern counts the files anew", async ({ page, github }) => {
+		detail(github, { A: files({ "src/a.js": 10, "test/a.test.js": 500 }) });
+		await page.goto("/?repo=foo/bar&files=test");
+		await expect(row(page, "A").locator(".diff .figures").first()).toHaveText("+10 −0");
+
+		await page.locator("#ignored summary").click();
+		await page.getByRole("searchbox", { name: "Ignore files" }).fill("lock");
+		await page.locator("#ignored").getByRole("button", { name: "Apply" }).click();
+
+		// No file matches `lock`, so every line counts
+		await expect(row(page, "A").locator(".diff .figures").first()).toHaveText("+510 −0");
+	});
+
 	test("A PR of over 100 files shows only its total, since the files left out can’t be told apart", async ({
 		page,
 		github,
@@ -277,9 +304,9 @@ test.describe("Ignored files", () => {
 		await page.goto("/?repo=foo/bar&files=test");
 
 		let cell = row(page, "A").locator(".diff");
-		await expect(cell).toHaveClass(/unsplit/);
-		// The PR’s own count of every file
+		// The PR’s own count of every file, with no diffstat that would stand for the rest
 		await expect(cell).toHaveText("+650 −2 total");
+		await expect(cell.locator(".diffstat")).toBeHidden();
 	});
 
 	test("A pattern that isn’t a regular expression stops Apply", async ({ page, github }) => {
@@ -290,6 +317,22 @@ test.describe("Ignored files", () => {
 		await field.fill("test(");
 
 		expect(await field.evaluate(input => input.validity.valid)).toBe(false);
+	});
+
+	test("A pattern the URL brings back after an invalid one can be applied", async ({
+		page,
+		github,
+	}) => {
+		await page.goto("/?repo=foo/bar&files=test");
+		await page.locator("#ignored summary").click();
+		let field = page.getByRole("searchbox", { name: "Ignore files" });
+		await field.fill("test(");
+
+		// The role switch resets the field to the URL’s `test`, firing no input event
+		await page.getByRole("link", { name: "Author" }).click();
+		await page.getByRole("link", { name: "Reviewer" }).click();
+
+		expect(await field.evaluate(input => input.validity.valid)).toBe(true);
 	});
 
 	test("Clear opens the queue without the pattern, and keeps the filter", async ({
