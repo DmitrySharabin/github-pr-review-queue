@@ -1,6 +1,7 @@
-import { test, expect } from "./github.js";
+import { test, expect, commit } from "./github.js";
 
-let commit = id => ({ commit: { id, oid: id, parents: { totalCount: 1 } } });
+// The commits of a PR, as GitHub sends the last of them
+let commits = (ids, totalCount = ids.length) => ({ totalCount, nodes: ids.map(id => commit(id)) });
 // The user’s review of the commit `oid`. GitHub answers `null` for a commit it no longer has
 let review = oid => ({
 	submittedAt: "2026-11-01T12:00:00Z",
@@ -59,20 +60,19 @@ test("The diffstat paints GitHub’s squares: one per line below five lines, the
 	]).toEqual(["adnnn", "aaddn"]);
 });
 
-test("A review of a commit GitHub no longer has counts the whole PR, as after a force push", async ({
+test("A review of a commit the PR no longer has counts the whole PR, as after a force push", async ({
 	page,
 	github,
 }) => {
-	// Over 100 commits, so the commit isn’t merely older than the last 100
 	detail(github, {
-		A: {
-			commits: { totalCount: 101, nodes: [commit("N")] },
-			reviews: { nodes: [review(null)] },
-		},
+		A: { commits: commits(["N"]), reviews: { nodes: [review("L")] } },
+		// GitHub has no commit to answer. Over 100 commits, so the commit isn’t merely older than the last 100
+		B: { commits: commits(["N"], 101), reviews: { nodes: [review(null)] } },
 	});
 	await page.goto("/?repo=foo/bar");
 
 	await expect(row(page, "A").locator(".since-review .force-pushed")).toBeVisible();
+	await expect(row(page, "B").locator(".since-review .force-pushed")).toBeVisible();
 });
 
 test("A review of a commit before the last 100 isn’t called a force push", async ({
@@ -81,7 +81,7 @@ test("A review of a commit before the last 100 isn’t called a force push", asy
 }) => {
 	detail(github, {
 		A: {
-			commits: { totalCount: 101, nodes: [commit("N")] },
+			commits: commits(["N"], 101),
 			reviews: { nodes: [review("L")] },
 		},
 	});
@@ -91,6 +91,23 @@ test("A review of a commit before the last 100 isn’t called a force push", asy
 		"title",
 		/isn’t among the last 100 commits/,
 	);
+	await expect(row(page, "A").locator(".since-review .force-pushed")).toBeHidden();
+});
+
+test("A comparison counts the PR’s changes since the review exactly, by the files GitHub lists", async ({
+	page,
+	github,
+}) => {
+	detail(github, {
+		A: { commits: commits(["L", "N"]), reviews: { nodes: [review("L")] } },
+	});
+	github.compare = answer => {
+		answer.files = [{ additions: 5, deletions: 1 }];
+	};
+	await page.goto("/?repo=foo/bar");
+
+	// Not N’s own size, +780, which only estimates
+	await expect(row(page, "A").locator(".since-review")).toContainText("+5 −1");
 });
 
 test("A comparison of 300 files, as many as GitHub lists, gives way to the sizes of the commits", async ({
@@ -98,7 +115,7 @@ test("A comparison of 300 files, as many as GitHub lists, gives way to the sizes
 	github,
 }) => {
 	detail(github, {
-		A: { commits: { nodes: [commit("L"), commit("N")] }, reviews: { nodes: [review("L")] } },
+		A: { commits: commits(["L", "N"]), reviews: { nodes: [review("L")] } },
 	});
 	github.compare = answer => {
 		answer.files = Array(300).fill({ additions: 1, deletions: 0 });
@@ -114,7 +131,7 @@ test("A refresh doesn’t compare 300 files again, since GitHub would list as ma
 	github,
 }) => {
 	detail(github, {
-		A: { commits: { nodes: [commit("L"), commit("N")] }, reviews: { nodes: [review("L")] } },
+		A: { commits: commits(["L", "N"]), reviews: { nodes: [review("L")] } },
 	});
 	let compared = 0;
 	github.compare = answer => {
@@ -134,8 +151,21 @@ test("A PR asked only of the user’s team shows no count of rounds, since the t
 	page,
 	github,
 }) => {
-	// No one asked the user by name, so GitHub’s search found the PR through a team
+	// No one asked the user by name for A, so GitHub’s search found it through a team. B asks the user once
+	detail(github, {
+		B: {
+			timelineItems: {
+				nodes: [
+					{
+						createdAt: "2026-11-01T12:00:00Z",
+						requestedReviewer: { login: "DmitrySharabin" },
+					},
+				],
+			},
+		},
+	});
 	await page.goto("/?repo=foo/bar");
 
 	await expect(row(page, "A").locator(".iterations")).toHaveText("—");
+	await expect(row(page, "B").locator(".iterations")).toHaveText("0");
 });

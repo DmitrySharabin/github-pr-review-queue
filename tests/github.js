@@ -74,6 +74,11 @@ export const test = base.extend({
 	},
 });
 
+/** A commit of a PR’s details, e.g. a merge with 2 parents. */
+export function commit (id, parents = 1) {
+	return { commit: { id, oid: id, parents: { totalCount: parents } } };
+}
+
 /** GitHub’s answer that fails with this status, if any. Its body repeats the status, which Madata reads, e.g. a 401 for a token GitHub rejects */
 function failed (status) {
 	if (status) {

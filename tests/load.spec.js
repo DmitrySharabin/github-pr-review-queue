@@ -1,4 +1,4 @@
-import { test, expect } from "./github.js";
+import { test, expect, commit } from "./github.js";
 
 test("A failed search hides the bars that stood in for its rows, even of the view shown last", async ({
 	page,
@@ -298,9 +298,6 @@ test("A PR whose commit sizes fail ends the load only once the other PRs are cou
 	page,
 	github,
 }) => {
-	let commit = (id, parents = 1) => ({
-		commit: { id, oid: id, parents: { totalCount: parents } },
-	});
 	let failed = Promise.withResolvers();
 	let held = Promise.withResolvers();
 	let asked = 0;
