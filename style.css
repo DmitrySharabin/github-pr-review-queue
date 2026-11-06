@@ -206,8 +206,10 @@ header.failed #updated .now {
 /* Read aloud but unseen, since something else on screen says the same.
    The summary above the table says the caption. The delta next to its count says the changes, e.g. “+3” for “3 new”.
    The counter takes the update time’s place during a load. A card, e.g. the sign-in, says the status, which a screen reader still hears change.
-   With a card and no summary, the time hides only on screen, so a screen reader still hears when a load from the card ends */
+   With a card and no summary, the time hides only on screen, so a screen reader still hears when a load from the card ends.
+   A size over its total says what it leaves out */
 caption,
+.spoken,
 #updated .changes,
 #counter:not([hidden]) + #updated,
 main:has(> :is(#repo-form, #sign-in, #summary):not([hidden])) > #status,

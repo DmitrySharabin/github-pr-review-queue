@@ -342,6 +342,12 @@ function showDiff (cell, diff) {
 		all.classList.add("total");
 		showFigures(all, total);
 		link.append(all, " ", word);
+		// The total under them says it on screen, e.g. “+585 −2 without excluded files, +650 −2 total”
+		let spoken = Object.assign(document.createElement("span"), {
+			className: "spoken",
+			textContent: " without excluded files,",
+		});
+		figures.after(spoken);
 	}
 	// Last, so a screen reader hears “+650 −32 total, Force-pushed”
 	let icon = cell.querySelector(".force-pushed");
