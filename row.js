@@ -47,9 +47,11 @@ const stepPhrases = {
 	approved: () => "Approved",
 	// A request to a team names no one
 	waiting: ({ logins, count }) =>
-		logins.length === count && count === 1
-			? `Waiting for @${logins[0]}`
-			: `Waiting for ${plural(count, "review")}`,
+		count > 1
+			? `Waiting for ${plural(count, "review")}`
+			: logins.length > 0
+				? `Waiting for @${logins[0]}`
+				: "Waiting for a team review",
 	"checks-running": () => "Checks are running",
 };
 

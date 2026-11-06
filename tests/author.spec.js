@@ -191,6 +191,39 @@ test.describe("Next step", () => {
 		await expect(step(page, "B")).toHaveText("Waiting for @other-user");
 	});
 
+	test("A dismissed review comes before an approval, since it no longer counts and needs asking again", async ({
+		page,
+		github,
+	}) => {
+		let approval = review("other-user", "APPROVED");
+		detail(github, {
+			A: {
+				...reviewed([approval]),
+				latestReviews: { nodes: [review("reviewer", "DISMISSED"), approval] },
+			},
+		});
+		await page.goto("/?repo=foo/bar&role=author");
+
+		await expect(step(page, "A")).toHaveText("Re-request @reviewer’s review");
+	});
+
+	test("A request to a team the token can’t see waits for the team, from when it was asked", async ({
+		page,
+		github,
+	}) => {
+		// GitHub answers such a team as null, in the pending requests and in the timeline
+		detail(github, {
+			A: {
+				timelineItems: { nodes: [{ createdAt: ago(8), requestedReviewer: null }] },
+				reviewRequests: { nodes: [{ requestedReviewer: null }] },
+			},
+		});
+		await page.goto("/?repo=foo/bar&role=author");
+
+		await expect(step(page, "A")).toHaveText("Waiting for a team review");
+		await expect(row(page, "A").locator("time")).toHaveText("8 days");
+	});
+
 	test("Several reviewers asked show as a count", async ({ page, github }) => {
 		detail(github, { A: asked(["reviewer", "other-user"]) });
 		await page.goto("/?repo=foo/bar&role=author");

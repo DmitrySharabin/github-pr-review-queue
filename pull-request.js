@@ -314,15 +314,15 @@ function turn (pr, user) {
 		return { name: "draft", whose: "nobody", since: null };
 	}
 
-	// A request to a team has no login without the read:org scope, so it counts but names no one
+	// A team the token can’t see comes as `null`, or with no login, so its request counts but names no one
 	let requested = pr.reviewRequests.nodes
 		.map(node => node.requestedReviewer)
 		.filter(reviewer => reviewer?.__typename !== "Bot");
 	let asked = requested.map(reviewer => reviewer?.login).filter(Boolean);
 	let answered = actor => human(actor) && !asked.includes(actor.login);
-	let reviewed = [...pr.latestReviews.nodes, ...pr.latestOpinionatedReviews.nodes].some(
-		review => review.state !== "DISMISSED" && human(review.author),
-	);
+	// A dismissed review counts: its reviewer is asked again below
+	let reviewed = [...pr.latestReviews.nodes, ...pr.latestOpinionatedReviews.nodes].some(review =>
+		human(review.author));
 
 	if (requested.length === 0 && !reviewed) {
 		return { name: "request-review", whose: "author", since: null };
@@ -350,12 +350,17 @@ function turn (pr, user) {
 		};
 	}
 
-	if (changes.length > 0) {
+	// A dismissed review no longer counts, so its reviewer is asked again, as after changes pushed since a request
+	let dismissed = pr.latestReviews.nodes.filter(
+		review => review.state === "DISMISSED" && answered(review.author),
+	);
+	let again = [...changes, ...dismissed];
+	if (again.length > 0) {
 		return {
 			name: "re-request",
 			whose: "author",
-			logins: changes.map(login),
-			since: oldest(changes.map(review => review.submittedAt)),
+			logins: again.map(login),
+			since: oldest(again.map(review => review.submittedAt)),
 		};
 	}
 
@@ -386,15 +391,17 @@ function turn (pr, user) {
 	}
 
 	if (requested.length > 0) {
+		// A team’s request matches the latest event that names no one either
 		let requestedAt = login =>
-			pr.timelineItems.nodes.findLast(event => event.requestedReviewer?.login === login)
-				?.createdAt;
+			pr.timelineItems.nodes.findLast(
+				event => (event.requestedReviewer?.login ?? null) === login,
+			)?.createdAt;
 		return {
 			name: "waiting",
 			whose: "others",
 			logins: asked,
 			count: requested.length,
-			since: oldest(asked.map(requestedAt)),
+			since: oldest(requested.map(reviewer => requestedAt(reviewer?.login ?? null))),
 		};
 	}
 
