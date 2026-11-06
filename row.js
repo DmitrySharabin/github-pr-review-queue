@@ -7,7 +7,7 @@
  * @property {Summary} summary
  * @property {HTMLTableRowElement} tr
  */
-import { size, withLabel } from "./pull-request.js";
+import { size, sum, withLabel } from "./pull-request.js";
 import { showTime } from "./time.js";
 import { plural } from "./plural.js";
 
@@ -288,24 +288,49 @@ function showReviewers (cell, reviewers) {
 	cell.append(list);
 }
 
+/** A diff’s figures, e.g. “+1,200 −30” */
+function showFigures (figures, { additions, deletions }) {
+	figures.querySelector(".added").textContent = `+${additions.toLocaleString("en")}`;
+	figures.querySelector(".deleted").textContent = `−${deletions.toLocaleString("en")}`;
+}
+
 function showDiff (cell, diff) {
 	if (!diff) {
 		cell.textContent = "";
 		return;
 	}
 
+	let total = diff.ignored && sum([diff, diff.ignored]);
+
 	// Re-requested with no new commits, or a PR with no changed lines at all
-	if (size(diff) === 0) {
+	if (size(total ?? diff) === 0) {
 		cell.textContent = "No changes";
 		return;
 	}
 
 	let link = cell.querySelector("a");
+	let figures = cell.querySelector(".figures");
 	link.href = diff.url;
-	cell.querySelector(".added").textContent = `+${diff.additions.toLocaleString("en")}`;
-	cell.querySelector(".deleted").textContent = `−${diff.deletions.toLocaleString("en")}`;
+	showFigures(figures, diff);
 	cell.querySelector(".diffstat").style =
 		`--additions: ${diff.additions}; --deletions: ${diff.deletions}`;
+
+	// The lines of every file, ignored ones too, under those of the rest, e.g. “+650 −32 total”.
+	// Without a split, e.g. in a sum of commits, the figures are the total already
+	let word = Object.assign(document.createElement("span"), {
+		className: "total",
+		textContent: "total",
+	});
+	if (diff.ignored === null) {
+		cell.classList.add("unsplit");
+		link.append(word);
+	}
+	else if (total && size(diff.ignored) > 0) {
+		let all = figures.cloneNode(true);
+		all.classList.add("total");
+		showFigures(all, total);
+		link.append(all, " ", word);
+	}
 
 	if (diff.whole) {
 		cell.classList.add("whole");

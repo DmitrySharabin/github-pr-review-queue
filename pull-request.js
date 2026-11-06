@@ -6,6 +6,8 @@
  * @property {string} [range] - `base...head` to compare for an exact count, when the sum of commits is only an estimate
  * @property {string[]} [commits] - The commits to add up for the estimate, with {@link sizes}, until then no `additions` and `deletions`
  * @property {"unreviewed" | "force-pushed" | "older"} [whole] - Why the diff is the whole PR
+ * @property {Pick<Diff, "additions" | "deletions"> | null} [ignored] - With a pattern of ignored files, their lines, which `additions` and `deletions` leave out.
+ * `null` when they can’t be told apart, e.g. in a sum of commits, so `additions` and `deletions` count every file
  *
  * @typedef {"reviewer" | "author"} Role - Whose view of the PRs: `user` reviews them, or wrote them
  *
@@ -14,6 +16,7 @@
  * @property {string} user
  * @property {Role | null} [role]
  * @property {string | null} [filter] - Narrows the search further, e.g. `label:foo -label:bar`
+ * @property {string | null} [files] - A regular expression for the paths of files whose lines count apart, e.g. `test|\.lock$`
  *
  * @typedef {object} Reviewer
  * @property {string} name - The login
@@ -57,6 +60,18 @@
 export function search ({ repo, user, role, filter }) {
 	let qualifier = role === "author" ? "author" : "review-requested";
 	return `repo:${repo} is:pr is:open ${qualifier}:${user} ${filter ?? ""}`.trim();
+}
+
+/**
+ * The regular expression a view’s `files` spells, e.g. `/test|\.lock$/` for `test|\.lock$`.
+ * @param {string | null} [files]
+ * @returns {RegExp | undefined} None for no pattern, or for one that isn’t a regular expression, e.g. `test(`
+ */
+export function pattern (files) {
+	try {
+		return files ? new RegExp(files) : undefined;
+	}
+	catch {}
 }
 
 /**
@@ -136,10 +151,10 @@ export function query ({ repo, user, role, filter }) {
 
 /**
  * GraphQL query for the rest of what {@link summarize} needs, for a few PRs. These fields are the slow ones.
- * @param {{ user: string, role?: Role | null, ids: string[] }} options
+ * @param {{ user: string, role?: Role | null, files?: string | null, ids: string[] }} options
  * @returns {string}
  */
-export function details ({ user, role, ids }) {
+export function details ({ user, role, files, ids }) {
 	// A reviewer needs their own reviews, to count what changed since. An author needs what decides whose turn it is, see turn()
 	let fields =
 		role === "author"
@@ -151,6 +166,13 @@ export function details ({ user, role, ids }) {
 			: `reviews(author: ${JSON.stringify(user)}, states: [APPROVED, CHANGES_REQUESTED, COMMENTED, DISMISSED], last: 100) {
 				nodes { submittedAt author { login } commit { oid } }
 			}`;
+
+	// Only to tell ignored files apart, since they slow the query, e.g. 3.1 s instead of 1.4 s for 30 PRs.
+	// `filename`, as a comparison names it, so split() reads both
+	if (files && role !== "author") {
+		fields += `
+			files(first: 100) { totalCount nodes { filename: path additions deletions } }`;
+	}
 
 	// NOTE: Gets only the last 100 commits, review requests and conversations of each PR, the last 100 reviews of a reviewer, and 20 other reviewers
 	return `query {
@@ -196,9 +218,10 @@ export function sizes (ids) {
  * @param {object} pr - A node from {@link query}, with the fields from {@link details} once they arrive
  * @param {string} user - The reviewer’s or the author’s login
  * @param {Role | null} [role]
+ * @param {RegExp} [ignore] - The paths of files whose lines count apart, see {@link Diff}’s `ignored`
  * @returns {Summary}
  */
-export function summarize (pr, user, role) {
+export function summarize (pr, user, role, ignore) {
 	let summary = {
 		number: pr.number,
 		title: pr.title,
@@ -216,12 +239,12 @@ export function summarize (pr, user, role) {
 	return {
 		...summary,
 		reviewers: others,
-		...(role === "author" ? forAuthor(pr, user, others) : forReviewer(pr, user)),
+		...(role === "author" ? forAuthor(pr, user, others) : forReviewer(pr, user, ignore)),
 	};
 }
 
 /** What a reviewer sees of a PR: what is left to review, and since when it waits for them. */
-function forReviewer (pr, user) {
+function forReviewer (pr, user, ignore) {
 	let isUser = login => isLogin(login, user);
 	// A reviewer whom no pending request names found the PR through a team, whose requests need the read:org scope.
 	// Then the user’s requests in the timeline are older ones, answered by a review or withdrawn.
@@ -248,6 +271,15 @@ function forReviewer (pr, user) {
 	let exact = last && since.indexOf(last) === own.length - 1;
 
 	let diff = { additions: pr.additions, deletions: pr.deletions, url: `${pr.url}/changes` };
+	if (ignore) {
+		// NOTE: A PR of over 100 files counts them all, as no split can tell ignored ones apart
+		Object.assign(
+			diff,
+			pr.files && pr.files.totalCount === pr.files.nodes.length
+				? split(pr.files.nodes, ignore)
+				: { ignored: null },
+		);
+	}
 
 	return {
 		diff,
@@ -265,6 +297,7 @@ function forReviewer (pr, user) {
 						...(own.length > 0
 							? { commits: own.map(commit => commit.id) }
 							: { additions: 0, deletions: 0 }),
+						...(ignore && own.length > 0 && { ignored: null }),
 						url: `${pr.url}/changes/${reviewed}..${commits.at(-1).oid}`,
 						range: exact ? `${reviewed}...${last.oid}` : undefined,
 					},
@@ -489,6 +522,17 @@ export function sum (diffs) {
 	}
 
 	return total;
+}
+
+/**
+ * The lines of these files, the ones whose paths match `ignore` apart, e.g. of a comparison or of a PR’s {@link details}.
+ * @param {{ filename: string, additions: number, deletions: number }[]} files
+ * @param {RegExp} ignore
+ * @returns {Pick<Diff, "additions" | "deletions" | "ignored">}
+ */
+export function split (files, ignore) {
+	let ignored = files.filter(file => ignore.test(file.filename));
+	return { ...sum(files.filter(file => !ignored.includes(file))), ignored: sum(ignored) };
 }
 
 /**

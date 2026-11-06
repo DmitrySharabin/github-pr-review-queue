@@ -96,6 +96,7 @@
 			</div>
 			<input type="hidden" name="role">
 			<input type="hidden" name="filter">
+			<input type="hidden" name="files">
 			<button>Show queue</button>
 		</form>
 
@@ -109,6 +110,7 @@
 						<input type="hidden" name="user">
 						<input type="hidden" name="role">
 						<input type="hidden" name="filter">
+						<input type="hidden" name="files">
 						<button class="apply" aria-label="Show queue"></button>
 						<button class="cancel" type="reset" aria-label="Cancel"></button>
 					</form>
@@ -129,6 +131,7 @@
 						<input type="hidden" name="repo">
 						<input type="hidden" name="role">
 						<input type="hidden" name="filter">
+						<input type="hidden" name="files">
 						<button class="apply" aria-label="Show queue"></button>
 						<button class="cancel" type="reset" aria-label="Cancel"></button>
 					</form>
@@ -144,16 +147,32 @@
 			</div>
 		</dl>
 
+		<!-- Each field takes its name from its summary, which names it once -->
 		<details id="narrow" hidden>
-			<summary>Filter <code></code></summary>
+			<summary><span id="filter-name">Filter</span> <code></code></summary>
 			<form>
 				<input type="hidden" name="repo">
 				<input type="hidden" name="user">
 				<input type="hidden" name="role">
-				<label>Search terms <input name="filter" type="search" placeholder="label:foo -label:bar" autocomplete="off" spellcheck="false" aria-describedby="filter-note"></label>
+				<input type="hidden" name="files">
+				<input name="filter" type="search" placeholder="label:foo -label:bar" autocomplete="off" spellcheck="false" aria-labelledby="filter-name" aria-describedby="filter-note">
 				<button>Apply</button>
-				<a class="clear" hidden>Clear filter</a>
+				<a class="clear" hidden>Clear</a>
 				<small id="filter-note">Any <a href="https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests" target="_blank">GitHub search terms</a>, such as labels, or words in the title with <code>in:title</code></small>
+			</form>
+		</details>
+
+		<details id="ignored" hidden>
+			<summary><span id="files-name">Ignore files</span> <code></code></summary>
+			<form>
+				<input type="hidden" name="repo">
+				<input type="hidden" name="user">
+				<input type="hidden" name="role">
+				<input type="hidden" name="filter">
+				<input name="files" type="search" placeholder="test|\.lock$" autocomplete="off" spellcheck="false" aria-labelledby="files-name" aria-describedby="files-note">
+				<button>Apply</button>
+				<a class="clear" hidden>Clear</a>
+				<small id="files-note">A regular expression that matches any part of a file path, such as <code>test|\.lock$</code></small>
 			</form>
 		</details>
 
@@ -164,7 +183,7 @@
 					<tr>
 						<th scope="col">Pull request</th>
 						<th scope="col" class="step"><button commandfor="queue" command="--sort" value="step">Next step</button></th>
-						<th scope="col" class="diff"><button commandfor="queue" command="--sort" value="diff">All changes</button></th>
+						<th scope="col" class="diff"><button commandfor="queue" command="--sort" value="diff">Changes</button></th>
 						<th scope="col" class="since-review"><button commandfor="queue" command="--sort" value="diffSinceReview">Changes since last review</button></th>
 						<th scope="col" class="iterations"><button commandfor="queue" command="--sort" value="iterations">Iterations</button></th>
 						<th scope="col" aria-sort="descending"><button commandfor="queue" command="--sort" value="waitingSince" data-author="Waiting" data-reviewer="Requested"></button></th>
@@ -214,8 +233,8 @@
 					</div>
 				</th>
 				<td class="step"></td>
-				<td class="diff"><a target="_blank"><span class="added"></span> <span class="deleted"></span> <span class="diffstat" aria-hidden="true"></span></a></td>
-				<td class="since-review"><a target="_blank"><span class="added"></span> <span class="deleted"></span> <span class="diffstat" aria-hidden="true"></span><span class="force-pushed" role="img" aria-label="Force-pushed" hidden></span></a></td>
+				<td class="diff"><a target="_blank"><span class="figures"><span class="added"></span> <span class="deleted"></span></span> <span class="diffstat" aria-hidden="true"></span></a></td>
+				<td class="since-review"><a target="_blank"><span class="figures"><span class="added"></span> <span class="deleted"></span></span> <span class="diffstat" aria-hidden="true"></span><span class="force-pushed" role="img" aria-label="Force-pushed" hidden></span></a></td>
 				<td class="iterations"></td>
 				<td class="requested"><time></time></td>
 				<td class="reviewers"></td>

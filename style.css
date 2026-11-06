@@ -454,7 +454,7 @@ button {
 #refresh,
 #sign-out,
 #sign-in > button,
-:is(#repo-form, #token-form, #narrow form) > button {
+:is(#repo-form, #token-form, #narrow form, #ignored form) > button {
 	min-block-size: var(--control-size);
 	padding-inline: 1em;
 	border-radius: var(--control-radius);
@@ -475,7 +475,7 @@ button {
 #refresh,
 #sign-out,
 #token-form button,
-#narrow button {
+:is(#narrow, #ignored) button {
 	background: color-mix(in oklch, var(--text) 8%, var(--surface));
 	color: var(--text);
 
@@ -865,7 +865,8 @@ hgroup {
 	}
 }
 
-#narrow {
+/* The filter, and the files whose lines count apart */
+:is(#narrow, #ignored) {
 	margin-block-end: 1rem;
 
 	/* The content fades with the turning chevron. content-visibility keeps it on screen while it fades out */
@@ -939,11 +940,6 @@ hgroup {
 		border-radius: var(--radius);
 	}
 
-	label {
-		flex: 1;
-		align-items: center;
-	}
-
 	input[type="search"] {
 		flex: 1;
 		min-inline-size: 16ch;
@@ -960,6 +956,11 @@ hgroup {
 			color: var(--text);
 		}
 	}
+}
+
+/* One group of two lines, closer to each other than to the table. Their margins collapse to 1rem − 0.5rem */
+#narrow + #ignored {
+	margin-block-start: -0.5rem;
 }
 
 #token-form {
@@ -1458,6 +1459,60 @@ tbody td {
 
 	tr.stale > & {
 		opacity: 0.4;
+	}
+}
+
+/* The figures over the lines of every file, e.g. “+650 −32 total”, in one column, so their right edges meet.
+   The word goes under the diffstat, the push icon after it */
+td:is(.diff, .since-review) a {
+	display: inline-grid;
+	grid-template-columns: repeat(3, auto);
+	align-items: center;
+
+	.figures {
+		grid-area: 1 / 1;
+		justify-self: end;
+
+		&.total {
+			grid-row: 2;
+		}
+	}
+
+	.diffstat {
+		grid-area: 1 / 2;
+	}
+
+	.force-pushed {
+		grid-area: 1 / 3;
+	}
+}
+
+.total {
+	margin-block-start: 0.15em;
+	color: var(--muted);
+	font-size: 0.8em;
+
+	:is(.added, .deleted) {
+		color: inherit;
+	}
+
+	/* Where the diffstat starts */
+	&:not(.figures) {
+		grid-area: 2 / 2;
+		justify-self: start;
+		margin-inline-start: calc(0.3em / 0.8);
+	}
+}
+
+/* The figures count ignored files too, so they are the total, and no diffstat stands for the rest */
+.unsplit {
+	.diffstat {
+		display: none;
+	}
+
+	.total {
+		grid-row: 1;
+		margin-block-start: 0;
 	}
 }
 

@@ -8,6 +8,7 @@ import {
 	hasLabel,
 	isLogin,
 	outdated,
+	pattern,
 	query,
 	search,
 	summarize,
@@ -32,6 +33,7 @@ let tokenForm = document.querySelector("#token-form");
 let skeletonTemplate = document.querySelector("#skeleton");
 let repoForm = document.querySelector("#repo-form");
 let narrow = document.querySelector("#narrow");
+let ignored = document.querySelector("#ignored");
 let empty = document.querySelector("#empty");
 let strip = document.querySelector("#summary");
 let header = document.querySelector("header");
@@ -40,11 +42,12 @@ let updated = document.querySelector("#updated time");
 let changes = document.querySelector("#updated .changes");
 let delta = strip.querySelector(".delta");
 let filterForm = narrow.querySelector("form");
-let forms = [repoForm, filterForm, ...strip.querySelectorAll("form")];
+let filesForm = ignored.querySelector("form");
+let forms = [repoForm, filterForm, filesForm, ...strip.querySelectorAll("form")];
 
 /** @type {Row[]} */
 let rows = [];
-/** The URL parameters of the load the rows show, e.g. `{ repo: "foo/bar", filter: "label:baz" }` */
+/** The URL parameters of the load the rows show, e.g. `{ repo: "foo/bar", filter: "label:baz", files: "test" }` */
 let shown;
 /** Whose queue the rows show, e.g. the signed-in user’s when the URL names no `user` */
 let shownUser;
@@ -158,10 +161,22 @@ for (let form of strip.querySelectorAll("form")) {
 	});
 }
 
-narrow.addEventListener("toggle", () => {
-	if (narrow.open) {
-		filterForm.elements.filter.focus();
-	}
+for (let [details, field] of [
+	[narrow, filterForm.elements.filter],
+	[ignored, filesForm.elements.files],
+]) {
+	details.addEventListener("toggle", () => {
+		if (details.open) {
+			field.focus();
+		}
+	});
+}
+
+// A pattern that isn’t a regular expression, e.g. `test(`, stops Apply with the browser’s message
+filesForm.elements.files.addEventListener("input", ({ target }) => {
+	target.setCustomValidity(
+		target.value && !pattern(target.value) ? "Enter a regular expression." : "",
+	);
 });
 
 refresh.addEventListener("click", () => {
@@ -197,6 +212,7 @@ function showView () {
 	let params = new URLSearchParams(location.search);
 	let role = params.get("role");
 	let filter = params.get("filter");
+	let files = params.get("files");
 
 	// As defaults, so a reset, e.g. Esc in a summary form, goes back to what the URL says
 	for (let form of forms) {
@@ -222,14 +238,18 @@ function showView () {
 		link.ariaCurrent = (link.dataset.role === "author") === (role === "author") ? "page" : null;
 	}
 
-	// The folded filter still shows what it filters by
-	narrow.querySelector("summary code").textContent = filter;
-
-	let unfiltered = new URLSearchParams(params);
-	unfiltered.delete("filter");
-	let clear = narrow.querySelector(".clear");
-	clear.href = `?${unfiltered}`;
-	clear.hidden = !filter;
+	// Folded, each still shows its value. Clear opens the view without it
+	for (let [details, name, value] of [
+		[narrow, "filter", filter],
+		[ignored, "files", files],
+	]) {
+		details.querySelector("summary code").textContent = value;
+		let without = new URLSearchParams(params);
+		without.delete(name);
+		let clear = details.querySelector(".clear");
+		clear.href = `?${without}`;
+		clear.hidden = !value;
+	}
 
 	if (params.get("repo")) {
 		return load();
@@ -254,10 +274,13 @@ async function load () {
 	// A missing parameter means its default, e.g. no `user` is the signed-in user. A repeated one counts once, as in the forms
 	let params = new URLSearchParams(location.search);
 	let view = Object.fromEntries(
-		["repo", "user", "role", "filter"].map(name => [name, params.get(name)]),
+		["repo", "user", "role", "filter", "files"].map(name => [name, params.get(name)]),
 	);
 	let { repo, role, filter } = view;
-	let sameQueue = ["repo", "user", "role"].every(name => view[name] === shown?.[name]);
+	// NOTE: A pattern that isn’t a regular expression, e.g. typed into the URL, ignores nothing
+	let ignore = role === "author" ? undefined : pattern(view.files);
+	// Another pattern counts every PR’s lines anew, so its rows are another queue’s
+	let sameQueue = ["repo", "user", "role", "files"].every(name => view[name] === shown?.[name]);
 	let sameView = sameQueue && filter === shown.filter;
 
 	// Without the marks, a row with nothing new equals its next render, so it stays and keeps focus
@@ -373,7 +396,7 @@ async function load () {
 			let row = previous.get(pr.id) ?? {};
 			row.pr = pr;
 			// Without details the summary has no slow fields, so a refreshed row keeps its old ones, dimmed, until they arrive
-			fill(row, { ...row.summary, ...summarize(pr, user, role) });
+			fill(row, { ...row.summary, ...summarize(pr, user, role, ignore) });
 
 			// A range left means its comparison failed, so the next load tries again.
 			// The details are checked against their own copy. A load stopped before they came, e.g. by a label click, already replaced `pr`.
@@ -397,7 +420,7 @@ async function load () {
 			showProgress(task, 0, stale.length);
 		}
 
-		let failed = await fillDetails(stale, task, { ...view, user }, signal);
+		let failed = await fillDetails(stale, task, { ...view, user }, ignore, signal);
 		signal.throwIfAborted();
 		sort(rows, { animate: true });
 		showSummary({ ...view, user });
@@ -468,10 +491,11 @@ async function load () {
  * @param {Row[]} stale
  * @param {string} task - What the progress bar counts, e.g. “rechecked” on a refresh
  * @param {View} view - The load’s, with the user it is for
+ * @param {RegExp | undefined} ignore - The paths of files whose lines count apart
  * @param {AbortSignal} signal - The load’s
  * @returns {Promise<PromiseRejectedResult | undefined>} The first failure, if any
  */
-async function fillDetails (stale, task, { repo, user, role }, signal) {
+async function fillDetails (stale, task, { repo, user, role, files }, ignore, signal) {
 	let done = 0;
 	// GitHub stops a query that runs too long, so each asks for a few PRs
 	let size = 10;
@@ -481,7 +505,7 @@ async function fillDetails (stale, task, { repo, user, role }, signal) {
 	let results = await Promise.allSettled(
 		batches.map(async batch => {
 			let prs = await nodes(
-				ids => details({ user, role, ids }),
+				ids => details({ user, role, files: ignore && files, ids }),
 				batch.map(row => row.pr.id),
 				signal,
 			);
@@ -500,8 +524,8 @@ async function fillDetails (stale, task, { repo, user, role }, signal) {
 
 					let row = batch.find(row => row.pr.id === pr.id);
 
-					let summary = summarize({ ...row.pr, ...pr }, user, role);
-					await count(repo, summary.diffSinceReview, signal);
+					let summary = summarize({ ...row.pr, ...pr }, user, role, ignore);
+					await count(repo, summary.diffSinceReview, signal, ignore);
 					// A newer load may have started during the count
 					if (signal.aborted) {
 						return;
@@ -512,7 +536,7 @@ async function fillDetails (stale, task, { repo, user, role }, signal) {
 					if (row.tr.classList.contains("stale")) {
 						unmark(row.tr);
 					}
-					fill(row, { ...summary, ...summarize(row.pr, user, role) });
+					fill(row, { ...summary, ...summarize(row.pr, user, role, ignore) });
 					row.detailed = row.pr;
 					showProgress(task, ++done, stale.length);
 				}),
@@ -536,6 +560,8 @@ function showQueue ({ repo, user, role, filter }) {
 	repoForm.hidden = true;
 	// Nothing to narrow down, unless a filter is why nothing is left. Open, it may hold focus, e.g. on Apply after the terms were cleared
 	narrow.hidden = rows.length === 0 && !filter && !narrow.open;
+	// An author’s view counts no lines
+	ignored.hidden = role === "author" || (rows.length === 0 && !ignored.open);
 	// The status names the progress bar, so it says “Loading” until there is nothing left to load
 	if (rows.length === 0) {
 		showEmpty({ repo, user, role, filter });
@@ -565,6 +591,7 @@ function showSkeleton ({ repo, user, role, filter }) {
 	empty.hidden = true;
 	repoForm.hidden = true;
 	narrow.hidden = false;
+	ignored.hidden = role === "author";
 }
 
 /** Hide the queue and what goes around it, e.g. for the sign-in card or the form after a failed load. */
@@ -573,6 +600,7 @@ function hideQueue () {
 	table.parentElement.hidden = true;
 	empty.hidden = true;
 	narrow.hidden = true;
+	ignored.hidden = true;
 }
 
 /** Name things after the role, since an author sees their own PRs, e.g. “Awaiting review” becomes “Open”, and show the role’s columns. */

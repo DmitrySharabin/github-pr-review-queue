@@ -10,6 +10,7 @@ It runs in the browser, with no build step and no server of its own.
 - **What is new for you**: each PR shows only the changes since your last review, so a re-review starts where you left off.
 - **Review history**: how many times you were asked again, when you were last asked, and what the other reviewers did.
 - **Labels and filters**: narrow the queue by a label with one click, or by any GitHub search terms.
+- **Ignored files**: count the lines of tests or lockfiles apart, so each size shows the code left to read, with the total under it.
 - **Sorting** by any column but the pull request. The page remembers your choice for each view.
 - **What changed since the last refresh**: new PRs and changed values stay marked, and a counter shows how many PRs came and went.
 - **Fast start**: the last queue shows at once on the next visit, while the fresh one loads.
@@ -37,6 +38,12 @@ The PRs in `foo/bar` that wait for your review:
 http://localhost:8123/?repo=foo/bar
 ```
 
+The PRs that wait for your review, with tests and lockfiles counted apart:
+
+```
+http://localhost:8123/?repo=foo/bar&files=test|\.lock$
+```
+
 The PRs that wait for `baz`’s review, without the `bar` label:
 
 ```
@@ -57,6 +64,7 @@ http://localhost:8123/?repo=foo/bar&role=author
 | `user` | No | Whose queue to show. Defaults to you. |
 | `role` | No | `author` shows the PRs `user` wrote. Without it, the page shows the PRs that wait for `user`’s review. |
 | `filter` | No | More [GitHub search terms](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests), e.g. `label:foo -label:bar` or words from the title. |
+| `files` | No | A regular expression for the paths of files to ignore, e.g. `test\|\.lock$`. The sizes count their lines only in the total. A size that adds up commits, or a pull request of over 100 files, shows only the total. Not in the author view. |
 
 You can change the repo, the user and the view above the table too.
 

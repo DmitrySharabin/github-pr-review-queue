@@ -199,7 +199,7 @@ test("A sort chosen while the bars show keeps them, and sorts the rows that repl
 	await page.goto("/?repo=foo/bar");
 	await expect(page.locator("#queue tr.skeleton").first()).toBeVisible();
 
-	await page.getByRole("button", { name: "All changes" }).click();
+	await page.getByRole("button", { name: "Changes", exact: true }).click();
 	await expect(page.locator("#queue tr.skeleton").first()).toBeVisible();
 	resolve();
 

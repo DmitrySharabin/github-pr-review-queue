@@ -1,6 +1,7 @@
+/** @import { Diff } from "./pull-request.js" */
 // The commit is also in index.html, which preloads the modules this one imports
 import GithubAPI from "https://cdn.jsdelivr.net/gh/madatajs/madata@063fc247b1a03924c836d74ea2f3d8fdc86ded2c/backends/github/api/github-api.js";
-import { sizes, sum } from "./pull-request.js";
+import { sizes, split, sum } from "./pull-request.js";
 
 export let github = new GithubAPI("https://api.github.com/graphql");
 
@@ -71,8 +72,14 @@ function inTime (signal) {
 	return AbortSignal.any([signal, AbortSignal.timeout(20_000)]);
 }
 
-/** Count a diff that summarize() left uncounted, if any. An author’s summary has none. One with a range to compare counts exactly, others by the sizes of their commits. */
-export async function count (repo, diff, signal) {
+/**
+ * Count a diff that summarize() left uncounted, if any. An author’s summary has none. One with a range to compare counts exactly, others by the sizes of their commits.
+ * @param {string} repo
+ * @param {Diff} [diff]
+ * @param {AbortSignal} signal - The load’s
+ * @param {RegExp} [ignore] - The paths of files whose lines a comparison counts apart. The sizes of commits can’t
+ */
+export async function count (repo, diff, signal, ignore) {
 	if (diff?.range) {
 		try {
 			let { files } = await github.request(
@@ -85,7 +92,7 @@ export async function count (repo, diff, signal) {
 			delete diff.range;
 			// GitHub lists at most 300 files, so a comparison of 300 may leave some out
 			if (files.length < 300) {
-				Object.assign(diff, sum(files));
+				Object.assign(diff, ignore ? split(files, ignore) : sum(files));
 				delete diff.commits;
 				return;
 			}

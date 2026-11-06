@@ -189,3 +189,118 @@ test("A review after the user’s request still counts when the next request cam
 	// The answered request isn’t what the PR waits on
 	await expect(row(page, "A").locator("time")).toHaveText("—");
 });
+
+test.describe("Ignored files", () => {
+	/** A PR’s changed files, as its details list them, e.g. `files({ "src/a.js": 10 })` for +10 −0. */
+	function files (lines, totalCount = Object.keys(lines).length) {
+		return {
+			files: {
+				totalCount,
+				nodes: Object.entries(lines).map(([filename, additions]) => ({
+					filename,
+					additions,
+					deletions: 0,
+				})),
+			},
+		};
+	}
+
+	test("A PR’s cell counts the files the pattern doesn’t match, with every file’s total under them", async ({
+		page,
+		github,
+	}) => {
+		detail(github, { A: files({ "src/a.js": 10, "test/a.test.js": 500 }) });
+		await page.goto("/?repo=foo/bar&files=test");
+
+		let cell = row(page, "A").locator(".diff");
+		await expect(cell.locator(".figures").first()).toHaveText("+10 −0");
+		await expect(cell.locator(".figures.total")).toHaveText("+510 −0");
+	});
+
+	test("The lines left to review sort the column, not the total", async ({ page, github }) => {
+		// A is mostly tests, B has more code to read
+		detail(github, {
+			A: files({ "src/a.js": 10, "test/a.test.js": 500 }),
+			B: files({ "src/b.js": 300 }),
+		});
+		await page.goto("/?repo=foo/bar&files=test");
+		await expect(page.locator("progress")).toBeHidden();
+
+		await page.getByRole("button", { name: "Changes", exact: true }).click();
+
+		// C–F have no files, so they count every line and sort apart
+		let numbers = page.locator("#queue tbody .number").filter({ hasText: /#6[56]/ });
+		await expect(numbers).toHaveText(["#66", "#65"]);
+	});
+
+	test("Without a pattern, the details don’t ask for files, which slow them down", async ({
+		page,
+		github,
+	}) => {
+		let queries = [];
+		page.on("request", request => {
+			if (request.url().endsWith("/graphql")) {
+				queries.push(request.postData());
+			}
+		});
+		await page.goto("/?repo=foo/bar");
+		await expect(page.locator("progress")).toBeHidden();
+
+		expect(queries.some(query => query.includes("files("))).toBe(false);
+	});
+
+	test("A comparison counts the changes since the review apart from the ignored files", async ({
+		page,
+		github,
+	}) => {
+		detail(github, {
+			A: { commits: commits(["L", "N"]), reviews: { nodes: [review("L")] } },
+		});
+		github.compare = answer => {
+			answer.files = [
+				{ filename: "src/a.js", additions: 5, deletions: 1 },
+				{ filename: "package-lock.json", additions: 900, deletions: 40 },
+			];
+		};
+		await page.goto(`/?repo=foo/bar&files=${encodeURIComponent("lock")}`);
+
+		let cell = row(page, "A").locator(".since-review");
+		await expect(cell.locator(".figures").first()).toHaveText("+5 −1");
+		await expect(cell.locator(".figures.total")).toHaveText("+905 −41");
+	});
+
+	test("A PR of over 100 files shows only its total, since the files left out can’t be told apart", async ({
+		page,
+		github,
+	}) => {
+		detail(github, { A: files({ "src/a.js": 10, "test/a.test.js": 500 }, 101) });
+		await page.goto("/?repo=foo/bar&files=test");
+
+		let cell = row(page, "A").locator(".diff");
+		await expect(cell).toHaveClass(/unsplit/);
+		// The PR’s own count of every file
+		await expect(cell).toHaveText("+650 −2 total");
+	});
+
+	test("A pattern that isn’t a regular expression stops Apply", async ({ page, github }) => {
+		await page.goto("/?repo=foo/bar");
+		await page.locator("#ignored summary").click();
+		let field = page.getByRole("searchbox", { name: "Ignore files" });
+
+		await field.fill("test(");
+
+		expect(await field.evaluate(input => input.validity.valid)).toBe(false);
+	});
+
+	test("Clear opens the queue without the pattern, and keeps the filter", async ({
+		page,
+		github,
+	}) => {
+		await page.goto("/?repo=foo/bar&filter=label:bug&files=test");
+		await page.locator("#ignored summary").click();
+
+		await page.locator("#ignored").getByRole("link", { name: "Clear" }).click();
+
+		await expect(page).toHaveURL(/\?repo=foo%2Fbar&filter=label%3Abug$/);
+	});
+});
