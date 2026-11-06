@@ -88,3 +88,19 @@ test("A review of a commit before the last 100 isn’t called a force push", asy
 		/older than the last 100 commits/,
 	);
 });
+
+test("A comparison of 300 files, as many as GitHub lists, gives way to the sizes of the commits", async ({
+	page,
+	github,
+}) => {
+	detail(github, {
+		A: { commits: { nodes: [commit("L"), commit("N")] }, reviews: { nodes: [review("L")] } },
+	});
+	github.compare = answer => {
+		answer.files = Array(300).fill({ additions: 1, deletions: 0 });
+	};
+	await page.goto("/?repo=foo/bar");
+
+	// N’s own size
+	await expect(row(page, "A").locator(".since-review")).toContainText("+780");
+});

@@ -75,18 +75,20 @@ function inTime (signal) {
 export async function count (repo, diff, signal) {
 	if (diff.range) {
 		try {
-			// NOTE: GitHub lists at most 300 files in a comparison
 			let { files } = await github.request(
 				`https://api.github.com/repos/${repo}/compare/${diff.range}`,
 				{},
 				"GET",
 				{ signal: inTime(signal) },
 			);
-			Object.assign(diff, sum(files));
-			// Exact now, so a later load of the unchanged PR needn’t compare again
-			delete diff.range;
-			delete diff.commits;
-			return;
+			// GitHub lists at most 300 files, so a comparison of 300 may leave some out
+			if (files.length < 300) {
+				Object.assign(diff, sum(files));
+				// Exact now, so a later load of the unchanged PR needn’t compare again
+				delete diff.range;
+				delete diff.commits;
+				return;
+			}
 		}
 		catch (error) {
 			signal.throwIfAborted();
