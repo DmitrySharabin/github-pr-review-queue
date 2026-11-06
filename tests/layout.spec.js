@@ -9,8 +9,11 @@ async function starts (page, github, selector) {
 
 	let { promise, resolve } = Promise.withResolvers();
 	github.search = () => promise;
-	// As in a real reviewer queue, every PR waits for DmitrySharabin. A wait time is wider than the dash of no request
+	// As in a real reviewer queue, every PR waits for DmitrySharabin. A wait time is wider than the dash of no request.
+	// A test’s own `github.details` still runs, e.g. to add reviewers
+	let { details } = github;
 	github.details = answer => {
+		details(answer);
 		for (let pr of answer.data.nodes) {
 			pr.timelineItems.nodes = [
 				{
@@ -44,6 +47,18 @@ test("On a phone, where titles wrap, columns stay put when the rows replace the 
 	github,
 }) => {
 	await page.setViewportSize({ width: 375, height: 812 });
+
+	let [before, after] = await starts(page, github, "#queue thead th");
+
+	expect(after).toEqual(before);
+});
+
+test("Columns stay put when a PR’s many reviewers arrive", async ({ page, github }) => {
+	github.details = answer => {
+		answer.data.nodes[0].reviewRequests.nodes = Array.from({ length: 12 }, (_, i) => ({
+			requestedReviewer: { login: `user${i}`, avatarUrl: `https://github.com/user${i}.png` },
+		}));
+	};
 
 	let [before, after] = await starts(page, github, "#queue thead th");
 

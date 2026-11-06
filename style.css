@@ -1230,6 +1230,14 @@ td.diff {
 	min-inline-size: 13ch;
 }
 
+/* Room for four reviewers, who arrive after the rows. More wrap, as on GitHub, since a wider cell would squeeze the titles */
+td.reviewers {
+	--avatar: 1.5rem;
+	--gap: 0.4em;
+
+	min-inline-size: calc(4 * var(--avatar) + 3 * var(--gap));
+}
+
 thead {
 	position: sticky;
 	inset-block-start: 0;
@@ -1585,7 +1593,10 @@ tbody td {
 /* Avatars with a badge for what each did */
 .reviewers ul {
 	display: flex;
-	gap: 0.4em;
+	flex-wrap: wrap;
+	/* Five reviewers make 3 + 2, not 4 + 1 */
+	flex-wrap: balance;
+	gap: var(--gap);
 	justify-content: end;
 	margin: 0;
 	padding: 0;
@@ -1603,7 +1614,7 @@ tbody td {
 	}
 
 	img {
-		inline-size: 1.5rem;
+		inline-size: var(--avatar);
 		block-size: auto;
 		border-radius: 50%;
 		background: var(--rule);
