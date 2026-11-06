@@ -144,6 +144,9 @@ function detailed (id) {
 		latestReviews: { nodes: [] },
 		latestOpinionatedReviews: { nodes: [] },
 		mergeable: "MERGEABLE",
+		isInMergeQueue: false,
+		autoMergeRequest: null,
+		repository: { viewerPermission: "WRITE" },
 		statusCheckRollup: null,
 		reviewThreads: { nodes: [] },
 	};

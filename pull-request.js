@@ -39,6 +39,7 @@
  * @property {string} avatar - The author’s avatar URL
  * @property {Label[]} labels
  * @property {Date} [opened] - When the PR was opened, in the author’s view, where it says that instead of by whom
+ * @property {boolean} [draft] - Whether the PR is a draft, in the author’s view, where an icon says so in place of the avatar
  * @property {Step} [step] - What the PR waits for, in the author’s view
  * @property {Diff} [diff] - The whole PR
  * @property {Diff} [diffSinceReview] - What the user has left to review, or the whole PR when that is unknown
@@ -48,7 +49,7 @@
  * The optional ones are `undefined` until {@link details} arrive.
  *
  * @typedef {object} Step - Whose turn a PR is, and what they have to do
- * @property {"draft" | "request-review" | "resolve-conflicts" | "fix-checks" | "make-changes" | "re-request" | "reply" | "approved" | "waiting" | "checks-running"} name
+ * @property {"draft" | "request-review" | "await-review" | "resolve-conflicts" | "fix-checks" | "make-changes" | "re-request" | "reply" | "waiting" | "queued" | "auto-merge" | "checks-running" | "approved" | "await-merge"} name
  * @property {"author" | "others" | "nobody"} whose
  * @property {string[]} [logins] - The reviewers it names, e.g. those who requested the changes
  * @property {number} [count] - How many conversations to reply to, or reviews to wait for
@@ -161,7 +162,9 @@ export function details ({ user, role, files, ids }) {
 	// A reviewer needs their own reviews, to count what changed since. An author needs what decides whose turn it is, see turn()
 	let fields =
 		role === "author"
-			? `mergeable
+			? `mergeable isInMergeQueue
+			autoMergeRequest { enabledAt }
+			repository { viewerPermission }
 			statusCheckRollup { state }
 			reviewThreads(last: 100) {
 				nodes { isResolved comments(last: 1) { nodes { createdAt url author { __typename login } } } }
@@ -235,6 +238,7 @@ export function summarize (pr, user, role, ignore) {
 	};
 	if (role === "author") {
 		summary.opened = new Date(pr.createdAt);
+		summary.draft = pr.isDraft;
 	}
 
 	if (!pr.commits) {
@@ -358,7 +362,15 @@ function forAuthor (pr, user, others) {
 }
 
 /** Whose turn each step is, where it isn’t the author’s */
-const whose = { draft: "nobody", waiting: "others", "checks-running": "others" };
+const whose = {
+	draft: "nobody",
+	"await-review": "others",
+	waiting: "others",
+	queued: "others",
+	"auto-merge": "others",
+	"checks-running": "others",
+	"await-merge": "others",
+};
 
 /**
  * What a PR’s author or others have to do next, from {@link details} for its author. One step per PR, the first of these that applies.
@@ -382,6 +394,10 @@ function turn (pr, user) {
 		return { name: "draft" };
 	}
 
+	// Only people with write access can request reviewers or merge, so an author without it waits for a maintainer.
+	// NOTE: The permission is the signed-in user’s, so someone else’s view shows the steps as if that user wrote the PRs
+	let maintains = ["WRITE", "MAINTAIN", "ADMIN"].includes(pr.repository.viewerPermission);
+
 	// A team the token can’t see comes as `null`, or with no login, so its request counts but names no one
 	let requested = pr.reviewRequests.nodes
 		.map(node => node.requestedReviewer)
@@ -391,8 +407,12 @@ function turn (pr, user) {
 	// Everyone who reviewed has a latest review, a dismissed one too. Its reviewer is asked again below
 	let reviewed = pr.latestReviews.nodes.some(review => human(review.author));
 
+	// NOTE: A PR marked ready for review after it was opened waits since then, not since it was opened
 	if (requested.length === 0 && !reviewed) {
-		return { name: "request-review" };
+		return {
+			name: maintains ? "request-review" : "await-review",
+			since: new Date(pr.createdAt),
+		};
 	}
 
 	// UNKNOWN, while GitHub still computes it, counts as no conflict. The next Refresh asks again
@@ -408,8 +428,9 @@ function turn (pr, user) {
 	let opinions = pr.latestOpinionatedReviews.nodes.filter(review => unasked(review.author));
 	let changes = opinions.filter(review => review.state === "CHANGES_REQUESTED");
 	let unchanged = changes.filter(review => !pushedSince(pr, review.commit?.oid));
+	// Links to a review that asks for the changes, as GitHub has no page to make them on
 	if (unchanged.length > 0) {
-		return naming("make-changes", unchanged);
+		return { ...naming("make-changes", unchanged), url: unchanged[0].url };
 	}
 
 	// A dismissed review no longer counts, so its reviewer is asked again, as after changes pushed since a request
@@ -448,18 +469,27 @@ function turn (pr, user) {
 		};
 	}
 
-	// Never “ready to merge”. Without reviewDecision, which is slow to ask for, the app can’t tell how many approvals the repo requires.
-	let approvals = opinions.filter(review => review.state === "APPROVED");
-	if (approvals.length > 0) {
-		// Back with the author since the last of them approved
-		return {
-			name: "approved",
-			since: new Date(Math.max(...approvals.map(review => new Date(review.submittedAt)))),
-		};
+	if (pr.isInMergeQueue) {
+		return { name: "queued" };
 	}
 
+	if (pr.autoMergeRequest) {
+		return { name: "auto-merge", since: new Date(pr.autoMergeRequest.enabledAt) };
+	}
+
+	// Before an approval, since GitHub merges only once the checks pass
 	if (checks === "PENDING" || checks === "EXPECTED") {
-		return { name: "checks-running", url: `${pr.url}/checks` };
+		return { name: "checks-running" };
+	}
+
+	// NOTE: Without reviewDecision, which is slow to ask for, the app can’t tell how many approvals the repo requires, so GitHub may still refuse the merge
+	let approvals = opinions.filter(review => review.state === "APPROVED");
+	if (approvals.length > 0) {
+		// Waits since the last of them approved
+		return {
+			name: maintains ? "approved" : "await-merge",
+			since: new Date(Math.max(...approvals.map(review => new Date(review.submittedAt)))),
+		};
 	}
 
 	// Reviewers who only commented, e.g. after the author replied to their conversations

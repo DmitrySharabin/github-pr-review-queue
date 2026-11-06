@@ -6,7 +6,7 @@ It runs in the browser, with no build step and no server of its own.
 ## Features at a glance
 
 - **Your review queue**: the open PRs in one repo that wait for your review, or for anyone else’s.
-- **Your own PRs**: switch to the author view to see whose turn each of your open PRs is, what to do next, how long it has waited, and which approvals came before your last commit.
+- **Your own PRs**: switch to the author view to see whose turn each of your open PRs is, what to do next, with a button to the place on GitHub where you do it, how long it has waited, and which approvals came before your last commit.
 - **What is new for you**: each PR shows only the changes since your last review, so a re-review starts where you left off.
 - **Review history**: how many times you were asked again, when you were last asked, and what the other reviewers did.
 - **Labels and filters**: narrow the queue by a label with one click, or by any GitHub search terms.

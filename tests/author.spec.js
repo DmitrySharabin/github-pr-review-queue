@@ -148,8 +148,8 @@ test.describe("Next step", () => {
 		});
 		await page.goto("/?repo=foo/bar&role=author");
 
-		await expect(step(page, "A")).toHaveText("Re-request @reviewer’s review");
-		await expect(step(page, "B")).toHaveText("Make the changes @reviewer requested");
+		await expect(step(page, "A")).toHaveText("Re-request review");
+		await expect(step(page, "B")).toHaveText("Make changes");
 	});
 
 	test("Conversations count only where the author has yet to reply and the reviewer isn’t asked again", async ({
@@ -199,8 +199,55 @@ test.describe("Next step", () => {
 		});
 		await page.goto("/?repo=foo/bar&role=author");
 
-		await expect(step(page, "A")).toHaveText("Approved");
+		await expect(step(page, "A")).toHaveText("Merge pull request");
 		await expect(step(page, "B")).toHaveText("Waiting for @other-user");
+	});
+
+	test("An author without write access can’t request reviews or merge, so a maintainer has the turn", async ({
+		page,
+		github,
+	}) => {
+		let reader = { repository: { viewerPermission: "READ" } };
+		detail(github, {
+			A: reader,
+			B: { ...reviewed([review("reviewer", "APPROVED")]), ...reader },
+		});
+		await page.goto("/?repo=foo/bar&role=author");
+
+		await expect(step(page, "A")).toHaveText("Waiting for a review");
+		await expect(step(page, "B")).toHaveText("Waiting for a maintainer to merge");
+		await expect(page.locator("#summary .turns")).toHaveText("4");
+	});
+
+	test("An approved PR whose checks still run waits for them, since GitHub merges only once they pass", async ({
+		page,
+		github,
+	}) => {
+		detail(github, {
+			A: {
+				...reviewed([review("reviewer", "APPROVED")]),
+				statusCheckRollup: { state: "PENDING" },
+			},
+		});
+		await page.goto("/?repo=foo/bar&role=author");
+
+		await expect(step(page, "A")).toHaveText("Checks are running");
+	});
+
+	test("A PR in the merge queue or set to merge automatically waits for GitHub, not the author", async ({
+		page,
+		github,
+	}) => {
+		let approved = reviewed([review("reviewer", "APPROVED")]);
+		detail(github, {
+			A: { ...approved, isInMergeQueue: true },
+			B: { ...approved, autoMergeRequest: { enabledAt: ago(2) } },
+		});
+		await page.goto("/?repo=foo/bar&role=author");
+
+		await expect(step(page, "A")).toHaveText("Queued to merge");
+		await expect(step(page, "B")).toHaveText("Auto-merge enabled");
+		await expect(row(page, "B").locator(".requested time")).toHaveText("2 days");
 	});
 
 	test("A dismissed review comes before an approval, since it no longer counts and needs asking again", async ({
@@ -216,7 +263,7 @@ test.describe("Next step", () => {
 		});
 		await page.goto("/?repo=foo/bar&role=author");
 
-		await expect(step(page, "A")).toHaveText("Re-request @reviewer’s review");
+		await expect(step(page, "A")).toHaveText("Re-request review");
 	});
 
 	test("A request to a team the token can’t see waits for the team, from when it was asked", async ({
@@ -301,8 +348,9 @@ test.describe("Next step", () => {
 		});
 		await page.goto("/?repo=foo/bar&role=author");
 
-		await expect(step(page, "A")).toHaveText(
-			"Make the changes @other-user and @third-user requested",
+		await expect(step(page, "A").getByRole("link")).toHaveAttribute(
+			"href",
+			"https://github.com/foo/bar/pull/1#review-other-user",
 		);
 	});
 
@@ -315,7 +363,7 @@ test.describe("Next step", () => {
 		});
 		await page.goto("/?repo=foo/bar&role=author");
 
-		await expect(step(page, "A")).toHaveText("Re-request @reviewer’s review");
+		await expect(step(page, "A")).toHaveText("Re-request review");
 	});
 
 	test("A reviewer who only commented, with nothing left to answer, is the author’s to ask again", async ({
@@ -325,7 +373,7 @@ test.describe("Next step", () => {
 		detail(github, { A: reviewed([review("reviewer", "COMMENTED")]) });
 		await page.goto("/?repo=foo/bar&role=author");
 
-		await expect(step(page, "A")).toHaveText("Re-request @reviewer’s review");
+		await expect(step(page, "A")).toHaveText("Re-request review");
 	});
 
 	test("A draft is no one’s turn, whatever else it lacks", async ({ page, github }) => {
@@ -335,38 +383,32 @@ test.describe("Next step", () => {
 		detail(github, { A: { mergeable: "CONFLICTING" } });
 		await page.goto("/?repo=foo/bar&role=author");
 
-		await expect(step(page, "A")).toHaveText("Draft");
+		await expect(step(page, "A")).toHaveText("Ready for review");
+		await expect(step(page, "A").locator(".quiet")).toBeVisible();
 	});
 
-	test("Only the author’s turn is in bold", async ({ page, github }) => {
-		detail(github, { B: asked(["reviewer"]) });
-		await page.goto("/?repo=foo/bar&role=author");
-
-		await expect(step(page, "A").locator("strong")).toHaveText("Request a review");
-		await expect(step(page, "B").locator("strong")).toHaveCount(0);
-	});
-
-	test("Checks link to the PR’s checks, where the author sees which fail or still run", async ({
+	test("Only the author’s steps are buttons, since others’ steps leave the author nothing to do", async ({
 		page,
 		github,
 	}) => {
-		detail(github, {
-			A: { ...asked(["reviewer"]), statusCheckRollup: { state: "FAILURE" } },
-			B: {
-				...reviewed([review("reviewer", "COMMENTED")]),
-				statusCheckRollup: { state: "PENDING" },
-			},
-		});
+		detail(github, { B: asked(["reviewer"]) });
 		await page.goto("/?repo=foo/bar&role=author");
 
-		for (let id of "AB") {
-			await expect(step(page, id).getByRole("link")).toHaveAttribute(
-				"href",
-				"https://github.com/foo/bar/pull/1/checks",
-			);
-		}
-		// A link stays in bold when the step is the author’s
-		await expect(step(page, "A").locator("strong a")).toHaveText("Fix failing checks");
+		await expect(step(page, "A").getByRole("link")).toHaveAccessibleName("Request a review");
+		await expect(step(page, "B").getByRole("link")).toHaveCount(0);
+	});
+
+	test("Failing checks link to the PR’s checks, where the author sees which fail", async ({
+		page,
+		github,
+	}) => {
+		detail(github, { A: { ...asked(["reviewer"]), statusCheckRollup: { state: "FAILURE" } } });
+		await page.goto("/?repo=foo/bar&role=author");
+
+		await expect(step(page, "A").getByRole("link")).toHaveAttribute(
+			"href",
+			"https://github.com/foo/bar/pull/1/checks",
+		);
 	});
 
 	test("A reply links to the first conversation that waits for it", async ({ page, github }) => {
@@ -396,7 +438,7 @@ test.describe("Next step", () => {
 		);
 	});
 
-	test("A step done on the PR’s page doesn’t link, since its title already does, nor do changes its reviewer’s avatar links to", async ({
+	test("A step done in the PR’s merge box or sidebar links to the PR, since GitHub has no deeper link", async ({
 		page,
 		github,
 	}) => {
@@ -406,14 +448,30 @@ test.describe("Next step", () => {
 		detail(github, {
 			B: { ...asked(["reviewer"]), mergeable: "CONFLICTING" },
 			C: reviewed([review("reviewer", "APPROVED")]),
-			D: asked(["reviewer"]),
-			E: reviewed([review("reviewer", "CHANGES_REQUESTED")]),
+			D: reviewed([review("reviewer", "COMMENTED")]),
 		});
 		await page.goto("/?repo=foo/bar&role=author");
 
-		await expect(step(page, "E")).toHaveText("Make the changes @reviewer requested");
-		await expect(page.locator("#queue .step a")).toHaveCount(0);
+		for (let id of "ABCDF") {
+			await expect(step(page, id).getByRole("link")).toHaveAttribute(
+				"href",
+				"https://github.com/foo/bar/pull/1",
+			);
+		}
 	});
+});
+
+test("A draft has GitHub’s draft icon in place of an open PR’s, apart from its labels", async ({
+	page,
+	github,
+}) => {
+	github.search = answer => {
+		answer.data.search.nodes[0].isDraft = true;
+	};
+	await page.goto("/?repo=foo/bar&role=author");
+
+	await expect(row(page, "A").getByRole("img", { name: "Draft" })).toBeVisible();
+	await expect(row(page, "B").getByRole("img", { name: "Draft" })).toHaveCount(0);
 });
 
 test("An author’s PR says when it was opened, not by whom, since all of them are theirs", async ({
@@ -440,6 +498,18 @@ test("Waiting shows how long the PR waits for its step, and nothing for a step n
 
 	await expect(row(page, "A").locator(".requested time")).toHaveText("20 days");
 	await expect(row(page, "B").locator(".requested time")).toHaveText("—");
+});
+
+test("A PR no one was asked to review waits for a request since it was opened", async ({
+	page,
+	github,
+}) => {
+	github.search = answer => {
+		answer.data.search.nodes[0].createdAt = ago(9);
+	};
+	await page.goto("/?repo=foo/bar&role=author");
+
+	await expect(row(page, "A").locator(".requested time")).toHaveText("9 days");
 });
 
 test("Waiting counts from the oldest pending request, each reviewer’s latest", async ({

@@ -31,21 +31,16 @@ const reviewerPhrases = {
 	commented: "commented",
 };
 
-const people = new Intl.ListFormat("en");
-
-/** What each step of an author’s PR says, keyed by its `name`, e.g. “Waiting for @reviewer” */
+/** What each step of an author’s PR says, keyed by its `name`. The author’s steps say what GitHub’s own buttons do, e.g. “Ready for review” */
 const stepPhrases = {
-	draft: () => "Draft",
+	draft: () => "Ready for review",
 	"request-review": () => "Request a review",
+	"await-review": () => "Waiting for a review",
 	"resolve-conflicts": () => "Resolve conflicts",
 	"fix-checks": () => "Fix failing checks",
-	"make-changes": ({ logins }) => `Make the changes ${mentions(logins)} requested`,
-	"re-request": ({ logins }) =>
-		logins.length === 1
-			? `Re-request @${logins[0]}’s review`
-			: `Re-request reviews from ${mentions(logins)}`,
+	"make-changes": () => "Make changes",
+	"re-request": ({ logins }) => (logins.length > 1 ? "Re-request reviews" : "Re-request review"),
 	reply: ({ count }) => `Reply to ${count} ${plural("conversation", count)}`,
-	approved: () => "Approved",
 	// A request to a team names no one
 	waiting: ({ logins, count }) =>
 		count > 1
@@ -53,7 +48,11 @@ const stepPhrases = {
 			: logins.length > 0
 				? `Waiting for @${logins[0]}`
 				: "Waiting for a team review",
+	queued: () => "Queued to merge",
+	"auto-merge": () => "Auto-merge enabled",
 	"checks-running": () => "Checks are running",
+	approved: () => "Merge pull request",
+	"await-merge": () => "Waiting for a maintainer to merge",
 };
 
 /** How many labels a row shows before a button for the rest */
@@ -166,6 +165,7 @@ function render ({
 	avatar,
 	labels,
 	opened,
+	draft,
 	step,
 	diff,
 	diffSinceReview,
@@ -187,11 +187,19 @@ function render ({
 		showTime(tr.querySelector(".opened time"), opened);
 	}
 	tr.querySelector(".avatar img").src = avatar;
+	// As in GitHub’s list of pull requests, where a draft’s icon differs from an open PR’s
+	if (draft) {
+		let kind = tr.querySelector(".kind");
+		kind.classList.add("draft");
+		kind.role = "img";
+		kind.ariaLabel = "Draft";
+		kind.removeAttribute("aria-hidden");
+	}
 	for (let profile of tr.querySelectorAll(".avatar, .author")) {
 		profile.href = `https://github.com/${author}`;
 	}
 
-	showStep(tr.querySelector(".step"), step);
+	showStep(tr.querySelector(".step"), step, url);
 	showDiff(tr.querySelector(".diff"), diff);
 	showDiff(tr.querySelector(".since-review"), diffSinceReview);
 	tr.classList.toggle("totals", Boolean(tr.querySelector(".total:not([hidden])")));
@@ -256,27 +264,28 @@ function showAllLabels (element) {
 	element.querySelector(".labels .more")?.parentElement.remove();
 }
 
-/** The step, in bold when it is the author’s turn, and a link to where to do it. */
-function showStep (cell, step) {
-	let text = step && stepPhrases[step.name](step);
-	if (step?.url) {
-		text = Object.assign(document.createElement("a"), {
-			href: step.url,
-			target: "_blank",
-			textContent: text,
-		});
+/**
+ * The step: text when others have the turn, else a button to where the author does it on GitHub, the PR’s page unless the step names another.
+ * A draft’s button is quieter, since a draft waits for no one, e.g. “Ready for review”.
+ */
+function showStep (cell, step, url) {
+	if (!step) {
+		return;
 	}
-	if (step?.whose === "author") {
-		let strong = document.createElement("strong");
-		strong.append(text);
-		text = strong;
-	}
-	cell.append(text ?? "");
-}
 
-/** Logins as GitHub mentions them, e.g. “@foo and @bar” */
-function mentions (logins) {
-	return people.format(logins.map(login => `@${login}`));
+	let text = stepPhrases[step.name](step);
+	if (step.whose === "others") {
+		cell.append(text);
+		return;
+	}
+
+	let link = Object.assign(document.createElement("a"), {
+		href: step.url ?? url,
+		target: "_blank",
+		className: step.whose === "nobody" ? "action quiet" : "action",
+		textContent: text,
+	});
+	cell.append(link);
 }
 
 function showReviewers (cell, reviewers) {
