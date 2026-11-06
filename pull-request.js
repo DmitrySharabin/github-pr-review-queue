@@ -233,7 +233,7 @@ export function summarize (pr, user, role) {
 						...diff,
 						whole: !review
 							? "unreviewed"
-							: pr.commits.totalCount > commits.length
+							: reviewed && pr.commits.totalCount > commits.length
 								? "older"
 								: "force-pushed",
 					}

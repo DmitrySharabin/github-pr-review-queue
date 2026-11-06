@@ -63,8 +63,12 @@ test("A review of a commit GitHub no longer has counts the whole PR, as after a 
 	page,
 	github,
 }) => {
+	// Over 100 commits, so the commit isn’t merely older than the last 100
 	detail(github, {
-		A: { commits: { nodes: [commit("N")] }, reviews: { nodes: [review(null)] } },
+		A: {
+			commits: { totalCount: 101, nodes: [commit("N")] },
+			reviews: { nodes: [review(null)] },
+		},
 	});
 	await page.goto("/?repo=foo/bar");
 
