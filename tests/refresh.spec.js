@@ -335,3 +335,22 @@ test("A refresh marks a row whose other reviewer approved, though avatars are al
 		"#65 by ghost changed",
 	]);
 });
+
+test("A refresh keeps the sort of its own tab, though another tab saved a different one", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	await page.getByRole("button", { name: "Iterations" }).click();
+	await expect(page.locator("progress")).toBeHidden();
+
+	await page.evaluate(() =>
+		localStorage.setItem(
+			"review-queue:sort",
+			JSON.stringify({ column: "diff", direction: "descending" }),
+		));
+	await page.getByRole("button", { name: "Refresh" }).click();
+	await expect(page.locator("progress")).toBeHidden();
+
+	await expect(page.locator("#queue th[aria-sort]")).toHaveText("Iterations");
+});

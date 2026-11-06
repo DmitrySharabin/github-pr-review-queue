@@ -11,9 +11,9 @@ const turns = { author: 2, others: 1, nobody: 0 };
 
 /** Sort value of each column. `null` and `undefined` (still loading) sort last in both directions. */
 const sortKeys = {
-	// Within a turn, the longest wait first, and steps that wait for nothing, e.g. a conflict, after those that do
+	// Within a turn, the longest wait first. A step that waits for nothing, e.g. a conflict, counts as asked in 2255, after every real wait
 	step: summary =>
-		summary.step && turns[summary.step.whose] * 1e13 - (summary.waitingSince ?? Date.now()),
+		summary.step && turns[summary.step.whose] * 1e13 - (summary.waitingSince ?? 9e12),
 	diff: summary => summary.diff && size(summary.diff),
 	diffSinceReview: summary => summary.diffSinceReview && size(summary.diffSinceReview),
 	iterations: summary => summary.iterations,
@@ -27,14 +27,20 @@ const roles = {
 };
 
 /** The role whose sort shows, see {@link showSort} */
-let shown = roles.reviewer;
+let shown;
 
 /**
  * Mark the sort a role last chose, which survives a reload, e.g. { column: "diff", direction: "ascending" }.
+ * Only a role switch reads it again: another load keeps this tab’s sort, which another tab may have saved over.
  * @param {Role | null} [role]
  */
 export function showSort (role) {
-	shown = role === "author" ? roles.author : roles.reviewer;
+	let next = role === "author" ? roles.author : roles.reviewer;
+	if (next === shown) {
+		return;
+	}
+
+	shown = next;
 	markSort(
 		JSON.parse(localStorage.getItem(shown.key)) ?? {
 			column: shown.column,
