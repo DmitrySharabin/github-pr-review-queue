@@ -136,8 +136,8 @@ test("A size with its total under it leaves its row as tall as the bars", async 
 			pr.files = {
 				totalCount: 2,
 				nodes: [
-					{ filename: "src/a.js", additions: 10, deletions: 0 },
-					{ filename: "test/a.test.js", additions: 500, deletions: 0 },
+					{ path: "src/a.js", additions: 10, deletions: 0 },
+					{ path: "test/a.test.js", additions: 500, deletions: 0 },
 				],
 			};
 		}
@@ -162,17 +162,17 @@ test("On a phone, the ring of a focused name too long for its cell stays inside 
 
 	await link.focus();
 
-	// Whichever draws the ring, the link or the cell that scrolls it, e.g. `{ ring: 330, cell: 342 }`
-	let { ring, cell } = await link.evaluate(link => {
-		let owner = [link, link.parentElement].find(
-			element => getComputedStyle(element).outlineStyle !== "none",
-		);
+	// Whichever draws the ring, the link or the cell that scrolls it, against the edge the cell clips at, e.g. `{ ring: 342, edge: 346 }`
+	let { ring, edge } = await link.evaluate(link => {
+		let cell = link.parentElement;
+		let owner = [link, cell].find(element => getComputedStyle(element).outlineStyle !== "none");
+		let { left } = cell.getBoundingClientRect();
 		return {
 			ring: owner.getBoundingClientRect().right,
-			cell: link.closest("#summary > div").getBoundingClientRect().right,
+			edge: left + cell.clientLeft + cell.clientWidth,
 		};
 	});
-	expect(ring).toBeLessThanOrEqual(cell);
+	expect(ring).toBeLessThanOrEqual(edge);
 });
 
 test("The field that edits the user is as tall as the name it replaces, so the strip doesn’t move", async ({
@@ -215,4 +215,48 @@ test("The ring of the field that edits the user stays inside the cell that scrol
 		};
 	});
 	expect(ring.top >= box.top && ring.bottom <= box.bottom).toBe(true);
+});
+
+test("A total sits under the figures it adds to, not over them", async ({ page, github }) => {
+	github.details = answer => {
+		for (let pr of answer.data.nodes) {
+			pr.files = {
+				totalCount: 2,
+				nodes: [
+					{ path: "src/a.js", additions: 10, deletions: 0 },
+					{ path: "test/a.test.js", additions: 500, deletions: 0 },
+				],
+			};
+		}
+	};
+	await page.goto("/?repo=foo/bar&files=test");
+
+	let cell = page.locator("#queue tbody tr").first().locator(".diff");
+	await expect(cell.locator(".total")).toBeVisible();
+	let [figures, total] = await Promise.all(
+		[cell.locator(".figures").first(), cell.locator(".total")].map(part => part.boundingBox()),
+	);
+	expect(total.y).toBeGreaterThanOrEqual(figures.y + figures.height - 1);
+});
+
+test("The ring of a focused count hugs the count, not the change beside it", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	let count = page.locator("#summary .count");
+	await expect(count).toHaveText("6");
+
+	await count.focus();
+
+	// Whichever draws a ring, the count or its cell, which holds the change too, e.g. `{ ring: 12, count: 12 }`
+	let { ring, width } = await count.evaluate(count => ({
+		ring: Math.max(
+			...[count, count.parentElement]
+				.filter(element => getComputedStyle(element).outlineStyle !== "none")
+				.map(element => element.getBoundingClientRect().width),
+		),
+		width: count.getBoundingClientRect().width,
+	}));
+	expect(ring).toBeLessThanOrEqual(width);
 });

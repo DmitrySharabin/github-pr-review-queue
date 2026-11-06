@@ -196,8 +196,8 @@ test.describe("Exclude from counts", () => {
 		return {
 			files: {
 				totalCount,
-				nodes: Object.entries(lines).map(([filename, additions]) => ({
-					filename,
+				nodes: Object.entries(lines).map(([path, additions]) => ({
+					path,
 					additions,
 					deletions: 0,
 				})),
@@ -292,7 +292,9 @@ test.describe("Exclude from counts", () => {
 		await page.goto("/?repo=foo/bar&files=test");
 
 		// N’s own size
-		await expect(row(page, "A").locator(".since-review")).toHaveText("+780 −2 total");
+		await expect(row(page, "A").locator(".since-review")).toHaveText("+780 −2 total", {
+			useInnerText: true,
+		});
 	});
 
 	test("Another pattern counts the files anew", async ({ page, github }) => {
@@ -317,9 +319,19 @@ test.describe("Exclude from counts", () => {
 
 		let cell = row(page, "A").locator(".diff");
 		// The PR’s own count of every file, with no diffstat that would stand for the rest
-		await expect(cell).toHaveText("+650 −2 total");
+		await expect(cell).toHaveText("+650 −2 total", { useInnerText: true });
 		await expect(cell.locator(".diffstat")).toBeHidden();
-		// One line: the word names the figures beside it
+	});
+
+	test("A total alone sits on one line with its word, which names the figures beside it", async ({
+		page,
+		github,
+	}) => {
+		detail(github, { A: files({ "src/a.js": 10, "test/a.test.js": 500 }, 101) });
+		await page.goto("/?repo=foo/bar&files=test");
+
+		let cell = row(page, "A").locator(".diff");
+		await expect(cell.locator("small")).toBeVisible();
 		let [figures, word] = await Promise.all(
 			[cell.locator(".figures"), cell.locator("small")].map(part => part.boundingBox()),
 		);
@@ -333,7 +345,11 @@ test.describe("Exclude from counts", () => {
 
 		await field.fill("test(");
 
-		expect(await field.evaluate(input => input.validity.valid)).toBe(false);
+		// The message the browser shows on Apply
+		await expect(field).toHaveJSProperty(
+			"validationMessage",
+			"Enter a valid regular expression.",
+		);
 	});
 
 	test("A pattern the URL brings back after an invalid one can be applied", async ({
@@ -348,6 +364,7 @@ test.describe("Exclude from counts", () => {
 		// The role switch resets the field to the URL’s `test`, firing no input event
 		await page.getByRole("link", { name: "Author" }).click();
 		await page.getByRole("link", { name: "Reviewer" }).click();
+		await expect(field).toHaveValue("test");
 
 		expect(await field.evaluate(input => input.validity.valid)).toBe(true);
 	});
@@ -377,6 +394,103 @@ test.describe("Exclude from counts", () => {
 			.press("Enter");
 
 		await expect(page.getByRole("searchbox", { name: "Exclude from counts" })).toBeFocused();
+	});
+
+	test("The filter’s Clear leaves the focus in its emptied field too", async ({
+		page,
+		github,
+	}) => {
+		await page.goto("/?repo=foo/bar&filter=label:bug");
+		await page.locator("#narrow summary").click();
+
+		await page.locator("#narrow").getByRole("link", { name: "Clear filter" }).press("Enter");
+
+		await expect(page.getByRole("searchbox", { name: "Filter" })).toBeFocused();
+	});
+
+	test("A click on Clear leaves the field alone, so a phone opens no keyboard", async ({
+		page,
+		github,
+	}) => {
+		await page.goto("/?repo=foo/bar&files=test");
+		await page.locator("#ignored summary").click();
+
+		await page.locator("#ignored").getByRole("link", { name: "Clear exclusions" }).click();
+		await expect(page).toHaveURL(/\?repo=foo%2Fbar$/);
+
+		await expect(
+			page.getByRole("searchbox", { name: "Exclude from counts" }),
+		).not.toBeFocused();
+	});
+
+	test("A pattern that isn’t a regular expression, e.g. from the URL, leaves out no file", async ({
+		page,
+		github,
+	}) => {
+		detail(github, { A: files({ "src/a.js": 10, "test/a.test.js": 500 }) });
+		await page.goto(`/?repo=foo/bar&files=${encodeURIComponent("test(")}`);
+		await expect(page.locator("progress")).toBeHidden();
+
+		// The PR’s own count, on one line
+		await expect(row(page, "A").locator(".diff")).toHaveText("+650 −2", { useInnerText: true });
+	});
+
+	test("A PR whose every file is left out shows nothing left to read, over its total", async ({
+		page,
+		github,
+	}) => {
+		detail(github, { A: files({ "test/a.test.js": 500 }) });
+		await page.goto("/?repo=foo/bar&files=test");
+
+		await expect(row(page, "A").locator(".diff a")).toHaveAccessibleName(
+			"+0 −0 without excluded files, +500 −0 total",
+		);
+	});
+
+	test("A PR with no file left out shows one line, as without a pattern", async ({
+		page,
+		github,
+	}) => {
+		detail(github, { A: files({ "src/a.js": 10 }) });
+		await page.goto("/?repo=foo/bar&files=test");
+		await expect(page.locator("progress")).toBeHidden();
+
+		await expect(row(page, "A").locator(".diff")).toHaveText("+10 −0", { useInnerText: true });
+	});
+
+	test("Applying a filter keeps the pattern", async ({ page, github }) => {
+		await page.goto("/?repo=foo/bar&files=test");
+		await page.locator("#narrow summary").click();
+
+		await page.getByRole("searchbox", { name: "Filter" }).fill("label:bug");
+		await page.locator("#narrow").getByRole("button", { name: "Apply" }).click();
+
+		await expect(page).toHaveURL(/^(?=.*filter=label%3Abug)(?=.*files=test)/);
+	});
+
+	test("Applying a pattern keeps the filter", async ({ page, github }) => {
+		await page.goto("/?repo=foo/bar&filter=label:bug");
+		await page.locator("#ignored summary").click();
+
+		await page.getByRole("searchbox", { name: "Exclude from counts" }).fill("test");
+		await page.locator("#ignored").getByRole("button", { name: "Apply" }).click();
+
+		await expect(page).toHaveURL(/^(?=.*filter=label%3Abug)(?=.*files=test)/);
+	});
+
+	test("A pattern that isn’t a regular expression marks its field once the user leaves it", async ({
+		page,
+		github,
+	}) => {
+		await page.goto("/?repo=foo/bar&files=test");
+		await page.locator("#ignored summary").click();
+		let field = page.getByRole("searchbox", { name: "Exclude from counts" });
+		let valid = await field.evaluate(input => getComputedStyle(input).borderColor);
+
+		await field.fill("test(");
+		await field.press("Tab");
+
+		await expect(field).not.toHaveCSS("border-color", valid);
 	});
 
 	test("A total alone keeps the column’s edge, so its figures line up with the others", async ({

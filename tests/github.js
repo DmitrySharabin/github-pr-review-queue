@@ -67,6 +67,11 @@ export const test = base.extend({
 					};
 
 			let status = await (isSearch ? github.search : github.details)(answer);
+			// GitHub answers a field under the query’s alias for it, e.g. `filename: path`
+			let alias = query.match(/(\w+): path\b/)?.[1] ?? "path";
+			for (let file of answer.data?.nodes?.flatMap(pr => pr?.files?.nodes ?? []) ?? []) {
+				[file.path, file[alias]] = [undefined, file.path];
+			}
 			route.fulfill(failed(status) ?? { json: answer });
 		});
 

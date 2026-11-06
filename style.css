@@ -287,8 +287,8 @@ main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #upd
 		}
 
 		/* A link wider than the cell, e.g. a long user name on a phone, scrolls under its edge, and its ring with it.
-		   The cell draws the ring instead, around the part of the link it shows */
-		&:has(> a:focus-visible) {
+		   The cell draws the ring instead, around the part of the link it shows. Not the count’s, whose cell holds the delta too */
+		&:has(> :is(.repo, .user):focus-visible) {
 			/* No wider than the link, and no wider than the cell, whose margins give it 0.5rem */
 			inline-size: fit-content;
 			max-inline-size: calc(100% + 0.5rem);
@@ -298,7 +298,7 @@ main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #upd
 			outline-color: -webkit-focus-ring-color;
 			outline-offset: -0.25rem;
 
-			> a {
+			> :is(.repo, .user) {
 				outline: none;
 			}
 		}
@@ -627,7 +627,7 @@ form {
 		font: inherit;
 		font-weight: 400;
 
-		/* Past the browser’s bubble, e.g. a pattern that isn’t a regular expression */
+		/* Once the user leaves the field, e.g. with a pattern that isn’t a regular expression, until the value is fixed */
 		&:user-invalid {
 			border-color: var(--negative);
 		}
@@ -1519,8 +1519,8 @@ tbody td {
 /* The figures over the lines of every file, e.g. “+650 −32 total”, in one column, so their right edges meet.
    The word goes under the diffstat, the push icon after it */
 td:is(.diff, .since-review) a {
-	/* A margin and the width of the space that a grid drops before the diffstat */
-	--bar-gap: calc(0.3em + 0.25em);
+	/* Between the figures and the diffstat, where a grid keeps no space */
+	--bar-gap: 0.55em;
 
 	display: inline-grid;
 	grid-template-columns: repeat(3, auto);
