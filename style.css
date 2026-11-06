@@ -1661,9 +1661,12 @@ tbody td {
 	color: var(--negative);
 }
 
-/* GitHub’s diffstat: five squares split by the share of added, then deleted lines */
+/* GitHub’s diffstat: five squares split by the share of added, then deleted lines, each rounded down, and the rest neutral.
+   A diff under five lines gets a square per line, e.g. +1 −1 one added and one deleted */
 .diffstat {
-	--added: round(5 * var(--additions) / (var(--additions) + var(--deletions)));
+	--total: calc(var(--additions) + var(--deletions));
+	--added: min(var(--additions), round(down, 5 * var(--additions) / var(--total)));
+	--deleted: min(var(--deletions), round(down, 5 * var(--deletions) / var(--total)));
 
 	display: inline-block;
 	inline-size: calc(5 * 0.6em + 4px);
@@ -1672,7 +1675,8 @@ tbody td {
 	background: linear-gradient(
 		to right,
 		var(--positive) calc(var(--added) * 20%),
-		var(--negative) 0
+		var(--negative) 0 calc((var(--added) + var(--deleted)) * 20%),
+		var(--border) 0
 	);
 	/* Cuts the strip into squares with 1px gaps */
 	mask: repeating-linear-gradient(to right, black 0 calc(20% - 1px), transparent 0 20%);
