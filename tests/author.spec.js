@@ -248,6 +248,75 @@ test.describe("Next step", () => {
 		await expect(step(page, "A")).toHaveText("Waiting for 2 reviews");
 	});
 
+	test("A check that errs fails too, and one GitHub still expects is running", async ({
+		page,
+		github,
+	}) => {
+		let checks = state => ({ head: { nodes: [{ commit: { statusCheckRollup: { state } } }] } });
+		detail(github, {
+			A: { ...reviewed([review("reviewer", "COMMENTED")]), ...checks("ERROR") },
+			B: { ...reviewed([review("reviewer", "COMMENTED")]), ...checks("EXPECTED") },
+		});
+		await page.goto("/?repo=foo/bar&role=author");
+
+		await expect(step(page, "A")).toHaveText("Fix failing checks");
+		await expect(step(page, "B")).toHaveText("Checks are running");
+	});
+
+	test("A merge state GitHub hasn’t computed yet counts as no conflict", async ({
+		page,
+		github,
+	}) => {
+		detail(github, { A: { ...asked(["reviewer"]), mergeable: "UNKNOWN" } });
+		await page.goto("/?repo=foo/bar&role=author");
+
+		await expect(step(page, "A")).toHaveText("Waiting for @reviewer");
+	});
+
+	test("Only the reviewers whose reviewed code is still there wait for the author’s changes", async ({
+		page,
+		github,
+	}) => {
+		// The author pushed M after the review of L
+		detail(github, {
+			A: reviewed(
+				[
+					review("reviewer", "CHANGES_REQUESTED", { oid: "L" }),
+					review("other-user", "CHANGES_REQUESTED", { oid: "M" }),
+					review("third-user", "CHANGES_REQUESTED", { oid: "M" }),
+				],
+				["L", "M"],
+			),
+		});
+		await page.goto("/?repo=foo/bar&role=author");
+
+		await expect(step(page, "A")).toHaveText(
+			"Make the changes @other-user and @third-user requested",
+		);
+	});
+
+	test("Requested changes on code a force push removed are the reviewer’s to see again", async ({
+		page,
+		github,
+	}) => {
+		detail(github, {
+			A: reviewed([review("reviewer", "CHANGES_REQUESTED", { oid: "L" })], ["N"]),
+		});
+		await page.goto("/?repo=foo/bar&role=author");
+
+		await expect(step(page, "A")).toHaveText("Re-request @reviewer’s review");
+	});
+
+	test("A reviewer who only commented, with nothing left to answer, is the author’s to ask again", async ({
+		page,
+		github,
+	}) => {
+		detail(github, { A: reviewed([review("reviewer", "COMMENTED")]) });
+		await page.goto("/?repo=foo/bar&role=author");
+
+		await expect(step(page, "A")).toHaveText("Re-request @reviewer’s review");
+	});
+
 	test("A draft is no one’s turn, whatever else it lacks", async ({ page, github }) => {
 		github.search = answer => {
 			answer.data.search.nodes[0].isDraft = true;
@@ -281,6 +350,33 @@ test("Waiting shows how long the PR waits for its step, and nothing for a step n
 	await expect(row(page, "B").locator("time")).toHaveText("—");
 });
 
+test("Waiting counts from the oldest pending request, each reviewer’s latest", async ({
+	page,
+	github,
+}) => {
+	// reviewer was asked 30 days ago and again 5 days ago. other-user was asked 10 days ago
+	detail(github, {
+		A: {
+			timelineItems: {
+				nodes: [
+					{ createdAt: ago(30), requestedReviewer: person("reviewer") },
+					{ createdAt: ago(10), requestedReviewer: person("other-user") },
+					{ createdAt: ago(5), requestedReviewer: person("reviewer") },
+				],
+			},
+			reviewRequests: {
+				nodes: [
+					{ requestedReviewer: person("reviewer") },
+					{ requestedReviewer: person("other-user") },
+				],
+			},
+		},
+	});
+	await page.goto("/?repo=foo/bar&role=author");
+
+	await expect(row(page, "A").locator("time")).toHaveText("10 days");
+});
+
 test("The author’s turn sorts first, the longest wait first, and a draft last", async ({
 	page,
 	github,
@@ -288,11 +384,11 @@ test("The author’s turn sorts first, the longest wait first, and a draft last"
 	github.search = answer => {
 		answer.data.search.nodes[0].isDraft = true;
 	};
-	// B and C wait for the author, C longer. D and E wait for a reviewer, E longer
+	// B and C wait for the author, C longer. D has a conflict, which waits for nothing, so it follows them. E and F wait for a reviewer, E longer
 	detail(github, {
 		B: reviewed([review("reviewer", "CHANGES_REQUESTED", { days: 2 })]),
 		C: reviewed([review("reviewer", "CHANGES_REQUESTED", { days: 20 })]),
-		D: asked(["reviewer"], 1),
+		D: { ...asked(["reviewer"], 1), mergeable: "CONFLICTING" },
 		E: asked(["reviewer"], 30),
 		F: asked(["reviewer"], 10),
 	});
@@ -302,9 +398,9 @@ test("The author’s turn sorts first, the longest wait first, and a draft last"
 	await expect(page.locator("#queue tbody .number")).toHaveText([
 		"#67",
 		"#66",
+		"#68",
 		"#69",
 		"#70",
-		"#68",
 		"#65",
 	]);
 });
