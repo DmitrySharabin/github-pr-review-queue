@@ -19,7 +19,7 @@ const wholeTitles = {
 	unreviewed: "Not reviewed yet, so this counts the whole pull request",
 	"force-pushed":
 		"A force push removed the reviewed commit, so this counts the whole pull request",
-	older: "The reviewed commit is older than the last 100 commits, so this counts the whole pull request",
+	older: "The reviewed commit isn’t among the last 100 commits, so this counts the whole pull request",
 };
 
 /** What each other reviewer did, keyed by their `state` */

@@ -1662,7 +1662,7 @@ tbody td {
 }
 
 /* GitHub’s diffstat: five squares split by the share of added, then deleted lines, each rounded down, and the rest neutral.
-   A diff under five lines gets a square per line, e.g. +1 −1 one added and one deleted */
+   A diff under five lines gets a square per line, e.g. +1 −1 paints one green and one red */
 .diffstat {
 	--total: calc(var(--additions) + var(--deletions));
 	--added: min(var(--additions), round(down, 5 * var(--additions) / var(--total)));

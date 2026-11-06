@@ -89,7 +89,7 @@ test("A review of a commit before the last 100 isn’t called a force push", asy
 
 	await expect(row(page, "A").locator(".since-review a")).toHaveAttribute(
 		"title",
-		/older than the last 100 commits/,
+		/isn’t among the last 100 commits/,
 	);
 });
 
@@ -130,7 +130,7 @@ test("A refresh doesn’t compare 300 files again, since GitHub would list as ma
 	expect(compared).toBe(1);
 });
 
-test("A PR asked of the user’s team only shows no count of rounds, since the team’s requests are unknown", async ({
+test("A PR asked only of the user’s team shows no count of rounds, since the team’s requests are unknown", async ({
 	page,
 	github,
 }) => {
