@@ -498,11 +498,12 @@ button {
 	}
 }
 
-/* Secondary to the table it updates or filters, or to the sign-in */
+/* Secondary to the table it updates or filters, or to the sign-in, or to a step the author does */
 #refresh,
 #sign-out,
 #token-form button,
-:is(#narrow, #ignored) button {
+:is(#narrow, #ignored) button,
+#queue td.step a.action {
 	background: color-mix(in oklch, var(--text) 8%, var(--surface));
 	color: var(--text);
 
@@ -1272,6 +1273,7 @@ td:not(.requested) {
 
 	.kind {
 		display: block;
+		grid-row: span 2;
 		/* Centered on the title’s first line */
 		margin-block-start: calc((1lh - 1em) / 2);
 		inline-size: 1em;
@@ -1285,10 +1287,14 @@ td:not(.requested) {
 		background-color: var(--muted);
 		mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.25 1A2.25 2.25 0 0 1 4 5.372v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.251 2.251 0 0 1 3.25 1Zm9.5 14a2.25 2.25 0 1 1 0-4.5 2.25 2.25 0 0 1 0 4.5ZM2.5 3.25a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0ZM3.25 12a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm9.5 0a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5ZM14 7.5a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Zm0-4.25a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Z'/%3E%3C/svg%3E");
 	}
+}
 
-	/* Under the title, beside the icon’s column */
-	small {
-		grid-column: 2;
+/* Forced colors paint backgrounds as the page, which would hide icons drawn as a mask, e.g. the draft’s and the sort arrow */
+@media (forced-colors: active) {
+	#queue.author .pull-request .kind,
+	thead button::after {
+		forced-color-adjust: none;
+		background-color: CanvasText;
 	}
 }
 
@@ -1307,7 +1313,7 @@ td:not(.requested) {
 	line-height: 1.3;
 }
 
-/* A step the author does, as the app’s secondary buttons look, e.g. Refresh. It opens GitHub where GitHub’s own button does it.
+/* A step the author does, a button that opens GitHub where GitHub’s own button does it, smaller than the header’s.
    With the table’s id, to win over the links of the table body */
 #queue td.step {
 	a.action {
@@ -1316,8 +1322,6 @@ td:not(.requested) {
 		min-block-size: 2rem;
 		padding-inline: 0.85em;
 		border-radius: var(--control-radius);
-		background: color-mix(in oklch, var(--text) 8%, var(--surface));
-		color: var(--text);
 		font-size: 0.9em;
 		font-weight: 500;
 		white-space: nowrap;
@@ -1326,12 +1330,6 @@ td:not(.requested) {
 			scale 160ms var(--ease-out),
 			background-color 150ms ease;
 
-		@media (hover: hover) and (pointer: fine) {
-			&:hover {
-				background: color-mix(in oklch, var(--text) 14%, var(--surface));
-			}
-		}
-
 		@media (prefers-reduced-motion: no-preference) {
 			&:active {
 				scale: 0.97;
@@ -1339,17 +1337,15 @@ td:not(.requested) {
 		}
 	}
 
-	/* A draft’s step, which no one waits for */
+	/* A step no one waits for, e.g. a draft’s “Ready for review” */
 	a.quiet {
 		background: none;
 		box-shadow: inset 0 0 0 1px var(--border);
 		color: var(--muted);
 
-		@media (hover: hover) and (pointer: fine) {
-			&:hover {
-				background: color-mix(in oklch, var(--text) 4%, var(--surface));
-				color: var(--text);
-			}
+		&:hover {
+			background: color-mix(in oklch, var(--text) 4%, var(--surface));
+			color: var(--text);
 		}
 	}
 }

@@ -254,3 +254,24 @@ test("The ring of a focused count hugs the count, not the change beside it", asy
 	}));
 	expect(ring).toBeLessThanOrEqual(width);
 });
+
+test("A sorted header’s label ends where its column’s values end, with the arrow past it", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+
+	// Of the label’s text, since the button holds the arrow too
+	let label = await page.locator("#queue thead th[aria-sort] button").evaluate(button => {
+		let range = document.createRange();
+		range.selectNodeContents(button);
+		return Math.round(range.getBoundingClientRect().right);
+	});
+	let value = await page
+		.locator("#queue tbody td.requested time")
+		.first()
+		.evaluate(time => Math.round(time.getBoundingClientRect().right));
+
+	expect(label).toBe(value);
+});

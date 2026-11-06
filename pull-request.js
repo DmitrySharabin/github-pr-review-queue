@@ -49,9 +49,10 @@
  * The optional ones are `undefined` until {@link details} arrive.
  *
  * @typedef {object} Step - Whose turn a PR is, and what they have to do
- * @property {"draft" | "request-review" | "await-review" | "resolve-conflicts" | "fix-checks" | "make-changes" | "re-request" | "reply" | "waiting" | "queued" | "auto-merge" | "checks-running" | "approved" | "await-merge"} name
+ * @property {"draft" | "request-review" | "await-review" | "resolve-conflicts" | "fix-checks" | "make-changes" | "re-request" | "reply" | "waiting" | "queued" | "auto-merge" | "checks-running" | "approved" | "await-merge"} name -
+ * Stored with the queue, so a renamed step breaks queues stored before, e.g. `approved` for “Merge pull request”
  * @property {"author" | "others" | "nobody"} whose
- * @property {string[]} [logins] - The reviewers it names, e.g. those who requested the changes
+ * @property {string[]} [logins] - The reviewers it names, e.g. those to ask for a review again
  * @property {number} [count] - How many conversations to reply to, or reviews to wait for
  * @property {string} [url] - Where on GitHub to do it, unless on the PR’s own page, e.g. its checks
  */
@@ -361,6 +362,9 @@ function forAuthor (pr, user, others) {
 	};
 }
 
+/** GitHub’s repository roles, each with more access than the one before */
+const roles = ["READ", "TRIAGE", "WRITE", "MAINTAIN", "ADMIN"];
+
 /** Whose turn each step is, where it isn’t the author’s */
 const whose = {
 	draft: "nobody",
@@ -394,9 +398,9 @@ function turn (pr, user) {
 		return { name: "draft" };
 	}
 
-	// Only people with write access can request reviewers or merge, so an author without it waits for a maintainer.
+	// GitHub lets triage access request reviewers, and write access merge. An author without them waits for a maintainer.
 	// NOTE: The permission is the signed-in user’s, so someone else’s view shows the steps as if that user wrote the PRs
-	let maintains = ["WRITE", "MAINTAIN", "ADMIN"].includes(pr.repository.viewerPermission);
+	let access = roles.indexOf(pr.repository.viewerPermission);
 
 	// A team the token can’t see comes as `null`, or with no login, so its request counts but names no one
 	let requested = pr.reviewRequests.nodes
@@ -407,12 +411,8 @@ function turn (pr, user) {
 	// Everyone who reviewed has a latest review, a dismissed one too. Its reviewer is asked again below
 	let reviewed = pr.latestReviews.nodes.some(review => human(review.author));
 
-	// NOTE: A PR marked ready for review after it was opened waits since then, not since it was opened
 	if (requested.length === 0 && !reviewed) {
-		return {
-			name: maintains ? "request-review" : "await-review",
-			since: new Date(pr.createdAt),
-		};
+		return { name: access >= roles.indexOf("TRIAGE") ? "request-review" : "await-review" };
 	}
 
 	// UNKNOWN, while GitHub still computes it, counts as no conflict. The next Refresh asks again
@@ -430,7 +430,11 @@ function turn (pr, user) {
 	let unchanged = changes.filter(review => !pushedSince(pr, review.commit?.oid));
 	// Links to a review that asks for the changes, as GitHub has no page to make them on
 	if (unchanged.length > 0) {
-		return { ...naming("make-changes", unchanged), url: unchanged[0].url };
+		return {
+			name: "make-changes",
+			url: unchanged[0].url,
+			since: oldest(unchanged.map(review => review.submittedAt)),
+		};
 	}
 
 	// A dismissed review no longer counts, so its reviewer is asked again, as after changes pushed since a request
@@ -473,7 +477,10 @@ function turn (pr, user) {
 		return { name: "queued" };
 	}
 
-	if (pr.autoMergeRequest) {
+	// NOTE: Without reviewDecision, which is slow to ask for, the app can’t tell how many approvals the repo requires, so GitHub may still refuse the merge
+	let approvals = opinions.filter(review => review.state === "APPROVED");
+	// GitHub merges it on its own once the checks pass. Without an approval, it waits for the author to ask for one
+	if (approvals.length > 0 && pr.autoMergeRequest) {
 		return { name: "auto-merge", since: new Date(pr.autoMergeRequest.enabledAt) };
 	}
 
@@ -482,12 +489,10 @@ function turn (pr, user) {
 		return { name: "checks-running" };
 	}
 
-	// NOTE: Without reviewDecision, which is slow to ask for, the app can’t tell how many approvals the repo requires, so GitHub may still refuse the merge
-	let approvals = opinions.filter(review => review.state === "APPROVED");
 	if (approvals.length > 0) {
 		// Waits since the last of them approved
 		return {
-			name: maintains ? "approved" : "await-merge",
+			name: access >= roles.indexOf("WRITE") ? "approved" : "await-merge",
 			since: new Date(Math.max(...approvals.map(review => new Date(review.submittedAt)))),
 		};
 	}
