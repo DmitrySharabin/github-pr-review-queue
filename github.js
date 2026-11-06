@@ -81,11 +81,11 @@ export async function count (repo, diff, signal) {
 				"GET",
 				{ signal: inTime(signal) },
 			);
+			// Compared, so a later load of the unchanged PR needn’t compare again, which would list the same files
+			delete diff.range;
 			// GitHub lists at most 300 files, so a comparison of 300 may leave some out
 			if (files.length < 300) {
 				Object.assign(diff, sum(files));
-				// Exact now, so a later load of the unchanged PR needn’t compare again
-				delete diff.range;
 				delete diff.commits;
 				return;
 			}

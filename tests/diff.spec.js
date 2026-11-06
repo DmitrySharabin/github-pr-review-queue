@@ -105,6 +105,27 @@ test("A comparison of 300 files, as many as GitHub lists, gives way to the sizes
 	await expect(row(page, "A").locator(".since-review")).toContainText("+780");
 });
 
+test("A refresh doesn’t compare 300 files again, since GitHub would list as many", async ({
+	page,
+	github,
+}) => {
+	detail(github, {
+		A: { commits: { nodes: [commit("L"), commit("N")] }, reviews: { nodes: [review("L")] } },
+	});
+	let compared = 0;
+	github.compare = answer => {
+		compared++;
+		answer.files = Array(300).fill({ additions: 1, deletions: 0 });
+	};
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+
+	await page.getByRole("button", { name: "Refresh" }).click();
+	await expect(page.locator("progress")).toBeHidden();
+
+	expect(compared).toBe(1);
+});
+
 test("A PR asked of the user’s team only shows no count of rounds, since the team’s requests are unknown", async ({
 	page,
 	github,
