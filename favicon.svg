@@ -2,14 +2,15 @@
 	<style>
 		.card { fill: white; stroke: oklch(78% 0 0); stroke-width: 1.5; }
 		.back { fill: oklch(90% 0 0); }
-		.glyph { fill: none; stroke: oklch(15% 0 0); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+		/* GitHub’s open pull-request green. A thinner colored stroke fades to gray at 16px */
+		.glyph { fill: none; stroke: oklch(52.4% 0.14 148); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
 		/* A black outline merges with the pupil into one blot at 16px */
 		.eye { fill: white; stroke: oklch(50% 0 0); stroke-width: 1.25; }
 		.pupil { fill: oklch(15% 0 0); }
 		@media (prefers-color-scheme: dark) {
 			.card { fill: oklch(27% 0 0); stroke: oklch(48% 0 0); }
 			.back { fill: oklch(38% 0 0); }
-			.glyph { stroke: oklch(94% 0 0); }
+			.glyph { stroke: oklch(69.5% 0.18 145.6); }
 			/* A dark outline would vanish on a dark tab */
 			.eye { stroke: white; }
 		}
