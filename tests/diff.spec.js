@@ -104,3 +104,13 @@ test("A comparison of 300 files, as many as GitHub lists, gives way to the sizes
 	// N’s own size
 	await expect(row(page, "A").locator(".since-review")).toContainText("+780");
 });
+
+test("A PR asked of the user’s team only shows no count of rounds, since the team’s requests are unknown", async ({
+	page,
+	github,
+}) => {
+	// No one asked the user by name, so GitHub’s search found the PR through a team
+	await page.goto("/?repo=foo/bar");
+
+	await expect(row(page, "A").locator(".iterations")).toHaveText("—");
+});

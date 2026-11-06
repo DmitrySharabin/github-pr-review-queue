@@ -160,7 +160,7 @@ function render ({
 
 	showDiff(tr.querySelector(".diff"), diff);
 	showDiff(tr.querySelector(".since-review"), diffSinceReview);
-	tr.querySelector(".iterations").textContent = iterations ?? "";
+	tr.querySelector(".iterations").textContent = iterations === null ? "—" : (iterations ?? "");
 
 	showTime(tr.querySelector("time"), waitingSince);
 	showReviewers(tr.querySelector(".reviewers"), reviewers);

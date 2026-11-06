@@ -35,7 +35,7 @@
  * @property {Label[]} labels
  * @property {Diff} [diff] - The whole PR
  * @property {Diff} [diffSinceReview] - What the user has left to review, or the whole PR when that is unknown
- * @property {number} [iterations] - How many times review was asked for again after a review
+ * @property {number | null} [iterations] - How many times review was asked for again after a review, `null` when unknown
  * @property {Date | null} [waitingSince] - The latest review request to the user, or for an author to anyone
  * @property {Reviewer[]} [reviewers] - Everyone else asked to review it or who reviewed it, but teams
  * The optional ones are `undefined` until {@link details} arrive.
@@ -244,13 +244,17 @@ export function summarize (pr, user, role) {
 						url: `${pr.url}/changes/${reviewed}..${commits.at(-1).oid}`,
 						range: exact ? `${reviewed}...${last.oid}` : undefined,
 					},
-		// A round is a request that follows a review. Requests with no review between them add no round
-		iterations: requests.filter((request, i) =>
-			reviews.some(
-				review =>
-					review.submittedAt < request.createdAt &&
-					review.submittedAt > (requests[i - 1]?.createdAt ?? ""),
-			)).length,
+		// A round is a request that follows a review. Requests with no review between them add no round.
+		// A reviewer asked by no request found the PR through a team, whose requests need the read:org scope
+		iterations:
+			!authorView && requests.length === 0
+				? null
+				: requests.filter((request, i) =>
+						reviews.some(
+							review =>
+								review.submittedAt < request.createdAt &&
+								review.submittedAt > (requests[i - 1]?.createdAt ?? ""),
+						)).length,
 		waitingSince,
 		reviewers: reviewers(pr).filter(reviewer => !isUser(reviewer.name)),
 	};
