@@ -79,6 +79,7 @@ test.describe("Next step", () => {
 
 	test("A PR no one was asked to review asks the author to request a review", async ({
 		page,
+		github,
 	}) => {
 		await page.goto("/?repo=foo/bar&role=author");
 
@@ -224,6 +225,22 @@ test.describe("Next step", () => {
 		await expect(row(page, "A").locator("time")).toHaveText("8 days");
 	});
 
+	test("A review asked of a bot waits for no one, since bots don’t take turns", async ({
+		page,
+		github,
+	}) => {
+		detail(github, {
+			A: {
+				reviewRequests: {
+					nodes: [{ requestedReviewer: person("Copilot", "Bot") }],
+				},
+			},
+		});
+		await page.goto("/?repo=foo/bar&role=author");
+
+		await expect(step(page, "A")).toHaveText("Request a review");
+	});
+
 	test("Several reviewers asked show as a count", async ({ page, github }) => {
 		detail(github, { A: asked(["reviewer", "other-user"]) });
 		await page.goto("/?repo=foo/bar&role=author");
@@ -335,6 +352,7 @@ test("A refresh asks for every PR’s details again, since a finished check chan
 
 test("Each role keeps its own sort, so a reviewer’s choice doesn’t sort the author’s steps", async ({
 	page,
+	github,
 }) => {
 	await page.goto("/?repo=foo/bar");
 	await page.getByRole("button", { name: "All changes" }).click();
@@ -358,6 +376,7 @@ test("The summary counts the PRs whose turn is the author’s, by name for someo
 
 test("The author sees only the columns that help them: whose turn, for how long, and the reviewers", async ({
 	page,
+	github,
 }) => {
 	await page.goto("/?repo=foo/bar&role=author");
 
@@ -400,4 +419,25 @@ test("A queue stored before PRs had steps shows while it loads, then counts the 
 	resolve();
 
 	await expect(page.locator("#summary .turns")).toHaveText("6");
+});
+
+test("A change request isn’t marked as an earlier version, though the author pushed since", async ({
+	page,
+	github,
+}) => {
+	detail(github, { A: reviewed([review("reviewer", "CHANGES_REQUESTED")], ["L", "M"]) });
+	await page.goto("/?repo=foo/bar&role=author");
+
+	await expect(row(page, "A").locator(".reviewers a")).toHaveAttribute(
+		"title",
+		"reviewer requested changes",
+	);
+});
+
+test("The summary counts the author’s own turns as theirs", async ({ page, github }) => {
+	await page.goto("/?repo=foo/bar&role=author");
+
+	await expect(
+		page.locator("#summary .turns").locator("xpath=../preceding-sibling::dt"),
+	).toHaveText("Your turn");
 });

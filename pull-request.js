@@ -151,7 +151,7 @@ export function details ({ user, role, ids }) {
 		: `reviews(author: ${JSON.stringify(user)}, states: [APPROVED, CHANGES_REQUESTED, COMMENTED, DISMISSED], last: 100) {
 				nodes { submittedAt author { login } commit { oid } }
 			}`;
-	let review = author ? "state url submittedAt commit { oid }" : "state url";
+	let review = author ? "state url submittedAt" : "state url";
 
 	// NOTE: Gets only the last 100 commits, review requests and conversations of each PR, the last 100 reviews of a reviewer, and 20 other reviewers
 	return `query {
@@ -173,7 +173,7 @@ export function details ({ user, role, ids }) {
 				nodes { ${review} author { __typename login avatarUrl(size: 48) } }
 			}
 			latestOpinionatedReviews(first: 20) {
-				nodes { ${review} author { __typename login avatarUrl(size: 48) } }
+				nodes { ${review} ${author ? "commit { oid }" : ""} author { __typename login avatarUrl(size: 48) } }
 			}
 		}
 	}
@@ -285,11 +285,12 @@ function forReviewer (pr, user) {
 /** What an author sees of a PR: its next step, since when it waits for it, and which approvals predate the author’s last commit. */
 function forAuthor (pr, user, others) {
 	let { since, ...step } = turn(pr, user);
-	let approved = pr.latestOpinionatedReviews.nodes.filter(review => review.state === "APPROVED");
 
 	for (let reviewer of others) {
-		let approval = approved.find(review => review.author?.login === reviewer.name);
-		if (reviewer.state === "approved" && approval && pushedSince(pr, approval.commit?.oid)) {
+		let review = pr.latestOpinionatedReviews.nodes.find(
+			review => review.author?.login === reviewer.name,
+		);
+		if (reviewer.state === "approved" && pushedSince(pr, review.commit?.oid)) {
 			reviewer.outdated = true;
 		}
 	}
@@ -319,7 +320,7 @@ function turn (pr, user) {
 		.map(node => node.requestedReviewer)
 		.filter(reviewer => reviewer?.__typename !== "Bot");
 	let asked = requested.map(reviewer => reviewer?.login).filter(Boolean);
-	let answered = actor => human(actor) && !asked.includes(actor.login);
+	let unasked = actor => human(actor) && !asked.includes(actor.login);
 	// A dismissed review counts: its reviewer is asked again below
 	let reviewed = [...pr.latestReviews.nodes, ...pr.latestOpinionatedReviews.nodes].some(review =>
 		human(review.author));
@@ -338,7 +339,7 @@ function turn (pr, user) {
 		return { name: "fix-checks", whose: "author", since: null };
 	}
 
-	let opinions = pr.latestOpinionatedReviews.nodes.filter(review => answered(review.author));
+	let opinions = pr.latestOpinionatedReviews.nodes.filter(review => unasked(review.author));
 	let changes = opinions.filter(review => review.state === "CHANGES_REQUESTED");
 	let unchanged = changes.filter(review => !pushedSince(pr, review.commit?.oid));
 	if (unchanged.length > 0) {
@@ -352,7 +353,7 @@ function turn (pr, user) {
 
 	// A dismissed review no longer counts, so its reviewer is asked again, as after changes pushed since a request
 	let dismissed = pr.latestReviews.nodes.filter(
-		review => review.state === "DISMISSED" && answered(review.author),
+		review => review.state === "DISMISSED" && unasked(review.author),
 	);
 	let again = [...changes, ...dismissed];
 	if (again.length > 0) {
@@ -368,7 +369,7 @@ function turn (pr, user) {
 	let unanswered = pr.reviewThreads.nodes
 		.filter(thread => !thread.isResolved)
 		.map(thread => thread.comments.nodes.at(-1))
-		.filter(comment => answered(comment?.author));
+		.filter(comment => unasked(comment?.author));
 	if (unanswered.length > 0) {
 		return {
 			name: "reply",
@@ -386,7 +387,7 @@ function turn (pr, user) {
 		return {
 			name: "approved",
 			whose: "author",
-			since: newest(approvals.map(review => review.submittedAt)),
+			since: new Date(Math.max(...approvals.map(review => new Date(review.submittedAt)))),
 		};
 	}
 
@@ -410,7 +411,7 @@ function turn (pr, user) {
 	}
 
 	// Reviewers who only commented, e.g. after the author replied to their conversations
-	let commented = pr.latestReviews.nodes.filter(review => answered(review.author));
+	let commented = pr.latestReviews.nodes.filter(review => unasked(review.author));
 	return {
 		name: "re-request",
 		whose: "author",
@@ -430,14 +431,9 @@ function pushedSince (pr, oid) {
 }
 
 /** The earliest of these times from GitHub, e.g. `createdAt`, or `null` when none is known. */
-function oldest (times, pick = Math.min) {
+function oldest (times) {
 	let dates = times.filter(Boolean).map(time => new Date(time));
-	return dates.length > 0 ? new Date(pick(...dates)) : null;
-}
-
-/** The latest of these times, as {@link oldest}. */
-function newest (times) {
-	return oldest(times, Math.max);
+	return dates.length > 0 ? new Date(Math.min(...dates)) : null;
 }
 
 /** Whether two logins are the same, which GitHub matches in any case. */

@@ -667,7 +667,7 @@ function showSummary ({ repo, user, role, filter }) {
 	let you = user?.toLowerCase() === github.user?.username?.toLowerCase();
 	let time = strip.querySelector(".latest");
 	let turns = strip.querySelector(".turns");
-	strip.querySelector(".last").textContent = !author
+	strip.querySelector(".tally").textContent = !author
 		? "Latest request"
 		: you
 			? "Your turn"

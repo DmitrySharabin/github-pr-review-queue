@@ -12,7 +12,6 @@ const units = [
 ];
 // Short units, e.g. “11 min. ago”, keep the latest request on one line in the summary
 const relative = new Intl.RelativeTimeFormat("en", { numeric: "auto", style: "short" });
-const days = new Intl.NumberFormat("en", { style: "unit", unit: "day", unitDisplay: "long" });
 // Whole words, e.g. “35 days”, since a duration stands alone in its cell
 const durations = Object.fromEntries(
 	units.map(([unit]) => [
@@ -40,7 +39,7 @@ export function showTime (time, date, { duration } = {}) {
 	// To the minute, as GitHub’s own tooltips
 	time.title = date?.toLocaleString("en", { dateStyle: "medium", timeStyle: "short" }) ?? "";
 	if (rounded) {
-		time.title += ` · ${days.format(Math.round(elapsed / day))}`;
+		time.title += ` · ${durations.day.format(Math.round(elapsed / day))}`;
 	}
 	time.classList.toggle("rounded", rounded);
 	// To the nearest, so the count agrees with the days, e.g. 1,036 days are “3 yr. ago”, not 2
