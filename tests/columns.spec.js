@@ -1,13 +1,19 @@
 import { test, expect, commit } from "./github.js";
 
-// The commits of a PR, as GitHub sends the last of them
-let commits = (ids, totalCount = ids.length) => ({ totalCount, nodes: ids.map(id => commit(id)) });
-// The user’s review of the commit `oid`. GitHub answers `null` for a commit it no longer has
-let review = oid => ({
-	submittedAt: "2026-11-01T12:00:00Z",
-	author: { login: "DmitrySharabin" },
-	commit: oid ? { oid } : null,
-});
+/** The last commits of a PR, of `totalCount` in all, e.g. `commits(["N"], 101)`. */
+function commits (ids, totalCount = ids.length) {
+	// Not `map(commit)`, which would pass the index as the parents
+	return { totalCount, nodes: ids.map(id => commit(id)) };
+}
+
+/** The user’s review of the commit `oid`, or of one GitHub no longer has, which it answers as `null`. */
+function review (oid) {
+	return {
+		submittedAt: "2026-11-01T12:00:00Z",
+		author: { login: "DmitrySharabin" },
+		commit: oid ? { oid } : null,
+	};
+}
 
 /** A request to the user to review a PR, made at `createdAt`. */
 function request (createdAt) {

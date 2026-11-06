@@ -108,7 +108,7 @@ function detailed (id) {
 		deletions: 2,
 		reviews: { nodes: [] },
 		timelineItems: { nodes: [] },
-		commits: { nodes: [] },
+		commits: { totalCount: 0, nodes: [] },
 		reviewRequests: { nodes: [] },
 		latestReviews: { nodes: [] },
 		latestOpinionatedReviews: { nodes: [] },
