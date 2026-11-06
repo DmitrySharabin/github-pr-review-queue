@@ -200,7 +200,8 @@ export function summarize (pr, user, role) {
 	let authorView = role === "author";
 	let isUser = login => login?.toLowerCase() === user.toLowerCase();
 	// A reviewer whom no pending request names found the PR through a team, whose requests need the read:org scope.
-	// Then the user’s requests in the timeline are older ones, which a review already answered
+	// Then the user’s requests in the timeline are older ones, answered by a review or withdrawn.
+	// NOTE: Reads only the first 20 pending requests, so on a PR with more the user’s may be missed
 	let viaTeam =
 		!authorView && !pr.reviewRequests.nodes.some(node => isUser(node.requestedReviewer?.login));
 	// An author waits on everyone they asked. NOTE: Requests to a team are not counted

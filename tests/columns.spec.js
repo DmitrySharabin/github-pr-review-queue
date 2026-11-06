@@ -162,8 +162,9 @@ test("A PR asked only of the user’s team shows no count of rounds, since the t
 	page,
 	github,
 }) => {
-	// No request names the user on A, so GitHub’s search found it through a team. B asks the user once
+	// No pending request names the user on A, only someone else, so GitHub’s search found it through a team. B asks the user once
 	detail(github, {
+		A: { reviewRequests: { nodes: [{ requestedReviewer: { login: "other-user" } }] } },
 		B: {
 			timelineItems: { nodes: [request("2026-11-01T12:00:00Z")] },
 			reviewRequests: { nodes: [{ requestedReviewer: { login: "DmitrySharabin" } }] },
@@ -193,4 +194,6 @@ test("A review after the user’s request still counts when the next request cam
 	await page.goto("/?repo=foo/bar");
 
 	await expect(row(page, "A").locator(".since-review")).toContainText("+5 −1");
+	// The answered request isn’t what the PR waits on
+	await expect(row(page, "A").locator("time")).toHaveText("—");
 });

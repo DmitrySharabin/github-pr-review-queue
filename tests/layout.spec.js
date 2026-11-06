@@ -21,6 +21,8 @@ async function starts (page, github, selector) {
 					requestedReviewer: { login: "DmitrySharabin" },
 				},
 			];
+			// Still pending, so the request isn’t a team’s
+			pr.reviewRequests.nodes.push({ requestedReviewer: { login: "DmitrySharabin" } });
 		}
 	};
 	await page.goto("/?repo=foo/bar");
