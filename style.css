@@ -1526,7 +1526,7 @@ tbody td {
 
 /* The figures over the lines of every file, e.g. “+650 −32 total”, in one column, so their right edges meet.
    The word goes under the diffstat, the push icon after it */
-td:is(.diff, .since-review) a {
+td:is(.diff, .since-review) .size {
 	/* Between the figures and the diffstat, where a grid keeps no space */
 	--bar-gap: 0.55em;
 
@@ -1554,9 +1554,10 @@ td:is(.diff, .since-review) a {
 		/* Where the diffstat starts, in the word’s smaller em */
 		margin-inline-start: calc(var(--bar-gap) / 0.8);
 
-		/* Beside the figures, which are the total */
-		.unsplit & {
-			grid-row: 1;
+		/* A size with no total keeps the word’s line empty in a row whose other size has one, so both first lines meet */
+		tr.totals &[hidden] {
+			display: block;
+			visibility: hidden;
 		}
 	}
 
@@ -1575,14 +1576,8 @@ td:is(.diff, .since-review) small {
 	color: inherit;
 }
 
-/* The figures count excluded files too, so they are the total, and no diffstat stands for the rest.
-   Its slot stays, so the figures keep the column’s edge */
-.unsplit .diffstat {
-	visibility: hidden;
-}
-
-/* The whole PR, standing in for a diff since a review */
-.whole :is(.added, .deleted, .diffstat) {
+/* The whole PR, standing in for a diff since a review, or a count of excluded files too, standing in for one without them */
+:is(.whole, .unsplit) :is(.added, .deleted, .diffstat) {
 	filter: grayscale(1);
 }
 

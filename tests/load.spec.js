@@ -134,7 +134,7 @@ test("Details GitHub stops for running too long load in two halves, so a slow ba
 	await page.goto("/?repo=foo/bar");
 	await expect(page.locator("progress")).toBeHidden();
 
-	await expect(page.locator("#queue td.diff .added")).toHaveCount(6);
+	await expect(page.locator("#queue td.diff a")).toHaveCount(6);
 });
 
 test("A role switch stops the requests of the load it leaves", async ({ page, github }) => {
@@ -246,7 +246,7 @@ test("A PR deleted between the search and its details counts as loaded, and leav
 
 	// The update time shows once a load ends
 	await expect(page.locator("#updated time")).not.toBeEmpty();
-	await expect(page.locator("#queue td.diff .added")).toHaveCount(10);
+	await expect(page.locator("#queue td.diff a")).toHaveCount(10);
 });
 
 test("A PR stored without details, after GitHub said it was deleted, asks for them again on the next visit", async ({
@@ -301,7 +301,7 @@ test("A PR whose commit sizes fail ends the load only once the other PRs are cou
 	let failed = Promise.withResolvers();
 	let held = Promise.withResolvers();
 	let asked = 0;
-	// A and B each have one of the author’s commits since the review, after a merge, so their sizes are the count. A has N, which GitHub fails twice, and B has O
+	// A and B each have one of the author’s commits since the review, whose comparison fails, so their sizes are the count. A has N, which GitHub fails twice, and B has O
 	github.details = answer => {
 		let [node] = answer.data.nodes;
 		if (node.id === "N") {
@@ -315,7 +315,7 @@ test("A PR whose commit sizes fail ends the load only once the other PRs are cou
 		}
 
 		for (let pr of answer.data.nodes.filter(pr => pr.id === "A" || pr.id === "B")) {
-			pr.commits.nodes = [commit("L"), commit("M", 2), commit(pr.id === "A" ? "N" : "O")];
+			pr.commits.nodes = [commit("L"), commit(pr.id === "A" ? "N" : "O")];
 			pr.reviews.nodes = [
 				{
 					submittedAt: "2026-11-01T12:00:00Z",
@@ -325,6 +325,7 @@ test("A PR whose commit sizes fail ends the load only once the other PRs are cou
 			];
 		}
 	};
+	github.compare = () => 500;
 	await page.goto("/?repo=foo/bar");
 	await failed.promise;
 	held.resolve();

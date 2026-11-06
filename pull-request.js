@@ -3,7 +3,8 @@
  * @property {number} additions
  * @property {number} deletions
  * @property {string} url - The diff on GitHub
- * @property {string} [range] - `base...head` to compare for an exact count, when the sum of commits is only an estimate
+ * @property {string[]} [ranges] - `base...head` comparisons that add up to a count closer to exact than the sum of commits.
+ * One per run of the author’s commits between merges of the base branch, which bring in other PRs’ changes
  * @property {string[]} [commits] - The commits to add up for the estimate, with {@link sizes}, until then no `additions` and `deletions`
  * @property {"unreviewed" | "force-pushed" | "older"} [whole] - Why the diff is the whole PR
  * @property {Pick<Diff, "additions" | "deletions"> | null} [ignored] - With a pattern of ignored files, their lines, which `additions` and `deletions` leave out.
@@ -248,6 +249,9 @@ export function summarize (pr, user, role, ignore) {
 	};
 }
 
+/** Most comparisons a PR’s count since a review takes, one per run of the author’s commits. More add up the sizes of the commits instead */
+const compareLimit = 5;
+
 /** What a reviewer sees of a PR: what is left to review, and since when it waits for them. */
 function forReviewer (pr, user, ignore) {
 	let isUser = login => isLogin(login, user);
@@ -271,9 +275,22 @@ function forReviewer (pr, user, ignore) {
 	let since = commits.slice(index + 1);
 	// Merges of the base branch bring in other PRs’ changes, e.g. +32,997 lines on a +729 PR
 	let own = since.filter(commit => commit.parents.totalCount === 1);
-	// Comparing up to the author’s last commit is exact while no merge comes before it
-	let last = own.at(-1);
-	let exact = last && since.indexOf(last) === own.length - 1;
+	// Each run of the author’s commits compares from the commit before it, the reviewed one or a merge.
+	// A sum of commits counts a line again each time a commit rewrites it, e.g. +734 −680 for runs of +97 −43
+	let runs = [];
+	for (let [i, commit] of since.entries()) {
+		let before = since[i - 1];
+		if (commit.parents.totalCount > 1) {
+			continue;
+		}
+
+		if (before?.parents.totalCount === 1) {
+			runs.at(-1).head = commit.oid;
+		}
+		else {
+			runs.push({ base: before?.oid ?? reviewed, head: commit.oid });
+		}
+	}
 
 	let diff = { additions: pr.additions, deletions: pr.deletions, url: `${pr.url}/changes` };
 	if (ignore) {
@@ -304,7 +321,10 @@ function forReviewer (pr, user, ignore) {
 							: { additions: 0, deletions: 0 }),
 						...(ignore && own.length > 0 && { ignored: null }),
 						url: `${pr.url}/changes/${reviewed}..${commits.at(-1).oid}`,
-						range: exact ? `${reviewed}...${last.oid}` : undefined,
+						ranges:
+							runs.length > 0 && runs.length <= compareLimit
+								? runs.map(run => `${run.base}...${run.head}`)
+								: undefined,
 					},
 		// A round is a request that follows a review. Requests with no review between them add no round
 		iterations: viaTeam

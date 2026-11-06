@@ -8,7 +8,7 @@ export { expect } from "@playwright/test";
  * and may return an HTTP status to fail with, e.g. `github.search = () => 500`, or a promise to hold the answer until it settles.
  * `details` also gets the queries for commit sizes, whose nodes are then commits, e.g. N with +780.
  * `user` gets GitHub’s answer to whose token it is, e.g. `github.user = () => 401` for a token GitHub rejects.
- * `compare` gets the comparison of two commits, with no changed files until it adds some.
+ * `compare` gets the comparison of two commits, with no changed files until it adds some, and its range, e.g. `L...N`.
  */
 export const test = base.extend({
 	// The token Madata finds stored, or none for the sign-in card: `test.use({ token: null })`
@@ -50,7 +50,7 @@ export const test = base.extend({
 
 			if (path.includes("/compare/")) {
 				let answer = { files: [] };
-				let status = await github.compare(answer);
+				let status = await github.compare(answer, path.split("/compare/")[1]);
 				return route.fulfill(failed(status) ?? { json: answer });
 			}
 

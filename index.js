@@ -407,13 +407,13 @@ async function load () {
 			// Without details the summary has no slow fields, so a refreshed row keeps its old ones, dimmed, until they arrive
 			fill(row, { ...row.summary, ...summarize(pr, user, role) });
 
-			// A range left means its comparison failed, so the next load tries again.
+			// Ranges left mean a comparison failed, so the next load tries again.
 			// The details are checked against their own copy. A load stopped before they came, e.g. by a label click, already replaced `pr`.
 			// An author’s details are checked on every load, since a finished check run changes neither `updatedAt` nor the head commit
 			if (
 				!row.detailed ||
 				role === "author" ||
-				row.summary.diffSinceReview.range ||
+				row.summary.diffSinceReview.ranges ||
 				outdated(row.detailed, pr)
 			) {
 				stale.push(row);

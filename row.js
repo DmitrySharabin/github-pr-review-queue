@@ -194,6 +194,7 @@ function render ({
 	showStep(tr.querySelector(".step"), step);
 	showDiff(tr.querySelector(".diff"), diff);
 	showDiff(tr.querySelector(".since-review"), diffSinceReview);
+	tr.classList.toggle("totals", Boolean(tr.querySelector(".total:not([hidden])")));
 	tr.querySelector(".iterations").textContent = iterations === null ? "—" : (iterations ?? "");
 
 	// An author’s step has waited for so long, a reviewer’s request was made so long ago
@@ -309,6 +310,14 @@ function showFigures (figures, { additions, deletions }) {
 	figures.querySelector(".deleted").textContent = `−${deletions.toLocaleString("en")}`;
 }
 
+/** Text a screen reader hears, which the figures’ look says to sighted users */
+function spoken (text) {
+	return Object.assign(document.createElement("span"), {
+		className: "spoken",
+		textContent: text,
+	});
+}
+
 function showDiff (cell, diff) {
 	if (!diff) {
 		cell.textContent = "";
@@ -317,45 +326,41 @@ function showDiff (cell, diff) {
 
 	let total = diff.ignored && sum([diff, diff.ignored]);
 
-	// Re-requested with no new commits, or a PR with no changed lines at all
+	// Re-requested with no new commits, or a PR with no changed lines at all.
+	// NOTE: In a row with a total, it stays centered, below the other size’s first line
 	if (size(total ?? diff) === 0) {
 		cell.textContent = "No changes";
 		return;
 	}
 
 	let link = cell.querySelector("a");
-	let figures = cell.querySelector(".figures");
 	link.href = diff.url;
-	showFigures(figures, diff);
+	showFigures(link, diff);
 	cell.querySelector(".diffstat").style =
 		`--additions: ${diff.additions}; --deletions: ${diff.deletions}`;
 
 	// The lines of every file, ignored ones too, under those of the rest, e.g. “+650 −32 total”.
-	// Without a split, e.g. in a sum of commits, the figures are the total already
-	let word = cell.querySelector("small");
+	// Without a split, e.g. in a sum of commits, the figures are the total already, gray as a stand-in
 	if (diff.ignored === null) {
 		cell.classList.add("unsplit");
-		word.hidden = false;
+		link.title = "This counts excluded files too";
+		link.append(spoken(" with excluded files"));
 	}
 	else if (total && size(diff.ignored) > 0) {
-		let all = figures.cloneNode(true);
-		all.classList.add("total");
+		let all = cell.querySelector(".total");
 		showFigures(all, total);
-		word.before(all, " ");
-		word.hidden = false;
+		all.hidden = false;
+		cell.querySelector("small").hidden = false;
 		// Sighted users tell the two lines apart by the word “total” under the first,
-		// so a screen reader hears “+585 −2 without excluded files, +650 −2 total”
-		let spoken = Object.assign(document.createElement("span"), {
-			className: "spoken",
-			textContent: " without excluded files,",
-		});
-		figures.after(spoken);
+		// so a screen reader hears the link as “+585 −2 without excluded files”, then “+650 −2 total”
+		link.append(spoken(" without excluded files"));
 	}
 
 	if (diff.whole) {
 		cell.classList.add("whole");
 		// On the link, so keyboard focus reaches it too
-		link.title = wholeTitles[diff.whole];
+		link.title =
+			wholeTitles[diff.whole] + (diff.ignored === null ? ", excluded files too" : "");
 		cell.querySelector(".force-pushed").hidden = diff.whole !== "force-pushed";
 	}
 }

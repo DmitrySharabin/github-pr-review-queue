@@ -73,25 +73,31 @@ function inTime (signal) {
 }
 
 /**
- * Count a diff that summarize() left uncounted, if any. An author’s summary has none. One with a range to compare counts exactly, others by the sizes of their commits.
+ * Count a diff that summarize() left uncounted, if any. An author’s summary has none. One with ranges to compare counts closer to exact, others by the sizes of their commits.
  * @param {string} repo
  * @param {Diff} [diff]
  * @param {AbortSignal} signal - The load’s
  * @param {RegExp} [ignore] - The paths of files whose lines a comparison counts apart. The sizes of commits can’t
  */
 export async function count (repo, diff, signal, ignore) {
-	if (diff?.range) {
+	let { ranges } = diff ?? {};
+	if (ranges) {
 		try {
-			let { files } = await github.request(
-				`https://api.github.com/repos/${repo}/compare/${diff.range}`,
-				{},
-				"GET",
-				{ signal: inTime(signal) },
+			// NOTE: A failed comparison leaves the PR’s others running until they answer or time out
+			let comparisons = await Promise.all(
+				ranges.map(range =>
+					github.request(
+						`https://api.github.com/repos/${repo}/compare/${range}`,
+						{},
+						"GET",
+						{ signal: inTime(signal) },
+					)),
 			);
 			// Compared, so a later load of the unchanged PR needn’t compare again, which would list the same files
-			delete diff.range;
+			delete diff.ranges;
 			// GitHub lists at most 300 files, so a comparison of 300 may leave some out
-			if (files.length < 300) {
+			if (comparisons.every(({ files }) => files.length < 300)) {
+				let files = comparisons.flatMap(({ files }) => files);
 				Object.assign(diff, ignore ? split(files, ignore) : sum(files));
 				delete diff.commits;
 				return;
@@ -101,7 +107,10 @@ export async function count (repo, diff, signal, ignore) {
 			signal.throwIfAborted();
 			// One failed comparison should not hide the queue, so the commits’ sizes estimate the count instead
 			// NOTE: A refresh whose comparison fails, or succeeds after one that failed, marks the cell as changed
-			console.warn(`Couldn’t compare ${diff.range}, adding up its commits instead.`, error);
+			console.warn(
+				`Couldn’t compare ${ranges.join(", ")}, adding up its commits instead.`,
+				error,
+			);
 		}
 	}
 

@@ -129,6 +129,90 @@ test("A comparison of 300 files, as many as GitHub lists, gives way to the sizes
 	await expect(row(page, "A").locator(".since-review")).toContainText("+780");
 });
 
+test("Each run of the author’s commits between merges compares on its own, so the base branch’s changes count nothing", async ({
+	page,
+	github,
+}) => {
+	// After the review of L, the author pushed N and P, merged the base branch in M, and pushed O
+	detail(github, {
+		A: {
+			commits: {
+				totalCount: 5,
+				nodes: [commit("L"), commit("N"), commit("P"), commit("M", 2), commit("O")],
+			},
+			reviews: { nodes: [review("L")] },
+		},
+	});
+	let lines = { "L...P": 5, "M...O": 3 };
+	github.compare = (answer, range) => {
+		answer.files = [{ additions: lines[range], deletions: 1 }];
+	};
+	await page.goto("/?repo=foo/bar");
+
+	// Not the sum of N, P and O, +2,370, which counts a line again each time a commit rewrites it
+	await expect(row(page, "A").locator(".since-review")).toHaveText("+8 −2", {
+		useInnerText: true,
+	});
+});
+
+/** Commits of a PR reviewed at L, with `count` runs of N after it, each after a merge */
+function afterMerges (count) {
+	let nodes = [commit("L")];
+	for (let i = 0; i < count; i++) {
+		nodes.push(commit(`M${i}`, 2), commit("N"));
+	}
+	return { commits: { totalCount: nodes.length, nodes }, reviews: { nodes: [review("L")] } };
+}
+
+test("Up to five runs each compare on their own", async ({ page, github }) => {
+	detail(github, { A: afterMerges(5) });
+	let compared = 0;
+	github.compare = answer => {
+		compared++;
+		answer.files = [{ additions: 1, deletions: 0 }];
+	};
+	await page.goto("/?repo=foo/bar");
+
+	await expect(row(page, "A").locator(".since-review")).toHaveText("+5 −0", {
+		useInnerText: true,
+	});
+	expect(compared).toBe(5);
+});
+
+test("More runs than the limit add up the sizes of the commits, so a PR can’t send many comparisons", async ({
+	page,
+	github,
+}) => {
+	detail(github, { A: afterMerges(6) });
+	let compared = 0;
+	github.compare = () => {
+		compared++;
+	};
+	await page.goto("/?repo=foo/bar");
+
+	// N’s own size, six times
+	await expect(row(page, "A").locator(".since-review")).toHaveText("+4,680 −12", {
+		useInnerText: true,
+	});
+	expect(compared).toBe(0);
+});
+
+test("A comparison of 300 files in any run gives way to the sizes of the commits", async ({
+	page,
+	github,
+}) => {
+	detail(github, { A: afterMerges(2) });
+	github.compare = (answer, range) => {
+		answer.files = Array(range === "M1...N" ? 300 : 1).fill({ additions: 1, deletions: 0 });
+	};
+	await page.goto("/?repo=foo/bar");
+
+	// N’s own size, twice
+	await expect(row(page, "A").locator(".since-review")).toHaveText("+1,560 −4", {
+		useInnerText: true,
+	});
+});
+
 test("A refresh doesn’t compare 300 files again, since GitHub would list as many", async ({
 	page,
 	github,
@@ -213,8 +297,8 @@ test.describe("Exclude from counts", () => {
 		await page.goto("/?repo=foo/bar&files=test");
 
 		let cell = row(page, "A").locator(".diff");
-		await expect(cell.locator(".figures").first()).toHaveText("+10 −0");
-		await expect(cell.locator(".figures.total")).toHaveText("+510 −0");
+		await expect(cell.locator("a")).toHaveAccessibleName("+10 −0 without excluded files");
+		await expect(cell.locator(".total")).toHaveText("+510 −0");
 	});
 
 	test("A screen reader hears which line leaves the excluded files out", async ({
@@ -224,8 +308,8 @@ test.describe("Exclude from counts", () => {
 		detail(github, { A: files({ "src/a.js": 10, "test/a.test.js": 500 }) });
 		await page.goto("/?repo=foo/bar&files=test");
 
-		await expect(row(page, "A").locator(".diff a")).toHaveAccessibleName(
-			"+10 −0 without excluded files, +510 −0 total",
+		await expect(row(page, "A").locator(".diff")).toHaveAccessibleName(
+			"+10 −0 without excluded files +510 −0 total",
 		);
 	});
 
@@ -277,11 +361,11 @@ test.describe("Exclude from counts", () => {
 		await page.goto(`/?repo=foo/bar&files=${encodeURIComponent("lock")}`);
 
 		let cell = row(page, "A").locator(".since-review");
-		await expect(cell.locator(".figures").first()).toHaveText("+5 −1");
-		await expect(cell.locator(".figures.total")).toHaveText("+905 −41");
+		await expect(cell.locator("a")).toHaveAccessibleName("+5 −1 without excluded files");
+		await expect(cell.locator(".total")).toHaveText("+905 −41");
 	});
 
-	test("A sum of commits shows only its total, since commits don’t list their files", async ({
+	test("A sum of commits stands in with its total, since commits don’t list their files", async ({
 		page,
 		github,
 	}) => {
@@ -291,51 +375,78 @@ test.describe("Exclude from counts", () => {
 		github.compare = () => 500;
 		await page.goto("/?repo=foo/bar&files=test");
 
-		// N’s own size
-		await expect(row(page, "A").locator(".since-review")).toHaveText("+780 −2 total", {
-			useInnerText: true,
-		});
+		// N’s own size, with no word after it, which would break the column’s run of figures
+		let cell = row(page, "A").locator(".since-review");
+		await expect(cell.locator("a")).toHaveAccessibleName("+780 −2 with excluded files");
+		await expect(cell.locator("small")).toBeHidden();
+		await expect(cell.locator("a")).toHaveAttribute("title", "This counts excluded files too");
+		// Gray, as other counts that stand in for the one the column means
+		await expect(cell.locator("a .added")).toHaveCSS("filter", "grayscale(1)");
+	});
+
+	test("An unreviewed PR of over 100 files says both why it counts the whole PR and that it counts excluded files", async ({
+		page,
+		github,
+	}) => {
+		detail(github, { A: files({ "src/a.js": 10, "test/a.test.js": 500 }, 101) });
+		await page.goto("/?repo=foo/bar&files=test");
+
+		await expect(row(page, "A").locator(".since-review a")).toHaveAttribute(
+			"title",
+			"Not reviewed yet, so this counts the whole pull request, excluded files too",
+		);
 	});
 
 	test("Another pattern counts the files anew", async ({ page, github }) => {
 		detail(github, { A: files({ "src/a.js": 10, "test/a.test.js": 500 }) });
 		await page.goto("/?repo=foo/bar&files=test");
-		await expect(row(page, "A").locator(".diff .figures").first()).toHaveText("+10 −0");
+		await expect(row(page, "A").locator(".diff a .added")).toHaveText("+10");
 
 		await page.locator("#ignored summary").click();
 		await page.getByRole("searchbox", { name: "Exclude from counts" }).fill("src");
 		await page.locator("#ignored").getByRole("button", { name: "Apply" }).click();
 
 		// Now the tests are what is left to read
-		await expect(row(page, "A").locator(".diff .figures").first()).toHaveText("+500 −0");
+		await expect(row(page, "A").locator(".diff a .added")).toHaveText("+500");
 	});
 
-	test("A PR of over 100 files shows only its total, since the files left out can’t be told apart", async ({
+	test("A PR of over 100 files stands in with its total, since the files left out can’t be told apart", async ({
 		page,
 		github,
 	}) => {
 		detail(github, { A: files({ "src/a.js": 10, "test/a.test.js": 500 }, 101) });
 		await page.goto("/?repo=foo/bar&files=test");
 
+		// The PR’s own count of every file
 		let cell = row(page, "A").locator(".diff");
-		// The PR’s own count of every file, with no diffstat that would stand for the rest
-		await expect(cell).toHaveText("+650 −2 total", { useInnerText: true });
-		await expect(cell.locator(".diffstat")).toBeHidden();
+		await expect(cell.locator("a")).toHaveAccessibleName("+650 −2 with excluded files");
+		await expect(cell.locator("small")).toBeHidden();
+		await expect(cell.locator("a")).toHaveAttribute("title", "This counts excluded files too");
 	});
 
-	test("A total alone sits on one line with its word, which names the figures beside it", async ({
+	test("A size with no total keeps its figures level with the other size’s in the row", async ({
 		page,
 		github,
 	}) => {
-		detail(github, { A: files({ "src/a.js": 10, "test/a.test.js": 500 }, 101) });
+		// A splits its whole PR, while its sum of commits since the review can’t split
+		detail(github, {
+			A: {
+				...files({ "src/a.js": 10, "test/a.test.js": 500 }),
+				commits: commits(["L", "N"]),
+				reviews: { nodes: [review("L")] },
+			},
+		});
+		github.compare = () => 500;
 		await page.goto("/?repo=foo/bar&files=test");
+		await expect(row(page, "A").locator(".diff .total")).toBeVisible();
+		await expect(row(page, "A").locator(".since-review")).toContainText("+780");
 
-		let cell = row(page, "A").locator(".diff");
-		await expect(cell.locator("small")).toBeVisible();
-		let [figures, word] = await Promise.all(
-			[cell.locator(".figures"), cell.locator("small")].map(part => part.boundingBox()),
+		let [diff, since] = await Promise.all(
+			[".diff a", ".since-review a"].map(link => row(page, "A").locator(link).boundingBox()),
 		);
-		expect(Math.abs(figures.y + figures.height - (word.y + word.height))).toBeLessThan(3);
+		expect(since.y).toBeCloseTo(diff.y, 0);
+		// The line kept for the word shows nothing, and a screen reader skips it
+		await expect(row(page, "A").locator(".since-review small")).toBeHidden();
 	});
 
 	test("A pattern that isn’t a regular expression stops Apply", async ({ page, github }) => {
@@ -445,8 +556,8 @@ test.describe("Exclude from counts", () => {
 		detail(github, { A: files({ "test/a.test.js": 500 }) });
 		await page.goto("/?repo=foo/bar&files=test");
 
-		await expect(row(page, "A").locator(".diff a")).toHaveAccessibleName(
-			"+0 −0 without excluded files, +500 −0 total",
+		await expect(row(page, "A").locator(".diff")).toHaveAccessibleName(
+			"+0 −0 without excluded files +500 −0 total",
 		);
 	});
 
