@@ -1665,8 +1665,10 @@ tbody td {
    A diff under five lines gets a square per line, e.g. +1 −1 paints one green and one red */
 .diffstat {
 	--total: calc(var(--additions) + var(--deletions));
-	--added: min(var(--additions), round(down, 5 * var(--additions) / var(--total)));
-	--deleted: min(var(--deletions), round(down, 5 * var(--deletions) / var(--total)));
+	/* Half a line rounds down to the same square, and keeps a whole share off the boundary,
+	   e.g. 5 × 340 / 425 = 4, which WebKit’s division falls just short of */
+	--added: min(var(--additions), round(down, (5 * var(--additions) + 0.5) / var(--total)));
+	--deleted: min(var(--deletions), round(down, (5 * var(--deletions) + 0.5) / var(--total)));
 
 	display: inline-block;
 	inline-size: calc(5 * 0.6em + 4px);

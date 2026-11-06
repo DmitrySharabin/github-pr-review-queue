@@ -61,14 +61,20 @@ test("The diffstat paints GitHub’s squares: one per line below five lines, the
 	page,
 	github,
 }) => {
-	detail(github, { A: { additions: 1, deletions: 1 }, B: { additions: 3, deletions: 3 } });
+	detail(github, {
+		A: { additions: 1, deletions: 1 },
+		B: { additions: 3, deletions: 3 },
+		// A share that comes out whole: 5 × 340 / 425 = 4
+		C: { additions: 340, deletions: 85 },
+	});
 	await page.goto("/?repo=foo/bar");
 	await expect(page.locator("progress")).toBeHidden();
 
 	expect([
 		await squares(row(page, "A").locator(".diff .diffstat")),
 		await squares(row(page, "B").locator(".diff .diffstat")),
-	]).toEqual(["adnnn", "aaddn"]);
+		await squares(row(page, "C").locator(".diff .diffstat")),
+	]).toEqual(["adnnn", "aaddn", "aaaad"]);
 });
 
 test("A review of a commit the PR no longer has counts the whole PR, as after a force push", async ({
