@@ -70,3 +70,21 @@ test("A review of a commit GitHub no longer has counts the whole PR, as after a 
 
 	await expect(row(page, "A").locator(".since-review .force-pushed")).toBeVisible();
 });
+
+test("A review of a commit before the last 100 isn’t called a force push", async ({
+	page,
+	github,
+}) => {
+	detail(github, {
+		A: {
+			commits: { totalCount: 101, nodes: [commit("N")] },
+			reviews: { nodes: [review("L")] },
+		},
+	});
+	await page.goto("/?repo=foo/bar");
+
+	await expect(row(page, "A").locator(".since-review a")).toHaveAttribute(
+		"title",
+		/older than the last 100 commits/,
+	);
+});

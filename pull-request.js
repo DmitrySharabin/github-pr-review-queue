@@ -5,7 +5,7 @@
  * @property {string} url - The diff on GitHub
  * @property {string} [range] - `base...head` to compare for an exact count, when the sum of commits is only an estimate
  * @property {string[]} [commits] - The commits to add up for the estimate, with {@link sizes}, until then no `additions` and `deletions`
- * @property {"unreviewed" | "force-pushed"} [whole] - Why the diff is the whole PR
+ * @property {"unreviewed" | "force-pushed" | "older"} [whole] - Why the diff is the whole PR
  *
  * @typedef {"reviewer" | "author"} Role - Whose view of the PRs: `user` reviews them, or wrote them
  *
@@ -147,6 +147,7 @@ export function details ({ user, role, ids }) {
 				nodes { ... on ReviewRequestedEvent { createdAt requestedReviewer { ... on Actor { login } } } }
 			}
 			commits(last: 100) {
+				totalCount
 				nodes { commit { id oid parents { totalCount } } }
 			}
 			reviewRequests(first: 20) {
@@ -228,7 +229,14 @@ export function summarize (pr, user, role) {
 		diff,
 		diffSinceReview:
 			index === -1
-				? { ...diff, whole: review ? "force-pushed" : "unreviewed" }
+				? {
+						...diff,
+						whole: !review
+							? "unreviewed"
+							: pr.commits.totalCount > commits.length
+								? "older"
+								: "force-pushed",
+					}
 				: {
 						...(own.length > 0
 							? { commits: own.map(commit => commit.id) }
