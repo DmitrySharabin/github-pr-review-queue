@@ -204,7 +204,7 @@ test("A sign-in GitHub doesn’t answer in time says GitHub took too long, not l
 	page,
 	github,
 }) => {
-	// Any time limit runs out soon, but only once the sign-in is waiting for the user
+	// Any time limit runs out soon after it starts, not at once, so the sign-in hears it while it waits
 	await page.addInitScript(() => {
 		AbortSignal.timeout = () => {
 			let controller = new AbortController();
