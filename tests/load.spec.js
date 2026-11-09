@@ -417,3 +417,25 @@ test("A queue of one PR counts it in the singular while its details load", async
 
 	await expect(page.locator("#counter")).toHaveText("0 of 1 pull request loaded");
 });
+
+test("An empty queue of the signed-in user speaks to them as “you”", async ({ page, github }) => {
+	github.search = answer => {
+		answer.data.search.nodes = [];
+	};
+	await page.goto("/?repo=foo/bar&user=dmitrysharabin");
+
+	await expect(page.locator("#empty p")).toHaveText(
+		"No pull requests in foo/bar are waiting for your review.",
+	);
+});
+
+test("An empty queue of another user names them", async ({ page, github }) => {
+	github.search = answer => {
+		answer.data.search.nodes = [];
+	};
+	await page.goto("/?repo=foo/bar&role=author&user=other-user");
+
+	await expect(page.locator("#empty p")).toHaveText(
+		"other-user has no open pull requests in foo/bar.",
+	);
+});

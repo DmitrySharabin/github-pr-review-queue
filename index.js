@@ -642,15 +642,17 @@ function showProgress (task, done, total) {
 /** Say why the queue is empty, e.g. “Nothing to review”, in the card and in the status, which a screen reader hears. */
 function showEmpty ({ repo, user, role, filter }) {
 	let author = role === "author";
+	let you = isYou();
+	let whose = you ? "your" : `${user}’s`;
 	let title = author ? "No open pull requests" : "Nothing to review";
 	let text = author
-		? `${user} has no open pull requests in ${repo}.`
-		: `No pull requests in ${repo} are waiting for ${user}’s review.`;
+		? `${you ? "You have" : `${user} has`} no open pull requests in ${repo}.`
+		: `No pull requests in ${repo} are waiting for ${whose} review.`;
 	if (filter) {
 		title = "No matching pull requests";
 		text = author
-			? `None of ${user}’s open pull requests in ${repo}`
-			: `None of the pull requests waiting for ${user}’s review in ${repo}`;
+			? `None of ${whose} open pull requests in ${repo}`
+			: `None of the pull requests waiting for ${whose} review in ${repo}`;
 		text += ` match “${filter}”. Try other search terms, or clear the filter.`;
 	}
 
@@ -672,6 +674,15 @@ function showUpdated (date) {
 			? { timeStyle: "short" }
 			: { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" },
 	);
+}
+
+/**
+ * Whether the queue is the signed-in user’s, so the page says “you” to them.
+ * A URL with no user is the signed-in one’s, who may be unknown yet, e.g. during the sign-in
+ */
+function isYou () {
+	let named = new URLSearchParams(location.search).get("user");
+	return !named || isLogin(named, github.user?.username ?? "");
 }
 
 /** Fill the strip above the table: where, for whom, how many, since when. */
@@ -703,10 +714,8 @@ function showSummary ({ repo, user, role, filter }) {
 	count.textContent = rows.length;
 
 	// A reviewer sees when the last request came. An author sees how many PRs wait for them, or for the user they look at.
-	// A URL with no user is the signed-in one’s, who may be unknown yet, e.g. during the sign-in
 	let author = role === "author";
-	let named = new URLSearchParams(location.search).get("user");
-	let you = !named || isLogin(named, github.user?.username ?? "");
+	let you = isYou();
 	let time = strip.querySelector(".latest");
 	let turns = strip.querySelector(".turns");
 	strip.querySelector(".tally").textContent = !author
