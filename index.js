@@ -322,21 +322,29 @@ async function load () {
 
 	// Another view shows at once what it showed last, e.g. on the last visit, while it loads again.
 	// Its rows then count as the last load’s, so the load marks what changed since
-	let stored = sameView || label !== undefined ? undefined : restore(view);
-	if (stored) {
-		// A row on screen of the same PR stays while it shows the same, e.g. with focus on the label just clicked
-		let previous = new Map(rows.map(row => [row.pr.id, row]));
-		rows = stored.rows.map(({ pr, summary }) => {
-			let row = previous.get(pr.id) ?? {};
-			row.pr = pr;
-			// A row stored without details, e.g. of a PR deleted during its load, asks for them again
-			row.detailed = summary.reviewers && pr;
-			fill(row, summary);
-			return row;
-		});
-		shownUser = stored.user;
-		showUpdated(new Date(stored.at));
-		seen = snapshot(rows);
+	let stored;
+	try {
+		stored = sameView || label !== undefined ? undefined : restore(view);
+		if (stored) {
+			// A row on screen of the same PR stays while it shows the same, e.g. with focus on the label just clicked
+			let previous = new Map(rows.map(row => [row.pr.id, row]));
+			rows = stored.rows.map(({ pr, summary }) => {
+				let row = previous.get(pr.id) ?? {};
+				row.pr = pr;
+				// A row stored without details, e.g. of a PR deleted during its load, asks for them again
+				row.detailed = summary.reviewers && pr;
+				fill(row, summary);
+				return row;
+			});
+			shownUser = stored.user;
+			showUpdated(new Date(stored.at));
+			seen = snapshot(rows);
+		}
+	}
+	catch (error) {
+		// A queue this version can’t show, e.g. stored by an older one with a step since renamed, waits for the load, which stores it anew
+		console.warn("Couldn’t show the stored queue.", error);
+		stored = undefined;
 	}
 
 	if (stored || label !== undefined) {

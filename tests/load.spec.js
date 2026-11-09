@@ -407,6 +407,24 @@ test("A queue stored for another user marks nothing new for the one signed in no
 	await expect(page.locator("#queue tbody mark:not([hidden])")).toHaveCount(0);
 });
 
+test("A queue stored by another version, e.g. with a step this one doesn’t know, loads anew", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar&role=author");
+	await expect(page.locator("progress")).toBeHidden();
+	await page.evaluate(() => {
+		let key = Object.keys(localStorage).find(key => key.startsWith("review-queue:queue:"));
+		let queue = JSON.parse(localStorage.getItem(key));
+		queue.rows[0].summary.step.name = "some-future-step";
+		localStorage.setItem(key, JSON.stringify(queue));
+	});
+
+	await page.reload();
+
+	await expect(page.locator("#summary .count")).toHaveText("6");
+});
+
 test("A refreshed row of a PR deleted before its details shows as it was, not dimmed as if still loading", async ({
 	page,
 	github,

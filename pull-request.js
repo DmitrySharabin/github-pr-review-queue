@@ -50,7 +50,7 @@
  *
  * @typedef {object} Step - Whose turn a PR is, and what they have to do
  * @property {"draft" | "request-review" | "await-review" | "resolve-conflicts" | "fix-checks" | "make-changes" | "re-request" | "reply" | "waiting" | "queued" | "auto-merge" | "checks-running" | "approved" | "await-merge"} name -
- * Stored with the queue, so a renamed step breaks queues stored before, e.g. `approved` for “Merge pull request”
+ * Stored with the queue, so a renamed step loses the queues stored before, which then wait for their load, e.g. `approved` for “Merge pull request”
  * @property {"author" | "others" | "nobody"} whose
  * @property {string[]} [logins] - The reviewers it names, e.g. those to ask for a review again
  * @property {number} [count] - How many conversations to reply to, or reviews to wait for
