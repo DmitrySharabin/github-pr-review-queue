@@ -31,8 +31,9 @@ export function signedInUser () {
 export function signedIn (signal) {
 	signal = inTime(signal);
 	return Promise.race([
+		// A stored token that GitHub rejects, e.g. expired, doesn’t fail Madata’s login(). Madata deletes it instead
 		github.login({ passive: true }).then(
-			() => true,
+			() => github.isAuthenticated(),
 			() => false,
 		),
 		new Promise((_, reject) => signal.addEventListener("abort", () => reject(signal.reason))),

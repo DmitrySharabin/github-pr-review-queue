@@ -64,6 +64,16 @@ test.describe("Without a stored token", () => {
 	});
 });
 
+test("A stored token that GitHub rejects, e.g. expired, shows the sign-in card", async ({
+	page,
+	github,
+}) => {
+	github.user = () => 401;
+	await page.goto("/?repo=foo/bar");
+
+	await expect(page.locator("#sign-in")).toBeVisible();
+});
+
 test("Bars that stood in for the user during the sign-in give way to the user once it ends", async ({
 	page,
 	github,
