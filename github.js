@@ -23,6 +23,23 @@ export function signedInUser () {
 }
 
 /**
+ * Sign in with the stored token, if any.
+ * Madata’s login() takes no signal, and the user it asks GitHub for can hang, e.g. after the laptop slept, so this stops waiting in time.
+ * @param {AbortSignal} signal - The load’s
+ * @returns {Promise<boolean>} Whether a token is stored that GitHub didn’t reject
+ */
+export function signedIn (signal) {
+	signal = inTime(signal);
+	return Promise.race([
+		github.login({ passive: true }).then(
+			() => true,
+			() => false,
+		),
+		new Promise((_, reject) => signal.addEventListener("abort", () => reject(signal.reason))),
+	]);
+}
+
+/**
  * GitHub’s answer to a GraphQL query, through Madata’s request() rather than its load().
  * For a PR deleted since the search, GitHub answers null and an error, and Madata’s load() throws the whole answer away for it, the other PRs included.
  */

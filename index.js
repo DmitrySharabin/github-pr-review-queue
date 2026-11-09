@@ -13,7 +13,16 @@ import {
 	search,
 	summarize,
 } from "./pull-request.js";
-import { count, describe, github, graphql, nodes, notFound, signedInUser } from "./github.js";
+import {
+	count,
+	describe,
+	github,
+	graphql,
+	nodes,
+	notFound,
+	signedIn,
+	signedInUser,
+} from "./github.js";
 import { forget, restore, store, storedQueues } from "./queues.js";
 import { fill, mark, snapshot, unmark } from "./row.js";
 import { showSort, sort, sortBy } from "./sort.js";
@@ -367,7 +376,7 @@ async function load () {
 	}
 
 	try {
-		await login(repo);
+		await login(repo, signal);
 		signal.throwIfAborted();
 		controls.inert = false;
 
@@ -767,29 +776,27 @@ function showDelta (delta) {
 		: "";
 }
 
-async function login (repo) {
-	try {
-		// NOTE: Has no timeout, so a dropped connection, e.g. after the laptop slept, can hang it when it fetches the user. Refresh then stays disabled
-		await github.login({ passive: true });
+async function login (repo, signal) {
+	if (await signedIn(signal)) {
+		return;
 	}
-	catch {
-		// No stored token. The sign-in popup needs a click, or the browser blocks it.
-		// Whoever signs in may be someone else, e.g. after a token expired, so the queues of the last one go
-		forget();
-		hideQueue();
-		showDelta();
-		header.classList.remove("failed");
-		status.hidden = false;
-		status.textContent = `Sign in to see the pull requests in ${repo}.`;
-		signIn.querySelector(".repo").textContent = repo;
-		progress.hidden = true;
-		signIn.hidden = false;
-		// Waits for the sign-in, not the click. Madata’s login() never settles if the popup is closed, so the button stays for another try
-		await new Promise(resolve => github.addEventListener("mv-login", resolve, { once: true }));
-		signIn.hidden = true;
-		progress.hidden = false;
-		status.textContent = "Loading pull requests…";
-	}
+
+	// No stored token. The sign-in popup needs a click, or the browser blocks it.
+	// Whoever signs in may be someone else, e.g. after a token expired, so the queues of the last one go
+	forget();
+	hideQueue();
+	showDelta();
+	header.classList.remove("failed");
+	status.hidden = false;
+	status.textContent = `Sign in to see the pull requests in ${repo}.`;
+	signIn.querySelector(".repo").textContent = repo;
+	progress.hidden = true;
+	signIn.hidden = false;
+	// Waits for the sign-in, not the click. Madata’s login() never settles if the popup is closed, so the button stays for another try
+	await new Promise(resolve => github.addEventListener("mv-login", resolve, { once: true }));
+	signIn.hidden = true;
+	progress.hidden = false;
+	status.textContent = "Loading pull requests…";
 }
 
 /**

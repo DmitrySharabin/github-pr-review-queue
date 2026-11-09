@@ -190,6 +190,24 @@ test("A request GitHub doesn’t answer in time stops, and says GitHub took too 
 	await expect(page.locator("#repo-form .notice")).toContainText("GitHub took too long");
 });
 
+test("A sign-in GitHub doesn’t answer in time says GitHub took too long, not loading forever", async ({
+	page,
+	github,
+}) => {
+	// Any time limit runs out soon, but only once the sign-in is waiting for the user
+	await page.addInitScript(() => {
+		AbortSignal.timeout = () => {
+			let controller = new AbortController();
+			setTimeout(() => controller.abort(new DOMException("", "TimeoutError")), 300);
+			return controller.signal;
+		};
+	});
+	github.user = () => new Promise(() => {});
+	await page.goto("/?repo=foo/bar");
+
+	await expect(page.locator("#repo-form .notice")).toContainText("GitHub took too long");
+});
+
 test("A sort chosen while the bars show keeps them, and sorts the rows that replace them", async ({
 	page,
 	github,
