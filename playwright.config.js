@@ -7,8 +7,8 @@ export default defineConfig({
 	},
 	projects: [
 		{ name: "chromium" },
-		// WebKit’s division falls just short of a whole number, e.g. 5 × 340 / 425, which the diffstat rounds down
-		{ name: "webkit", use: { browserName: "webkit" }, grep: /diffstat/ },
+		{ name: "firefox", use: { browserName: "firefox" } },
+		{ name: "webkit", use: { browserName: "webkit" } },
 	],
 	// Not the README’s 8123, where a dev server may already run
 	webServer: {
