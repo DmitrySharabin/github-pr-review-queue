@@ -63,8 +63,54 @@
  * @returns {string}
  */
 export function search ({ repo, user, role, filter }) {
-	let qualifier = role === "author" ? "author" : "review-requested";
-	return `repo:${repo} is:pr is:open ${qualifier}:${user} ${filter ?? ""}`.trim();
+	return `repo:${repo} is:pr is:open ${roleQualifier(role)}:${user} ${filter ?? ""}`.trim();
+}
+
+/** The qualifier that names a view’s user in its search, e.g. `author` in the author view */
+function roleQualifier (role) {
+	return role === "author" ? "author" : "review-requested";
+}
+
+/**
+ * The view as GitHub’s pulls page shows it, e.g. `{ user: "b" }` for `{ user: "a", role: "author", filter: "author:b" }`.
+ * The search joins a qualifier that the filter repeats with an OR, e.g. the PRs of both authors.
+ * GitHub’s page keeps the last one instead, and on a repo’s page it ignores other repos
+ * @param {View} view
+ * @returns {View}
+ */
+// NOTE: A value that isn’t a login, e.g. `author:app/foo`, becomes the user all the same.
+// `is:closed` and `is:issue` widen the search too
+export function normalize ({ user, role, filter, ...view }) {
+	let { values, rest } = qualifier(filter, roleQualifier(role));
+	if (values.length > 0) {
+		// `@me` is the signed-in user, whom no `user` means
+		user = values.at(-1) === "@me" ? null : values.at(-1);
+	}
+
+	for (let name of ["repo", "org", "user"]) {
+		rest = qualifier(rest, name).rest;
+	}
+
+	return { ...view, user, role, filter: rest || null };
+}
+
+/**
+ * The values of a qualifier in a filter, and the rest of the filter, e.g. `["a"]` and `-label:b is:draft` for `label` in `label:a -label:b is:draft`.
+ * A negated one, e.g. `-label:b`, only narrows the search, so it stays in the rest.
+ * @param {string | null} [filter]
+ * @param {string} name
+ * @returns {{ values: string[], rest: string }}
+ */
+// NOTE: A name inside a quoted phrase counts too, e.g. `"label:a"`, and a value with `"` in it breaks the term
+function qualifier (filter, name) {
+	let values = [];
+	let rest = (filter ?? "")
+		.replace(new RegExp(`(^|\\s)${name}:("[^"]*"|\\S+)`, "g"), (term, space, value) => {
+			values.push(value.replace(/^"(.*)"$/, "$1"));
+			return "";
+		})
+		.trim();
+	return { values, rest };
 }
 
 /**
@@ -87,8 +133,7 @@ export function pattern (files) {
  */
 // NOTE: A name with `"` in it makes a broken term
 export function withLabel (filter, name) {
-	let rest = (filter ?? "").replace(/(^|\s)label:("[^"]*"|\S+)/g, "").trim();
-	return `${rest} label:"${name}"`.trim();
+	return `${qualifier(filter, "label").rest} label:"${name}"`.trim();
 }
 
 /**

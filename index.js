@@ -7,6 +7,7 @@ import {
 	details,
 	hasLabel,
 	isLogin,
+	normalize,
 	outdated,
 	pattern,
 	query,
@@ -109,6 +110,7 @@ signOut.addEventListener("click", async () => {
 // The forms submit their fields as URL parameters, so the URL they open can be copied and reused
 for (let form of forms) {
 	form.addEventListener("formdata", ({ formData }) => {
+		normalizeParams(formData);
 		// An empty field means its default, e.g. the signed-in user: ?repo=foo/bar, not ?repo=foo/bar&user=
 		for (let [name, value] of [...formData]) {
 			if (!value) {
@@ -191,6 +193,15 @@ refresh.addEventListener("click", () => {
 	}
 });
 
+// A URL typed or shared with a filter that repeats the view’s qualifiers, e.g. `?role=author&filter=author:foo`.
+// Before the navigate listener, which would load the rewritten URL again
+let typed = new URLSearchParams(location.search);
+let normalized = new URLSearchParams(typed);
+normalizeParams(normalized);
+if (`${normalized}` !== `${typed}`) {
+	history.replaceState(null, "", `?${normalized}`);
+}
+
 // A filter, a role switch or another repo loads in place, so what it doesn’t change stays put, e.g. the open filter form.
 // Without the Navigation API, or to or from the page that asks for a repo, the page reloads:
 // going back to that page shows it, not just its URL, and leaving it brings back the controls it hides
@@ -241,6 +252,8 @@ function showView () {
 		else {
 			switched.delete("role");
 		}
+		// The other role’s qualifier in the filter, e.g. `author:foo`, names its user
+		normalizeParams(switched);
 
 		link.href = `?${switched}`;
 		link.ariaCurrent = (link.dataset.role === "author") === (role === "author") ? "page" : null;
@@ -272,6 +285,24 @@ function showView () {
 	status.hidden = true;
 	progress.hidden = true;
 	repoForm.hidden = false;
+}
+
+/**
+ * Rewrite URL parameters as GitHub’s pulls page rewrites its query, see normalize(), e.g. `?user=foo&role=author` for `?role=author&filter=author:foo`.
+ * @param {URLSearchParams | FormData} params
+ */
+function normalizeParams (params) {
+	let { user, filter } = normalize(
+		Object.fromEntries(["user", "role", "filter"].map(name => [name, params.get(name)])),
+	);
+	for (let [name, value] of Object.entries({ user, filter })) {
+		if (value) {
+			params.set(name, value);
+		}
+		else {
+			params.delete(name);
+		}
+	}
 }
 
 /** Mark the pattern field invalid while it holds no regular expression. */

@@ -385,6 +385,114 @@ test("A click on a label keeps the rows that have it while the search runs", asy
 	await expect(page.locator("#queue tbody .number")).toHaveText(["#65", "#67"]);
 });
 
+test.describe("A filter that repeats the view’s qualifiers", () => {
+	/** Apply `filter` in the open view, as the user types it */
+	async function apply (page, filter) {
+		await page.locator("#narrow summary").click();
+		await page.getByRole("searchbox", { name: "Filter" }).fill(filter);
+		await page.locator("#narrow").getByRole("button", { name: "Apply" }).click();
+	}
+
+	/** The view the page’s URL asks for, e.g. `{ user: "foo", filter: null }` */
+	function view (page) {
+		let params = new URL(page.url()).searchParams;
+		return { user: params.get("user"), filter: params.get("filter") };
+	}
+
+	// The search would join the two authors with an OR, while the summary names one of them
+	test("Another author in the author view’s filter opens their queue, as on GitHub’s pulls page", async ({
+		page,
+		github,
+	}) => {
+		await page.goto("/?repo=foo/bar&role=author");
+
+		await apply(page, "author:other-user label:bug");
+
+		await expect.poll(() => view(page)).toEqual({ user: "other-user", filter: "label:bug" });
+	});
+
+	test("Another reviewer in the reviewer view’s filter opens their queue", async ({
+		page,
+		github,
+	}) => {
+		await page.goto("/?repo=foo/bar");
+
+		await apply(page, "review-requested:other-user");
+
+		await expect.poll(() => view(page)).toEqual({ user: "other-user", filter: null });
+	});
+
+	test("Of two authors in the filter, the last one wins, as on GitHub’s pulls page", async ({
+		page,
+		github,
+	}) => {
+		await page.goto("/?repo=foo/bar&role=author");
+
+		await apply(page, "author:third-user author:other-user");
+
+		await expect.poll(() => view(page)).toEqual({ user: "other-user", filter: null });
+	});
+
+	test("`author:@me` opens the signed-in user’s queue", async ({ page, github }) => {
+		await page.goto("/?repo=foo/bar&user=other-user&role=author");
+
+		await apply(page, "author:@me");
+
+		await expect.poll(() => view(page)).toEqual({ user: null, filter: null });
+	});
+
+	// A negated author narrows the search, so it is a filter of its own
+	test("A negated author in the author view stays in the filter", async ({ page, github }) => {
+		await page.goto("/?repo=foo/bar&role=author");
+
+		await apply(page, "-author:other-user");
+
+		await expect.poll(() => view(page)).toEqual({ user: null, filter: "-author:other-user" });
+	});
+
+	test("An author in the reviewer view stays in the filter, as it narrows the search", async ({
+		page,
+		github,
+	}) => {
+		await page.goto("/?repo=foo/bar");
+
+		await apply(page, "author:other-user");
+
+		await expect.poll(() => view(page)).toEqual({ user: null, filter: "author:other-user" });
+	});
+
+	test("A link to the view with other repos in the filter searches only its own repo", async ({
+		page,
+		github,
+	}) => {
+		let queries = [];
+		page.on("request", request => {
+			if (request.url().endsWith("/graphql")) {
+				queries.push(request.postData());
+			}
+		});
+
+		await page.goto(
+			`/?repo=foo/bar&filter=${encodeURIComponent("repo:foo/baz org:baz user:baz label:bug")}`,
+		);
+		await expect(page.locator("progress")).toBeHidden();
+
+		expect(view(page)).toEqual({ user: null, filter: "label:bug" });
+		expect(queries.some(query => query.includes("baz"))).toBe(false);
+	});
+
+	test("The switch to the author view opens the queue of the author that the filter names", async ({
+		page,
+		github,
+	}) => {
+		await page.goto(`/?repo=foo/bar&filter=${encodeURIComponent("author:other-user")}`);
+
+		await page.getByRole("link", { name: "Author" }).click();
+
+		await expect.poll(() => view(page)).toEqual({ user: "other-user", filter: null });
+	});
+});
+
 test("A queue stored for another user marks nothing new for the one signed in now", async ({
 	page,
 	github,
