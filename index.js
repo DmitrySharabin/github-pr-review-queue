@@ -53,12 +53,12 @@ let updated = document.querySelector("#updated time");
 let changes = document.querySelector("#updated .changes");
 let delta = strip.querySelector(".delta");
 let filterForm = narrow.querySelector("form");
-let filesForm = ignored.querySelector("form");
-let forms = [repoForm, filterForm, filesForm, ...strip.querySelectorAll("form")];
+let excludeForm = ignored.querySelector("form");
+let forms = [repoForm, filterForm, excludeForm, ...strip.querySelectorAll("form")];
 
 /** @type {Row[]} */
 let rows = [];
-/** The URL parameters of the load the rows show, e.g. `{ repo: "foo/bar", filter: "label:baz", files: "test" }` */
+/** The URL parameters of the load the rows show, e.g. `{ repo: "foo/bar", filter: "label:baz", exclude: "test" }` */
 let shown;
 /** Whose queue the rows show, e.g. the signed-in user’s when the URL names no `user` */
 let shownUser;
@@ -175,7 +175,7 @@ for (let form of strip.querySelectorAll("form")) {
 
 for (let [details, field] of [
 	[narrow, filterForm.elements.filter],
-	[ignored, filesForm.elements.files],
+	[ignored, excludeForm.elements.exclude],
 ]) {
 	details.addEventListener("toggle", () => {
 		if (details.open) {
@@ -185,7 +185,7 @@ for (let [details, field] of [
 }
 
 // A pattern that isn’t a regular expression, e.g. `test(`, stops Apply with the browser’s message
-filesForm.elements.files.addEventListener("input", checkPattern);
+excludeForm.elements.exclude.addEventListener("input", checkPattern);
 
 refresh.addEventListener("click", () => {
 	if (refresh.ariaDisabled !== "true") {
@@ -198,6 +198,13 @@ refresh.addEventListener("click", () => {
 let current = new URLSearchParams(location.search);
 let normalized = new URLSearchParams(current);
 normalizeParams(normalized);
+// `files` is the old name of `exclude`, e.g. in a link saved before the rename
+if (normalized.has("files")) {
+	if (!normalized.has("exclude")) {
+		normalized.set("exclude", normalized.get("files"));
+	}
+	normalized.delete("files");
+}
 if (`${normalized}` !== `${current}`) {
 	history.replaceState(null, "", `?${normalized}${location.hash}`);
 }
@@ -229,7 +236,7 @@ function showView () {
 	let params = new URLSearchParams(location.search);
 	let role = params.get("role");
 	let filter = params.get("filter");
-	let files = params.get("files");
+	let exclude = params.get("exclude");
 
 	// As defaults, so a reset, e.g. Esc in a summary form, goes back to what the URL says
 	for (let form of forms) {
@@ -262,7 +269,7 @@ function showView () {
 	// Folded, each still shows its value. Clear opens the view without it
 	for (let [details, name, value] of [
 		[narrow, "filter", filter],
-		[ignored, "files", files],
+		[ignored, "exclude", exclude],
 	]) {
 		details.querySelector("summary code").textContent = value;
 		let without = new URLSearchParams(params);
@@ -307,7 +314,7 @@ function normalizeParams (params) {
 
 /** Mark the pattern field invalid while it holds no regular expression. */
 function checkPattern () {
-	let field = filesForm.elements.files;
+	let field = excludeForm.elements.exclude;
 	field.setCustomValidity(
 		field.value && !pattern(field.value) ? "Enter a valid regular expression." : "",
 	);
@@ -326,11 +333,11 @@ async function load () {
 	// A missing parameter means its default, e.g. no `user` is the signed-in user. A repeated one counts once, as in the forms
 	let params = new URLSearchParams(location.search);
 	let view = Object.fromEntries(
-		["repo", "user", "role", "filter", "files"].map(name => [name, params.get(name)]),
+		["repo", "user", "role", "filter", "exclude"].map(name => [name, params.get(name)]),
 	);
 	let { repo, role, filter } = view;
 	// Another pattern counts every PR’s lines anew, so its rows are another queue’s
-	let sameQueue = ["repo", "user", "role", "files"].every(name => view[name] === shown?.[name]);
+	let sameQueue = ["repo", "user", "role", "exclude"].every(name => view[name] === shown?.[name]);
 	let sameView = sameQueue && filter === shown.filter;
 
 	// Without the marks, a row with nothing new equals its next render, so it stays and keeps focus
@@ -558,11 +565,11 @@ async function load () {
  * @param {AbortSignal} signal - The load’s
  * @returns {Promise<PromiseRejectedResult | undefined>} The first failure, if any
  */
-async function fillDetails (stale, task, { repo, user, role, files }, signal) {
+async function fillDetails (stale, task, { repo, user, role, exclude }, signal) {
 	// An author’s view counts no lines.
 	// NOTE: A pattern that isn’t a regular expression, e.g. typed into the URL, ignores nothing.
 	// One that backtracks a lot, e.g. `(.+)+x$`, freezes the tab, as it runs on every path
-	let ignore = role === "author" ? undefined : pattern(files);
+	let ignore = role === "author" ? undefined : pattern(exclude);
 	let done = 0;
 	// GitHub stops a query that runs too long, so each asks for a few PRs
 	let size = 10;
@@ -572,7 +579,7 @@ async function fillDetails (stale, task, { repo, user, role, files }, signal) {
 	let results = await Promise.allSettled(
 		batches.map(async batch => {
 			let prs = await nodes(
-				ids => details({ user, role, files: ignore && files, ids }),
+				ids => details({ user, role, exclude: ignore && exclude, ids }),
 				batch.map(row => row.pr.id),
 				signal,
 			);

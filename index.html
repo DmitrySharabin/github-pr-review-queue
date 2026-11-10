@@ -96,7 +96,7 @@
 			</div>
 			<input type="hidden" name="role">
 			<input type="hidden" name="filter">
-			<input type="hidden" name="files">
+			<input type="hidden" name="exclude">
 			<button>Show queue</button>
 		</form>
 
@@ -110,7 +110,7 @@
 						<input type="hidden" name="user">
 						<input type="hidden" name="role">
 						<input type="hidden" name="filter">
-						<input type="hidden" name="files">
+						<input type="hidden" name="exclude">
 						<button class="apply" aria-label="Show queue"></button>
 						<button class="cancel" type="reset" aria-label="Cancel"></button>
 					</form>
@@ -131,7 +131,7 @@
 						<input type="hidden" name="repo">
 						<input type="hidden" name="role">
 						<input type="hidden" name="filter">
-						<input type="hidden" name="files">
+						<input type="hidden" name="exclude">
 						<button class="apply" aria-label="Show queue"></button>
 						<button class="cancel" type="reset" aria-label="Cancel"></button>
 					</form>
@@ -155,7 +155,7 @@
 				<input type="hidden" name="repo">
 				<input type="hidden" name="user">
 				<input type="hidden" name="role">
-				<input type="hidden" name="files">
+				<input type="hidden" name="exclude">
 				<input name="filter" type="search" placeholder="label:foo -label:bar" autocomplete="off" spellcheck="false" aria-labelledby="filter-name" aria-describedby="filter-note">
 				<button>Apply</button>
 				<a class="clear" aria-label="Clear filter" hidden>Clear</a>
@@ -164,16 +164,16 @@
 		</details>
 
 		<details id="ignored" hidden>
-			<summary><span id="files-name">Exclude from counts</span> <code></code></summary>
+			<summary><span id="exclude-name">Exclude from counts</span> <code></code></summary>
 			<form>
 				<input type="hidden" name="repo">
 				<input type="hidden" name="user">
 				<input type="hidden" name="role">
 				<input type="hidden" name="filter">
-				<input name="files" type="search" placeholder="test|\.lock$" autocomplete="off" spellcheck="false" aria-labelledby="files-name" aria-describedby="files-note">
+				<input name="exclude" type="search" placeholder="test|\.lock$" autocomplete="off" spellcheck="false" aria-labelledby="exclude-name" aria-describedby="exclude-note">
 				<button>Apply</button>
 				<a class="clear" aria-label="Clear exclusions" hidden>Clear</a>
-				<small id="files-note">A regular expression that matches any part of a file path, such as <code>test|\.lock$</code></small>
+				<small id="exclude-note">A regular expression that matches any part of a file path, such as <code>test|\.lock$</code></small>
 			</form>
 		</details>
 

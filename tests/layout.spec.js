@@ -41,7 +41,7 @@ async function starts (page, github, selector, { url = "/?repo=foo/bar", edge = 
 	return [before, await measure()];
 }
 
-/** Give every PR a file of code and one of tests, e.g. for `files=test` to count apart. */
+/** Give every PR a file of code and one of tests, e.g. for `exclude=test` to count apart. */
 function withTests (answer) {
 	for (let pr of answer.data.nodes) {
 		pr.files = {
@@ -147,7 +147,7 @@ test("A size with its total under it leaves its row as tall as the bars", async 
 	github.details = withTests;
 
 	let [before, after] = await starts(page, github, "#queue tbody tr", {
-		url: "/?repo=foo/bar&files=test",
+		url: "/?repo=foo/bar&exclude=test",
 		edge: "bottom",
 	});
 	await expect(page.locator("#queue tbody .total").first()).toBeVisible();
@@ -223,7 +223,7 @@ test("The ring of the field that edits the user stays inside the cell that scrol
 
 test("A total sits under the figures it adds to, not over them", async ({ page, github }) => {
 	github.details = withTests;
-	await page.goto("/?repo=foo/bar&files=test");
+	await page.goto("/?repo=foo/bar&exclude=test");
 
 	let cell = page.locator("#queue tbody tr").first().locator(".diff");
 	await expect(cell.locator(".total")).toBeVisible();

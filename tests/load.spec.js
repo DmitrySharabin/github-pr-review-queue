@@ -631,7 +631,7 @@ for (let size of ["diff", "diffSinceReview"]) {
 				]),
 			),
 		);
-		await page.goto("/?repo=foo/bar&files=test");
+		await page.goto("/?repo=foo/bar&exclude=test");
 		await expect(page.locator("progress")).toBeHidden();
 		await page.evaluate(size => {
 			let key = Object.keys(localStorage).find(key => key.startsWith("review-queue:queue:"));

@@ -294,11 +294,24 @@ test.describe("Exclude from counts", () => {
 		github,
 	}) => {
 		detail(github, { A: files({ "src/a.js": 10, "test/a.test.js": 500 }) });
-		await page.goto("/?repo=foo/bar&files=test");
+		await page.goto("/?repo=foo/bar&exclude=test");
 
 		let cell = row(page, "A").locator(".diff");
 		await expect(cell.locator("a")).toHaveAccessibleName("+10 −0 without excluded files");
 		await expect(cell.locator(".total")).toHaveText("+510 −0");
+	});
+
+	test("A link with the old `files` name still excludes the files, under the name `exclude`", async ({
+		page,
+		github,
+	}) => {
+		detail(github, { A: files({ "src/a.js": 10, "test/a.test.js": 500 }) });
+		await page.goto("/?repo=foo/bar&files=test");
+
+		await expect(row(page, "A").locator(".diff a")).toHaveAccessibleName(
+			"+10 −0 without excluded files",
+		);
+		await expect(page).toHaveURL(/\?repo=foo%2Fbar&exclude=test$/);
 	});
 
 	test("A screen reader hears which line leaves the excluded files out", async ({
@@ -306,7 +319,7 @@ test.describe("Exclude from counts", () => {
 		github,
 	}) => {
 		detail(github, { A: files({ "src/a.js": 10, "test/a.test.js": 500 }) });
-		await page.goto("/?repo=foo/bar&files=test");
+		await page.goto("/?repo=foo/bar&exclude=test");
 
 		await expect(row(page, "A").locator(".diff")).toHaveAccessibleName(
 			"+10 −0 without excluded files +510 −0 total",
@@ -319,7 +332,7 @@ test.describe("Exclude from counts", () => {
 			A: files({ "src/a.js": 10, "test/a.test.js": 500 }),
 			B: files({ "src/b.js": 300 }),
 		});
-		await page.goto("/?repo=foo/bar&files=test");
+		await page.goto("/?repo=foo/bar&exclude=test");
 		await expect(page.locator("progress")).toBeHidden();
 
 		await page.getByRole("button", { name: "Changes", exact: true }).click();
@@ -358,7 +371,7 @@ test.describe("Exclude from counts", () => {
 				{ filename: "deps.lock", additions: 900, deletions: 40 },
 			];
 		};
-		await page.goto(`/?repo=foo/bar&files=${encodeURIComponent("lock")}`);
+		await page.goto(`/?repo=foo/bar&exclude=${encodeURIComponent("lock")}`);
 
 		let cell = row(page, "A").locator(".since-review");
 		await expect(cell.locator("a")).toHaveAccessibleName("+5 −1 without excluded files");
@@ -373,7 +386,7 @@ test.describe("Exclude from counts", () => {
 			A: { commits: commits(["L", "N"]), reviews: { nodes: [review("L")] } },
 		});
 		github.compare = () => 500;
-		await page.goto("/?repo=foo/bar&files=test");
+		await page.goto("/?repo=foo/bar&exclude=test");
 
 		// N’s own size, with no word after it, which would break the column’s run of figures
 		let cell = row(page, "A").locator(".since-review");
@@ -392,7 +405,7 @@ test.describe("Exclude from counts", () => {
 		github,
 	}) => {
 		detail(github, { A: files({ "src/a.js": 10, "test/a.test.js": 500 }, 3001) });
-		await page.goto("/?repo=foo/bar&files=test");
+		await page.goto("/?repo=foo/bar&exclude=test");
 
 		await expect(row(page, "A").locator(".since-review a")).toHaveAttribute(
 			"title",
@@ -402,7 +415,7 @@ test.describe("Exclude from counts", () => {
 
 	test("Another pattern counts the files anew", async ({ page, github }) => {
 		detail(github, { A: files({ "src/a.js": 10, "test/a.test.js": 500 }) });
-		await page.goto("/?repo=foo/bar&files=test");
+		await page.goto("/?repo=foo/bar&exclude=test");
 		await expect(row(page, "A").locator(".diff a .added")).toHaveText("+10");
 
 		await page.locator("#ignored summary").click();
@@ -434,7 +447,7 @@ test.describe("Exclude from counts", () => {
 				answer.push({ filename: "test/a.test.js", additions: 500, deletions: 0 });
 			}
 		};
-		await page.goto("/?repo=foo/bar&files=test");
+		await page.goto("/?repo=foo/bar&exclude=test");
 
 		let cell = row(page, "A").locator(".diff");
 		await expect(cell.locator("a")).toHaveAccessibleName("+10 −0 without excluded files");
@@ -444,7 +457,7 @@ test.describe("Exclude from counts", () => {
 	test("A PR whose files GitHub fails to list counts all of them", async ({ page, github }) => {
 		detail(github, { A: files({ "src/a.js": 10 }, 101) });
 		github.files = () => 500;
-		await page.goto("/?repo=foo/bar&files=test");
+		await page.goto("/?repo=foo/bar&exclude=test");
 
 		let cell = row(page, "A").locator(".diff");
 		await expect(cell.locator("a")).toHaveAttribute(
@@ -459,7 +472,7 @@ test.describe("Exclude from counts", () => {
 	}) => {
 		detail(github, { A: files({ "src/a.js": 10 }, 2) });
 		github.files = () => 500;
-		await page.goto("/?repo=foo/bar&files=test");
+		await page.goto("/?repo=foo/bar&exclude=test");
 		await expect(page.locator("progress")).toBeHidden();
 
 		github.files = answer => {
@@ -484,7 +497,7 @@ test.describe("Exclude from counts", () => {
 		github.files = () => {
 			listed = true;
 		};
-		await page.goto("/?repo=foo/bar&files=test");
+		await page.goto("/?repo=foo/bar&exclude=test");
 
 		// The PR’s own count of every file
 		let cell = row(page, "A").locator(".diff");
@@ -511,7 +524,7 @@ test.describe("Exclude from counts", () => {
 			},
 		});
 		github.compare = () => 500;
-		await page.goto("/?repo=foo/bar&files=test");
+		await page.goto("/?repo=foo/bar&exclude=test");
 		await expect(row(page, "A").locator(".diff .total")).toBeVisible();
 		await expect(row(page, "A").locator(".since-review")).toContainText("+780");
 
@@ -544,7 +557,7 @@ test.describe("Exclude from counts", () => {
 		page,
 		github,
 	}) => {
-		await page.goto("/?repo=foo/bar&files=test");
+		await page.goto("/?repo=foo/bar&exclude=test");
 		await page.locator("#ignored summary").click();
 		let field = page.getByRole("searchbox", { name: "Exclude from counts" });
 		await field.fill("test(");
@@ -561,7 +574,7 @@ test.describe("Exclude from counts", () => {
 		page,
 		github,
 	}) => {
-		await page.goto("/?repo=foo/bar&filter=label:bug&files=test");
+		await page.goto("/?repo=foo/bar&filter=label:bug&exclude=test");
 		await page.locator("#ignored summary").click();
 
 		await page.locator("#ignored").getByRole("link", { name: "Clear exclusions" }).click();
@@ -576,7 +589,7 @@ test.describe("Exclude from counts", () => {
 	}) => {
 		// NOTE: Firefox leaves the focus outside the field. Not yet known whether a user sees it or only Playwright’s press()
 		test.fail(browserName === "firefox");
-		await page.goto("/?repo=foo/bar&files=test");
+		await page.goto("/?repo=foo/bar&exclude=test");
 		await page.locator("#ignored summary").click();
 
 		await page
@@ -606,7 +619,7 @@ test.describe("Exclude from counts", () => {
 		page,
 		github,
 	}) => {
-		await page.goto("/?repo=foo/bar&files=test");
+		await page.goto("/?repo=foo/bar&exclude=test");
 		await page.locator("#ignored summary").click();
 
 		await page.locator("#ignored").getByRole("link", { name: "Clear exclusions" }).click();
@@ -622,7 +635,7 @@ test.describe("Exclude from counts", () => {
 		github,
 	}) => {
 		detail(github, { A: files({ "src/a.js": 10, "test/a.test.js": 500 }) });
-		await page.goto(`/?repo=foo/bar&files=${encodeURIComponent("test(")}`);
+		await page.goto(`/?repo=foo/bar&exclude=${encodeURIComponent("test(")}`);
 		await expect(page.locator("progress")).toBeHidden();
 
 		// The PR’s own count, on one line
@@ -634,7 +647,7 @@ test.describe("Exclude from counts", () => {
 		github,
 	}) => {
 		detail(github, { A: files({ "test/a.test.js": 500 }) });
-		await page.goto("/?repo=foo/bar&files=test");
+		await page.goto("/?repo=foo/bar&exclude=test");
 
 		await expect(row(page, "A").locator(".diff")).toHaveAccessibleName(
 			"+0 −0 without excluded files +500 −0 total",
@@ -646,20 +659,20 @@ test.describe("Exclude from counts", () => {
 		github,
 	}) => {
 		detail(github, { A: files({ "src/a.js": 10 }) });
-		await page.goto("/?repo=foo/bar&files=test");
+		await page.goto("/?repo=foo/bar&exclude=test");
 		await expect(page.locator("progress")).toBeHidden();
 
 		await expect(row(page, "A").locator(".diff")).toHaveText("+10 −0", { useInnerText: true });
 	});
 
 	test("Applying a filter keeps the pattern", async ({ page, github }) => {
-		await page.goto("/?repo=foo/bar&files=test");
+		await page.goto("/?repo=foo/bar&exclude=test");
 		await page.locator("#narrow summary").click();
 
 		await page.getByRole("searchbox", { name: "Filter" }).fill("label:bug");
 		await page.locator("#narrow").getByRole("button", { name: "Apply" }).click();
 
-		await expect(page).toHaveURL(/^(?=.*filter=label%3Abug)(?=.*files=test)/);
+		await expect(page).toHaveURL(/^(?=.*filter=label%3Abug)(?=.*exclude=test)/);
 	});
 
 	test("Applying a pattern keeps the filter", async ({ page, github }) => {
@@ -669,14 +682,14 @@ test.describe("Exclude from counts", () => {
 		await page.getByRole("searchbox", { name: "Exclude from counts" }).fill("test");
 		await page.locator("#ignored").getByRole("button", { name: "Apply" }).click();
 
-		await expect(page).toHaveURL(/^(?=.*filter=label%3Abug)(?=.*files=test)/);
+		await expect(page).toHaveURL(/^(?=.*filter=label%3Abug)(?=.*exclude=test)/);
 	});
 
 	test("A pattern that isn’t a regular expression marks its field once the user leaves it", async ({
 		page,
 		github,
 	}) => {
-		await page.goto("/?repo=foo/bar&files=test");
+		await page.goto("/?repo=foo/bar&exclude=test");
 		await page.locator("#ignored summary").click();
 		let field = page.getByRole("searchbox", { name: "Exclude from counts" });
 		let valid = await field.evaluate(input => getComputedStyle(input).borderColor);
@@ -695,7 +708,7 @@ test.describe("Exclude from counts", () => {
 			A: files({ "src/a.js": 10, "test/a.test.js": 500 }),
 			B: files({ "src/a.js": 10, "test/a.test.js": 500 }, 101),
 		});
-		await page.goto("/?repo=foo/bar&files=test");
+		await page.goto("/?repo=foo/bar&exclude=test");
 		await expect(page.locator("progress")).toBeHidden();
 
 		let [split, unsplit] = await Promise.all(
@@ -711,7 +724,7 @@ test.describe("Exclude from counts", () => {
 				queries.push(request.postData());
 			}
 		});
-		await page.goto("/?repo=foo/bar&role=author&files=test");
+		await page.goto("/?repo=foo/bar&role=author&exclude=test");
 		await expect(page.locator("progress")).toBeHidden();
 
 		expect(queries.some(query => query.includes("files("))).toBe(false);

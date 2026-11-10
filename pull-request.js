@@ -17,7 +17,7 @@
  * @property {string} user
  * @property {Role | null} [role]
  * @property {string | null} [filter] - Narrows the search further, e.g. `label:foo -label:bar`
- * @property {string | null} [files] - A regular expression for the paths of files whose lines count apart, e.g. `test|\.lock$`
+ * @property {string | null} [exclude] - A regular expression for the paths of files whose lines count apart, e.g. `test|\.lock$`
  *
  * @typedef {object} Reviewer
  * @property {string} name - The login
@@ -115,13 +115,13 @@ function qualifier (filter, name, value = `"[^"]*"|\\S+`) {
 }
 
 /**
- * The regular expression a view’s `files` spells, e.g. `/test|\.lock$/` for `test|\.lock$`.
- * @param {string | null} [files]
+ * The regular expression a view’s `exclude` spells, e.g. `/test|\.lock$/` for `test|\.lock$`.
+ * @param {string | null} [exclude]
  * @returns {RegExp | undefined} None for no pattern, or for one that isn’t a regular expression, e.g. `test(`
  */
-export function pattern (files) {
+export function pattern (exclude) {
 	try {
-		return files ? new RegExp(files) : undefined;
+		return exclude ? new RegExp(exclude) : undefined;
 	}
 	catch {}
 }
@@ -203,10 +203,10 @@ export function query ({ repo, user, role, filter }) {
 
 /**
  * GraphQL query for the rest of what {@link summarize} needs, for a few PRs. These fields are the slow ones.
- * @param {{ user: string, role?: Role | null, files?: string | null, ids: string[] }} options
+ * @param {{ user: string, role?: Role | null, exclude?: string | null, ids: string[] }} options
  * @returns {string}
  */
-export function details ({ user, role, files, ids }) {
+export function details ({ user, role, exclude, ids }) {
 	// A reviewer needs their own reviews, to count what changed since. An author needs what decides whose turn it is, see turn(). The permission comes once, from query()
 	let fields =
 		role === "author"
@@ -222,7 +222,7 @@ export function details ({ user, role, files, ids }) {
 
 	// Only to tell ignored files apart, since they slow the query, e.g. 3.1 s instead of 1.4 s for 30 PRs.
 	// `filename`, as a comparison names it, so split() reads both
-	if (files) {
+	if (exclude) {
 		fields += `
 			files(first: 100) { totalCount nodes { filename: path additions deletions } }`;
 	}
