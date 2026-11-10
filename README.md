@@ -5,15 +5,15 @@ It runs in the browser, with no build step and no server of its own.
 
 ## Features at a glance
 
-- **Your review queue**: the open PRs in one repo that wait for your review, or for anyone else’s.
-- **Your own PRs**: switch to the author view to see whose turn each of your open PRs is, what to do next, with a button to the place on GitHub where you do it, how long it has waited, and which approvals came before your last commit.
-- **What is new for you**: each PR shows only the changes since your last review, so a re-review starts where you left off.
-- **Review history**: how many times you were asked again, when you were last asked, and what the other reviewers did.
-- **Labels and filters**: narrow the queue by a label with one click, or by any GitHub search terms.
-- **Exclude from counts**: count the lines of tests or lockfiles apart, so each size shows the code left to read, with the total under it.
-- **Sorting** by any column but the pull request. The page remembers your choice for each view.
-- **What changed since the last refresh**: new PRs and changed values stay marked, and a counter shows how many PRs came and went.
-- **Fast start**: the last queue shows at once on the next visit, while the fresh one loads.
+- **Your review queue**: the open PRs in one repo that wait for your review. You can also open another user’s queue.
+- **Your own PRs**: the author view shows whose turn each PR is and what to do next. A button opens the GitHub page for that step. The view also shows how long each PR has waited and which approvals came before your last commit.
+- **Only what is new to you**: each PR shows the changes since your last review, so a re-review starts where you left off.
+- **Review history**: how many times you were asked to review again, when the last request came, and what the other reviewers did.
+- **Labels and filters**: click a label to show only its PRs, or filter the queue with any GitHub search terms.
+- **Exclude from counts**: leave out files such as tests or lockfiles. Each size then shows the code left to read, with the total under it.
+- **Sorting**: sort by any column except the pull request and the reviewers. The page remembers the sort for each view.
+- **Changes since the last refresh**: new PRs and changed values stay marked. A counter shows how many PRs came and went.
+- **Fast start**: on the next visit, the page shows the last queue at once and loads the fresh one.
 - **Recent repos and users**: the page offers the ones you opened before.
 
 ## Quick start
@@ -30,7 +30,7 @@ It runs in the browser, with no build step and no server of its own.
 
 ## Examples
 
-The page takes its settings from the URL, so a link to a queue can be saved and shared.
+The page takes its settings from the URL, so you can save and share a link to a queue.
 
 The PRs in `foo/bar` that wait for your review:
 
@@ -38,7 +38,7 @@ The PRs in `foo/bar` that wait for your review:
 http://localhost:8123/?repo=foo/bar
 ```
 
-The PRs that wait for your review, with tests and lockfiles counted apart:
+The PRs that wait for your review, with tests and lockfiles excluded from counts:
 
 ```
 http://localhost:8123/?repo=foo/bar&exclude=test|\.lock$
@@ -63,8 +63,8 @@ http://localhost:8123/?repo=foo/bar&role=author
 | `repo` | Yes | The repo, as `owner/name`. Without it, the page asks for it. |
 | `user` | No | Whose queue to show. Defaults to you. |
 | `role` | No | `author` shows the PRs `user` wrote. Without it, the page shows the PRs that wait for `user`’s review. |
-| `filter` | No | More [GitHub search terms](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests), e.g. `label:foo -label:bar` or words from the title. As on GitHub’s pulls page, `author:` in the author view and `review-requested:` in the reviewer view choose the user instead, and the last one wins. The search ignores `repo:`, `org:`, `user:`, `is:closed` and `is:issue`. |
-| `exclude` | No | A regular expression for the paths of files to exclude from counts, e.g. `test\|\.lock$`. The sizes count their lines only in the total. A size that adds up commits, or a pull request of over 3000 files, shows only the total. Not in the author view. |
+| `filter` | No | More [GitHub search terms](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests), e.g. `label:foo -label:bar` or words from the title. As on GitHub’s pulls page, `author:` in the author view and `review-requested:` in the reviewer view choose the user. If there are several, the last one wins. The search ignores `repo:`, `org:`, `user:`, `is:closed` and `is:issue`. |
+| `exclude` | No | A regular expression for the paths of files to exclude from counts, e.g. `test\|\.lock$`. Their lines count only in the total. A size that adds up the commits since the review, or the size of a PR of over 3000 files, shows only the total. Not in the author view. |
 
 You can change the repo, the user and the view above the table too.
 
@@ -86,15 +86,21 @@ To switch between the two ways, sign out. Signing out also forgets the stored qu
 
 ## Tests
 
-The tests open the page in Chromium with [Playwright](https://playwright.dev) and fake GitHub’s answers, so they need no token.
+The tests open the page in Chromium, Firefox and WebKit with [Playwright](https://playwright.dev) and fake GitHub’s answers, so they need no token.
 
 ```sh
 npm install
-npx playwright install chromium
+npx playwright install
 npm test
 ```
 
-To watch them run, step by step, use `npm test -- --ui`.
+To run the tests in one engine, give `chromium`, `firefox` or `webkit` to `--project`.
+
+```sh
+npm test -- --project=firefox
+```
+
+To watch the tests run, step by step, use `npm test -- --ui`.
 
 ## Browser support
 
