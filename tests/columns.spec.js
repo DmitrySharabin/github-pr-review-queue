@@ -92,7 +92,7 @@ test("A review of a commit before the last 100 isn’t called a force push", asy
 
 	await expect(row(page, "A").locator(".since-review a")).toHaveAttribute(
 		"title",
-		/isn’t among the last 100 commits/,
+		"The reviewed commit isn’t among the last 100 commits, so this counts the whole pull request",
 	);
 	await expect(row(page, "A").locator(".since-review .force-pushed")).toBeHidden();
 });
@@ -379,21 +379,24 @@ test.describe("Exclude from counts", () => {
 		let cell = row(page, "A").locator(".since-review");
 		await expect(cell.locator("a")).toHaveAccessibleName("+780 −2 with excluded files");
 		await expect(cell.locator("small")).toBeHidden();
-		await expect(cell.locator("a")).toHaveAttribute("title", "This counts excluded files too");
+		await expect(cell.locator("a")).toHaveAttribute(
+			"title",
+			"This adds up the sizes of the commits since the review, so it counts excluded files too",
+		);
 		// Gray, as other counts that stand in for the one the column means
 		await expect(cell.locator("a .added")).toHaveCSS("filter", "grayscale(1)");
 	});
 
-	test("An unreviewed PR of over 100 files says both why it counts the whole PR and that it counts excluded files", async ({
+	test("An unreviewed PR of over 3000 files says both why it counts the whole PR and that it counts excluded files", async ({
 		page,
 		github,
 	}) => {
-		detail(github, { A: files({ "src/a.js": 10, "test/a.test.js": 500 }, 101) });
+		detail(github, { A: files({ "src/a.js": 10, "test/a.test.js": 500 }, 3001) });
 		await page.goto("/?repo=foo/bar&files=test");
 
 		await expect(row(page, "A").locator(".since-review a")).toHaveAttribute(
 			"title",
-			"Not reviewed yet, so this counts the whole pull request, excluded files too",
+			"Not reviewed yet, so this counts the whole pull request. GitHub lists at most 3,000 files of a pull request, so this counts excluded files too",
 		);
 	});
 
@@ -410,18 +413,89 @@ test.describe("Exclude from counts", () => {
 		await expect(row(page, "A").locator(".diff a .added")).toHaveText("+500");
 	});
 
-	test("A PR of over 100 files stands in with its total, since the files left out can’t be told apart", async ({
+	test("A PR of over 100 files lists the rest of them, so its count leaves the excluded ones out", async ({
 		page,
 		github,
 	}) => {
-		detail(github, { A: files({ "src/a.js": 10, "test/a.test.js": 500 }, 101) });
+		// The details hold the first of its 101 files only. The excluded one is the 101st, on the second page
+		detail(github, { A: files({ "src/a.js": 10 }, 101) });
+		github.files = (answer, number, page) => {
+			if (number === 65 && page === 1) {
+				answer.push(
+					{ filename: "src/a.js", additions: 10, deletions: 0 },
+					...Array.from({ length: 99 }, (_, i) => ({
+						filename: `src/${i}.js`,
+						additions: 0,
+						deletions: 0,
+					})),
+				);
+			}
+			if (number === 65 && page === 2) {
+				answer.push({ filename: "test/a.test.js", additions: 500, deletions: 0 });
+			}
+		};
+		await page.goto("/?repo=foo/bar&files=test");
+
+		let cell = row(page, "A").locator(".diff");
+		await expect(cell.locator("a")).toHaveAccessibleName("+10 −0 without excluded files");
+		await expect(cell.locator(".total")).toHaveText("+510 −0");
+	});
+
+	test("A PR whose files GitHub fails to list counts all of them", async ({ page, github }) => {
+		detail(github, { A: files({ "src/a.js": 10 }, 101) });
+		github.files = () => 500;
+		await page.goto("/?repo=foo/bar&files=test");
+
+		let cell = row(page, "A").locator(".diff");
+		await expect(cell.locator("a")).toHaveAttribute(
+			"title",
+			"GitHub didn’t send the list of files, so this counts excluded files too",
+		);
+	});
+
+	test("A refresh lists the files again that GitHub failed to list, though the PR didn’t change", async ({
+		page,
+		github,
+	}) => {
+		detail(github, { A: files({ "src/a.js": 10 }, 2) });
+		github.files = () => 500;
+		await page.goto("/?repo=foo/bar&files=test");
+		await expect(page.locator("progress")).toBeHidden();
+
+		github.files = answer => {
+			answer.push(
+				{ filename: "src/a.js", additions: 10, deletions: 0 },
+				{ filename: "test/a.test.js", additions: 500, deletions: 0 },
+			);
+		};
+		await page.getByRole("button", { name: "Refresh" }).click();
+
+		await expect(row(page, "A").locator(".diff a")).toHaveAccessibleName(
+			"+10 −0 without excluded files",
+		);
+	});
+
+	test("A PR of over 3000 files stands in with its total, since GitHub lists no more of them", async ({
+		page,
+		github,
+	}) => {
+		detail(github, { A: files({ "src/a.js": 10, "test/a.test.js": 500 }, 3001) });
+		let listed = false;
+		github.files = () => {
+			listed = true;
+		};
 		await page.goto("/?repo=foo/bar&files=test");
 
 		// The PR’s own count of every file
 		let cell = row(page, "A").locator(".diff");
 		await expect(cell.locator("a")).toHaveAccessibleName("+650 −2 with excluded files");
 		await expect(cell.locator("small")).toBeHidden();
-		await expect(cell.locator("a")).toHaveAttribute("title", "This counts excluded files too");
+		await expect(cell.locator("a")).toHaveAttribute(
+			"title",
+			"GitHub lists at most 3,000 files of a pull request, so this counts excluded files too",
+		);
+		// 31 pages would list only the first 3000 files, which split nothing
+		expect(listed).toBe(false);
 	});
 
 	test("A size with no total keeps its figures level with the other size’s in the row", async ({

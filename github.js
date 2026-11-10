@@ -133,8 +133,47 @@ export async function count (repo, diff, signal, ignore) {
 	}
 
 	if (diff?.commits) {
-		Object.assign(diff, sum(await nodes(sizes, diff.commits, signal)));
+		// Commits don’t list their files
+		Object.assign(
+			diff,
+			sum(await nodes(sizes, diff.commits, signal)),
+			ignore && { unsplit: "commits" },
+		);
 		delete diff.commits;
+	}
+}
+
+/**
+ * List all files of a PR whose details hold only the first 100, so its lines split by a pattern.
+ * GitHub lists at most 3000 files of a PR, so a PR of more keeps the 100 and counts every file.
+ * @param {string} repo
+ * @param {object} pr - A node from details(), with the PR’s `number` from the search
+ * @param {AbortSignal} signal - The load’s
+ */
+export async function listFiles (repo, pr, signal) {
+	let { totalCount, nodes } = pr.files ?? {};
+	if (!(nodes?.length < totalCount && totalCount <= 3000)) {
+		return;
+	}
+
+	// NOTE: A failed page leaves the PR’s others running until they answer or time out
+	try {
+		// Pages by number, not by the next one’s link, so they load at once
+		let pages = await Promise.all(
+			Array.from({ length: Math.ceil(totalCount / 100) }, (_, i) =>
+				github.request(
+					`https://api.github.com/repos/${repo}/pulls/${pr.number}/files?per_page=100&page=${i + 1}`,
+					{},
+					"GET",
+					{ signal: inTime(signal) },
+				)),
+		);
+		pr.files.nodes = pages.flat();
+	}
+	catch (error) {
+		signal.throwIfAborted();
+		// The first 100 files can’t split the lines, so the cell counts every file instead
+		console.warn(`Couldn’t list the files of #${pr.number}, counting all of them.`, error);
 	}
 }
 

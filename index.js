@@ -18,6 +18,7 @@ import {
 	describe,
 	github,
 	graphql,
+	listFiles,
 	nodes,
 	notFound,
 	signedIn,
@@ -425,13 +426,18 @@ async function load () {
 			// Without details the summary has no slow fields, so a refreshed row keeps its old ones, dimmed, until they arrive
 			fill(row, { ...row.summary, ...summarize(pr, user, role) });
 
-			// Ranges left mean a comparison failed, so the next load tries again.
+			// Ranges left mean a comparison failed, so the next load tries again. So does a list of files GitHub didn’t send,
+			// and a count stored with `ignored: null` by an older version, which gave no reason.
 			// The details are checked against their own copy. A load stopped before they came, e.g. by a label click, already replaced `pr`.
 			// An author’s details are checked on every load, since a finished check run changes neither `updatedAt` nor the head commit
 			if (
 				!row.detailed ||
 				role === "author" ||
 				row.summary.diffSinceReview.ranges ||
+				row.summary.diff.unsplit === "unlisted" ||
+				[row.summary.diff, row.summary.diffSinceReview].some(
+					diff => diff.ignored === null,
+				) ||
 				outdated(row.detailed, pr)
 			) {
 				stale.push(row);
@@ -554,7 +560,9 @@ async function fillDetails (stale, task, { repo, user, role, files }, signal) {
 
 					let row = batch.find(row => row.pr.id === pr.id);
 
-					let summary = summarize({ ...row.pr, ...pr }, user, role, ignore);
+					pr = { ...row.pr, ...pr };
+					await listFiles(repo, pr, signal);
+					let summary = summarize(pr, user, role, ignore);
 					await count(repo, summary.diffSinceReview, signal, ignore);
 					// A newer load may have started during the count
 					if (signal.aborted) {

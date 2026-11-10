@@ -9,6 +9,7 @@ export { expect } from "@playwright/test";
  * `details` also gets the queries for commit sizes, whose nodes are then commits, e.g. N with +780.
  * `user` gets GitHub’s answer to whose token it is, e.g. `github.user = () => 401` for a token GitHub rejects.
  * `compare` gets the comparison of two commits, with no changed files until it adds some, and its range, e.g. `L...N`.
+ * `files` gets a page of a PR’s files, with none until it adds some, and the PR’s number and the page’s, e.g. `65, 1`.
  */
 export const test = base.extend({
 	// The token Madata finds stored, or none for the sign-in card: `test.use({ token: null })`
@@ -20,6 +21,7 @@ export const test = base.extend({
 			search () {},
 			details () {},
 			compare () {},
+			files () {},
 		};
 
 		// Madata signs in with a stored token without asking GitHub for one
@@ -51,6 +53,14 @@ export const test = base.extend({
 			if (path.includes("/compare/")) {
 				let answer = { files: [] };
 				let status = await github.compare(answer, path.split("/compare/")[1]);
+				return route.fulfill(failed(status) ?? { json: answer });
+			}
+
+			let [, number] = path.match(/\/pulls\/(\d+)\/files$/) ?? [];
+			if (number) {
+				let answer = [];
+				let page = new URL(route.request().url()).searchParams.get("page");
+				let status = await github.files(answer, Number(number), Number(page));
 				return route.fulfill(failed(status) ?? { json: answer });
 			}
 

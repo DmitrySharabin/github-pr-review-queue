@@ -64,7 +64,7 @@ http://localhost:8123/?repo=foo/bar&role=author
 | `user` | No | Whose queue to show. Defaults to you. |
 | `role` | No | `author` shows the PRs `user` wrote. Without it, the page shows the PRs that wait for `user`’s review. |
 | `filter` | No | More [GitHub search terms](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests), e.g. `label:foo -label:bar` or words from the title. |
-| `files` | No | A regular expression for the paths of files to ignore, e.g. `test\|\.lock$`. The sizes count their lines only in the total. A size that adds up commits, or a pull request of over 100 files, shows only the total. Not in the author view. |
+| `files` | No | A regular expression for the paths of files to ignore, e.g. `test\|\.lock$`. The sizes count their lines only in the total. A size that adds up commits, or a pull request of over 3000 files, shows only the total. Not in the author view. |
 
 You can change the repo, the user and the view above the table too.
 

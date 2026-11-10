@@ -7,8 +7,8 @@
  * One per run of the author’s commits between merges of the base branch, which bring in other PRs’ changes
  * @property {string[]} [commits] - The commits to add up for the estimate, with {@link sizes}, until then no `additions` and `deletions`
  * @property {"unreviewed" | "force-pushed" | "older"} [whole] - Why the diff is the whole PR
- * @property {Pick<Diff, "additions" | "deletions"> | null} [ignored] - With a pattern of ignored files, their lines, which `additions` and `deletions` leave out.
- * `null` when they can’t be told apart, e.g. in a sum of commits, so `additions` and `deletions` count every file
+ * @property {Pick<Diff, "additions" | "deletions">} [ignored] - With a pattern of ignored files, their lines, which `additions` and `deletions` leave out
+ * @property {"too-many-files" | "unlisted" | "commits"} [unsplit] - With a pattern of ignored files, why they can’t be told apart, so `additions` and `deletions` count every file
  *
  * @typedef {"reviewer" | "author"} Role - Whose view of the PRs: `user` reviews them, or wrote them
  *
@@ -299,12 +299,12 @@ function forReviewer (pr, user, ignore) {
 
 	let diff = { additions: pr.additions, deletions: pr.deletions, url: `${pr.url}/changes` };
 	if (ignore) {
-		// NOTE: A PR of over 100 files counts them all, as no split can tell ignored ones apart
+		// NOTE: A PR of over 3000 files counts them all, as GitHub lists no more, see listFiles()
 		Object.assign(
 			diff,
 			pr.files && pr.files.totalCount === pr.files.nodes.length
 				? split(pr.files.nodes, ignore)
-				: { ignored: null },
+				: { unsplit: pr.files?.totalCount > 3000 ? "too-many-files" : "unlisted" },
 		);
 	}
 
@@ -324,7 +324,6 @@ function forReviewer (pr, user, ignore) {
 						...(own.length > 0
 							? { commits: own.map(commit => commit.id) }
 							: { additions: 0, deletions: 0 }),
-						...(ignore && own.length > 0 && { ignored: null }),
 						url: `${pr.url}/changes/${reviewed}..${commits.at(-1).oid}`,
 						ranges:
 							runs.length > 0 && runs.length <= compareLimit

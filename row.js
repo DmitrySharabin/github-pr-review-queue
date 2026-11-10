@@ -15,6 +15,15 @@ let rowTemplate = document.querySelector("#row");
 let reviewerTemplate = document.querySelector("#reviewer");
 let labelTemplate = document.querySelector("#label");
 
+/** Why a count with a pattern of ignored files counts every file, keyed by a diff’s `unsplit` */
+const unsplitTitles = {
+	"too-many-files":
+		"GitHub lists at most 3,000 files of a pull request, so this counts excluded files too",
+	unlisted: "GitHub didn’t send the list of files, so this counts excluded files too",
+	commits:
+		"This adds up the sizes of the commits since the review, so it counts excluded files too",
+};
+
 /** Why “Changes since last review” counts the whole PR, keyed by the diff’s `whole` */
 const wholeTitles = {
 	unreviewed: "Not reviewed yet, so this counts the whole pull request",
@@ -350,9 +359,9 @@ function showDiff (cell, diff) {
 
 	// The lines of every file, ignored ones too, under those of the rest, e.g. “+650 −32 total”.
 	// Without a split, e.g. in a sum of commits, the figures are the total already, gray as a stand-in
-	if (diff.ignored === null) {
+	if (diff.unsplit) {
 		cell.classList.add("unsplit");
-		link.title = "This counts excluded files too";
+		link.title = unsplitTitles[diff.unsplit];
 		link.append(spoken(" with excluded files"));
 	}
 	else if (total && size(diff.ignored) > 0) {
@@ -368,8 +377,9 @@ function showDiff (cell, diff) {
 	if (diff.whole) {
 		cell.classList.add("whole");
 		// On the link, so keyboard focus reaches it too
-		link.title =
-			wholeTitles[diff.whole] + (diff.ignored === null ? ", excluded files too" : "");
+		link.title = [wholeTitles[diff.whole], unsplitTitles[diff.unsplit]]
+			.filter(Boolean)
+			.join(". ");
 		cell.querySelector(".force-pushed").hidden = diff.whole !== "force-pushed";
 	}
 }
