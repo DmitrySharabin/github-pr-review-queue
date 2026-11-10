@@ -72,26 +72,26 @@ function roleQualifier (role) {
 }
 
 /**
- * The view as GitHub’s pulls page shows it, e.g. `{ user: "b" }` for `{ user: "a", role: "author", filter: "author:b" }`.
- * The search joins a qualifier that the filter repeats with an OR, e.g. the PRs of both authors.
- * GitHub’s page keeps the last one instead, and on a repo’s page it ignores other repos
- * @param {View} view
- * @returns {View}
+ * The user and filter of a view as GitHub’s pulls page shows them, e.g. `{ user: "b", filter: null }` for `{ user: "a", role: "author", filter: "author:b" }`.
+ * The search joins the repeats of a qualifier with an OR, e.g. the PRs of both authors.
+ * GitHub’s page keeps the last one instead. On a repo’s page, it ignores other repos
+ * @param {Pick<View, "user" | "role" | "filter">} view
+ * @returns {Pick<View, "user" | "filter">}
  */
-// NOTE: A value that isn’t a login, e.g. `author:app/foo`, becomes the user all the same.
-// `is:closed` and `is:issue` widen the search too
-export function normalize ({ user, role, filter, ...view }) {
+// NOTE: A value that isn’t a login, e.g. `author:app/foo`, becomes the user all the same
+export function normalize ({ user, role, filter }) {
 	let { values, rest } = qualifier(filter, roleQualifier(role));
 	if (values.length > 0) {
-		// `@me` is the signed-in user, whom no `user` means
+		// `@me` is the signed-in user, as is no `user`
 		user = values.at(-1) === "@me" ? null : values.at(-1);
 	}
 
-	for (let name of ["repo", "org", "user"]) {
-		rest = qualifier(rest, name).rest;
+	// Other repos, closed PRs and issues, which the queue of open PRs in its repo leaves out
+	for (let [name, value] of [["repo"], ["org"], ["user"], ["is", "closed|issue"]]) {
+		rest = qualifier(rest, name, value).rest;
 	}
 
-	return { ...view, user, role, filter: rest || null };
+	return { user, filter: rest || null };
 }
 
 /**
@@ -99,14 +99,15 @@ export function normalize ({ user, role, filter, ...view }) {
  * A negated one, e.g. `-label:b`, only narrows the search, so it stays in the rest.
  * @param {string | null} [filter]
  * @param {string} name
+ * @param {string} [value] - A regular expression for the values to take, e.g. `closed|issue` for `is`, so `is:draft` stays
  * @returns {{ values: string[], rest: string }}
  */
-// NOTE: A name inside a quoted phrase counts too, e.g. `"label:a"`, and a value with `"` in it breaks the term
-function qualifier (filter, name) {
+// NOTE: A name inside a quoted phrase counts too, e.g. `label:a` in `"fix label:a"`, and a value with `"` in it breaks the term
+function qualifier (filter, name, value = `"[^"]*"|\\S+`) {
 	let values = [];
 	let rest = (filter ?? "")
-		.replace(new RegExp(`(^|\\s)${name}:("[^"]*"|\\S+)`, "g"), (term, space, value) => {
-			values.push(value.replace(/^"(.*)"$/, "$1"));
+		.replace(new RegExp(`(^|\\s)${name}:(${value})`, "g"), (term, space, found) => {
+			values.push(found.replace(/^"(.*)"$/, "$1"));
 			return "";
 		})
 		.trim();

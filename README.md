@@ -63,7 +63,7 @@ http://localhost:8123/?repo=foo/bar&role=author
 | `repo` | Yes | The repo, as `owner/name`. Without it, the page asks for it. |
 | `user` | No | Whose queue to show. Defaults to you. |
 | `role` | No | `author` shows the PRs `user` wrote. Without it, the page shows the PRs that wait for `user`’s review. |
-| `filter` | No | More [GitHub search terms](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests), e.g. `label:foo -label:bar` or words from the title. As on GitHub’s pulls page, `author:` in the author view and `review-requested:` in the reviewer view choose the user instead, and the last one wins. The search ignores `repo:`, `org:` and `user:`. |
+| `filter` | No | More [GitHub search terms](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests), e.g. `label:foo -label:bar` or words from the title. As on GitHub’s pulls page, `author:` in the author view and `review-requested:` in the reviewer view choose the user instead, and the last one wins. The search ignores `repo:`, `org:`, `user:`, `is:closed` and `is:issue`. |
 | `files` | No | A regular expression for the paths of files to ignore, e.g. `test\|\.lock$`. The sizes count their lines only in the total. A size that adds up commits, or a pull request of over 3000 files, shows only the total. Not in the author view. |
 
 You can change the repo, the user and the view above the table too.

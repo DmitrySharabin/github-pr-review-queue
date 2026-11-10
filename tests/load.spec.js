@@ -481,6 +481,23 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 		expect(queries.some(query => query.includes("baz"))).toBe(false);
 	});
 
+	test("A link to the view with closed PRs or issues in the filter keeps to open PRs, drafts and all", async ({
+		page,
+		github,
+	}) => {
+		await page.goto(
+			`/?repo=foo/bar&filter=${encodeURIComponent("is:closed is:issue is:draft")}`,
+		);
+
+		expect(view(page)).toEqual({ user: null, filter: "is:draft" });
+	});
+
+	test("A link that the page rewrites keeps its fragment", async ({ page, github }) => {
+		await page.goto(`/?repo=foo/bar&filter=${encodeURIComponent("repo:foo/baz")}#queue`);
+
+		expect(new URL(page.url()).hash).toBe("#queue");
+	});
+
 	test("The switch to the author view opens the queue of the author that the filter names", async ({
 		page,
 		github,

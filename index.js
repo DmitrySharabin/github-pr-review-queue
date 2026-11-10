@@ -193,13 +193,13 @@ refresh.addEventListener("click", () => {
 	}
 });
 
-// A URL typed or shared with a filter that repeats the view’s qualifiers, e.g. `?role=author&filter=author:foo`.
-// Before the navigate listener, which would load the rewritten URL again
-let typed = new URLSearchParams(location.search);
-let normalized = new URLSearchParams(typed);
+// A typed or shared URL can repeat the view’s qualifiers in its filter, e.g. `?role=author&filter=author:foo`.
+// The rewrite runs before the navigate listener, which would load the URL a second time
+let current = new URLSearchParams(location.search);
+let normalized = new URLSearchParams(current);
 normalizeParams(normalized);
-if (`${normalized}` !== `${typed}`) {
-	history.replaceState(null, "", `?${normalized}`);
+if (`${normalized}` !== `${current}`) {
+	history.replaceState(null, "", `?${normalized}${location.hash}`);
 }
 
 // A filter, a role switch or another repo loads in place, so what it doesn’t change stays put, e.g. the open filter form.
@@ -288,7 +288,7 @@ function showView () {
 }
 
 /**
- * Rewrite URL parameters as GitHub’s pulls page rewrites its query, see normalize(), e.g. `?user=foo&role=author` for `?role=author&filter=author:foo`.
+ * Rewrite URL parameters as GitHub’s pulls page rewrites its query, see {@link normalize}, e.g. `?role=author&user=foo` for `?role=author&filter=author:foo`.
  * @param {URLSearchParams | FormData} params
  */
 function normalizeParams (params) {
