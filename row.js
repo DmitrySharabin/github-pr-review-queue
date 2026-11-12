@@ -89,25 +89,17 @@ export function fill (row, summary) {
 }
 
 /**
- * The rows as they show now, by PR id, for a later {@link mark} to compare with.
- * @param {Row[]} rows
- * @returns {Map<string, HTMLTableRowElement>}
- */
-export function snapshot (rows) {
-	return new Map(rows.map(row => [row.pr.id, row.tr.cloneNode(true)]));
-}
-
-/**
  * Mark what changed since the last load: the PRs it didn’t show, and the cells that differ from it.
  * @param {Row[]} rows - The rows on screen
- * @param {Map<string, HTMLTableRowElement>} last - The rows it showed, by PR id
+ * @param {Map<string, Summary>} last - The summaries it showed, by PR id
  * @returns {{ added: number, left: number }} How many PRs it didn’t show, and how many it showed that are gone, e.g. merged or reviewed
  */
 export function mark (rows, last) {
 	let added = 0;
 
 	for (let { pr, tr } of rows) {
-		let old = last.get(pr.id);
+		// Rendered now, so the page’s own changes don’t count, e.g. label links that keep the authors picked since
+		let old = last.has(pr.id) && render(last.get(pr.id));
 		let cells = old ? [...tr.cells].filter(cell => !same(cell, old.cells[cell.cellIndex])) : [];
 		if (old && cells.length === 0) {
 			continue;
@@ -127,6 +119,18 @@ export function mark (rows, last) {
 
 	let left = [...last.keys()].filter(id => !rows.some(row => row.pr.id === id)).length;
 	return { added, left };
+}
+
+/**
+ * Point the label links of the rows at the URL’s view, e.g. after a pick of authors, which renders no row anew.
+ * @param {Row[]} rows
+ */
+export function relink (rows) {
+	for (let { tr } of rows) {
+		for (let link of tr.querySelectorAll(".labels a")) {
+			link.href = labelLink(link.textContent);
+		}
+	}
 }
 
 /** Remove the marks, leaving the row as {@link render} makes it, e.g. no `class=""`, so that it equals its next render. */
@@ -234,9 +238,7 @@ function showLabels (headline, labels) {
 		...labels.map(({ name, color, description }, i) => {
 			let item = labelTemplate.content.firstElementChild.cloneNode(true);
 			let link = item.querySelector("a");
-			let params = new URLSearchParams(location.search);
-			params.set("filter", withLabel(params.get("filter"), name));
-			link.href = `?${params}`;
+			link.href = labelLink(name);
 			link.textContent = name;
 			link.ariaLabel = `Filter by label ${name}`;
 			link.title = description ?? "";
@@ -263,6 +265,13 @@ function showLabels (headline, labels) {
 	}
 
 	headline.append(" ", list);
+}
+
+/** The URL’s view with the label `name` in its filter, e.g. `?repo=foo/bar&filter=label:"bug"`. */
+function labelLink (name) {
+	let params = new URLSearchParams(location.search);
+	params.set("filter", withLabel(params.get("filter"), name));
+	return `?${params}`;
 }
 
 function showAllLabels (element) {

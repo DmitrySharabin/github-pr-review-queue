@@ -1,5 +1,5 @@
 /**
- * @import { View } from "./pull-request.js"
+ * @import { Summary, View } from "./pull-request.js"
  * @import { Row } from "./row.js"
  */
 import {
@@ -26,7 +26,7 @@ import {
 	signedInUser,
 } from "./github.js";
 import { forget, restore, store, storedQueues } from "./queues.js";
-import { fill, mark, snapshot, unmark } from "./row.js";
+import { fill, mark, relink, unmark } from "./row.js";
 import { showSort, sort, sortBy } from "./sort.js";
 import { showTime } from "./time.js";
 import { offerRecent } from "./recent.js";
@@ -72,7 +72,7 @@ let shownUser;
 let authors = [];
 /** @type {AbortController | undefined} Aborts the load in flight */
 let loading;
-/** @type {Map<string, HTMLTableRowElement> | undefined} The rows the last finished load of this view showed, by PR id, for the next to mark what changed */
+/** @type {Map<string, Summary> | undefined} What the last finished load of this view showed, by PR id, for the next to mark what changed */
 let seen;
 
 table.addEventListener("command", event => sortBy(rows, event.source.value, { shows }));
@@ -425,7 +425,7 @@ async function load () {
 			});
 			shownUser = stored.user;
 			showUpdated(new Date(stored.at));
-			seen = snapshot(rows);
+			seen = new Map(rows.map(row => [row.pr.id, row.summary]));
 		}
 	}
 	catch (error) {
@@ -557,7 +557,7 @@ async function load () {
 
 		// The user has seen what the search found, even when details failed
 		let last = seen;
-		seen = snapshot(rows);
+		seen = new Map(rows.map(row => [row.pr.id, row.summary]));
 		if (last) {
 			// NOTE: Counts the PRs of authors not picked too, e.g. “+1” for a new PR that doesn’t show
 			showDelta(mark(rows, last));
@@ -693,6 +693,7 @@ function showQueue ({ repo, user, role, filter }) {
 	empty.hidden = shownRows.length > 0;
 	repoForm.hidden = true;
 	showAuthors(rows, authors);
+	relink(rows);
 	authorButton.disabled = false;
 	authorButton.hidden = role === "author" || (rows.length === 0 && authors.length === 0);
 	// Nothing to narrow down, unless a filter is why nothing is left. Open, it may hold focus, e.g. on Apply after the terms were cleared

@@ -21,6 +21,26 @@ function authored (github, changes = {}) {
 	};
 }
 
+/** Give PR D, by qux, the label `bug`, as well as the {@link authors}. */
+function labeled (github) {
+	authored(github);
+	let answer = github.search;
+	github.search = found => {
+		answer(found);
+		found.data.search.nodes[3].labels.nodes = [
+			{ name: "bug", color: "d73a4a", description: null },
+		];
+	};
+}
+
+/** Pick qux in the list and show their PRs. */
+async function pickQux (page) {
+	await page.getByRole("button", { name: "Author" }).click();
+	await pick(page, "qux").check();
+	await page.getByRole("button", { name: "Show 2 PRs" }).click();
+	await expect(page).toHaveURL(/authors=qux/);
+}
+
 /** The checkbox of an author in the open list. */
 function pick (page, login) {
 	return page.locator("#authors").getByRole("checkbox", { name: login });
@@ -382,4 +402,34 @@ test("A step back to other authors after a failed load loads the queue, as none 
 	await page.goBack();
 
 	await expect(page.locator("#queue tbody tr")).toHaveCount(6);
+});
+
+test("A label clicked after a pick of authors keeps the picked authors", async ({
+	page,
+	github,
+}) => {
+	labeled(github);
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+	await pickQux(page);
+
+	await page.getByRole("link", { name: "Filter by label bug" }).click();
+	await expect(page).toHaveURL(/filter=label/);
+
+	expect(new URL(page.url()).searchParams.get("authors")).toBe("qux");
+});
+
+test("A refresh after a pick of authors marks no row that didn’t change", async ({
+	page,
+	github,
+}) => {
+	labeled(github);
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+	await pickQux(page);
+
+	await page.getByRole("button", { name: "Refresh" }).click();
+	await expect(page.locator("#updated .changes")).toHaveText("No changes");
+
+	await expect(page.locator("#queue tbody mark:not([hidden])")).toHaveCount(0);
 });
