@@ -29,6 +29,8 @@ const roles = {
 
 /** The role whose sort shows, see {@link showSort} */
 let shown;
+/** @type {Row[]} The rows the table shows, in order. A transition places them once it starts, by when another sort may have come */
+let listed = [];
 
 /**
  * Mark the sort a role last chose, which survives a reload, e.g. { column: "diff", direction: "ascending" }.
@@ -96,7 +98,7 @@ export function sort (rows, { animate, shows = () => true } = {}) {
 		return sign * (x - y);
 	});
 
-	let listed = rows.filter(shows);
+	listed = rows.filter(shows);
 	let body = table.tBodies[0];
 	let place = () => {
 		// A row already at its place stays, e.g. every row on a refresh that changes no order.

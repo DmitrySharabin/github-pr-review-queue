@@ -241,6 +241,36 @@ test("A sort chosen while the bars show keeps them, and sorts the rows that repl
 	]);
 });
 
+test("A sort chosen before the rows slide into place puts them in its order", async ({
+	page,
+	github,
+}) => {
+	// The rows slide into place on a call, which a busy page makes a frame or more later
+	await page.addInitScript(() => {
+		document.startViewTransition = place => {
+			window.place = place;
+		};
+		localStorage.setItem(
+			"review-queue:sort",
+			JSON.stringify({ column: "diff", direction: "descending" }),
+		);
+	});
+	await page.goto("/?repo=foo/bar");
+	await page.waitForFunction(() => window.place);
+
+	await page.getByRole("button", { name: "Changes", exact: true }).click();
+	await page.evaluate(() => window.place());
+
+	await expect(page.locator("#queue tbody .number")).toHaveText([
+		"#65",
+		"#66",
+		"#67",
+		"#68",
+		"#69",
+		"#70",
+	]);
+});
+
 test("A PR deleted between the search and its details counts as loaded, and leaves the others to load", async ({
 	page,
 	github,
