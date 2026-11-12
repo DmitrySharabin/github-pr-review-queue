@@ -64,9 +64,9 @@ http://localhost:8123/?repo=foo/bar&role=author
 | `repo` | Yes | The repo, as `owner/name`. Without it, the page asks for it. |
 | `user` | No | Whose queue to show. Defaults to you. |
 | `role` | No | `author` shows the PRs `user` wrote. Without it, the page shows the PRs that wait for `user`’s review. |
-| `filter` | No | More [GitHub search terms](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests), e.g. `label:foo -label:bar` or words from the title. As on GitHub’s pulls page, `author:` in the author view and `review-requested:` in the reviewer view choose the user. If there are several, the last one wins. The search ignores `repo:`, `org:`, `user:`, `is:closed` and `is:issue`. |
+| `filter` | No | More [GitHub search terms](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests), e.g. `label:foo -label:bar` or words from the title. As on GitHub’s pulls page, `author:` in the author view and `review-requested:` in the reviewer view choose the user. If there are several, the last one wins. In the reviewer view, `author:` picks the authors instead, as the Author button does. The search ignores `repo:`, `org:`, `user:`, `is:closed` and `is:issue`. |
 | `exclude` | No | A regular expression for the paths of files to exclude from counts, e.g. `test\|\.lock$`. Their lines count only in the total. A size that adds up the commits since the review, or the size of a PR of over 3000 files, shows only the total. Not in the author view. |
-| `authors` | No | Whose PRs to show, as logins separated by commas, e.g. `foo,bar`. `@collaborators` stands for the repo’s owners, organization members and collaborators, including later ones. The page hides the other rows, so no search runs. Not in the author view. |
+| `authors` | No | Whose PRs to show, as logins separated by commas, e.g. `foo,bar`. `@collaborators` stands for the repo’s owners, organization members and collaborators, including later ones. The page hides the other rows, so no search runs. `author:` terms in the filter replace them. In the author view, the last one becomes `user`. |
 
 You can change the repo, the user and the view above the table too.
 

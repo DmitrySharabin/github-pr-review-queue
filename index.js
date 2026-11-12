@@ -317,10 +317,12 @@ function showView () {
  * @param {URLSearchParams | FormData} params
  */
 function normalizeParams (params) {
-	let { user, filter } = normalize(
-		Object.fromEntries(["user", "role", "filter"].map(name => [name, params.get(name)])),
+	let { user, filter, authors } = normalize(
+		Object.fromEntries(
+			["user", "role", "filter", "authors"].map(name => [name, params.get(name)]),
+		),
 	);
-	for (let [name, value] of Object.entries({ user, filter })) {
+	for (let [name, value] of Object.entries({ user, filter, authors })) {
 		if (value) {
 			params.set(name, value);
 		}

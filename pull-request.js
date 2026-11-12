@@ -75,16 +75,42 @@ function roleQualifier (role) {
 /**
  * The user and filter of a view as GitHub’s pulls page shows them, e.g. `{ user: "b", filter: null }` for `{ user: "a", role: "author", filter: "author:b" }`.
  * The search joins the repeats of a qualifier with an OR, e.g. the PRs of both authors.
- * GitHub’s page keeps the last one instead. On a repo’s page, it ignores other repos
- * @param {Pick<View, "user" | "role" | "filter">} view
- * @returns {Pick<View, "user" | "filter">}
+ * GitHub’s page keeps the last one instead. On a repo’s page, it ignores other repos.
+ * In the reviewer view, `author:` picks the authors as the Author button does, e.g. `authors: "a,b"` for `author:a author:b`, in place of the picks before.
+ * In the author view, the last picked author is the user
+ * @param {Pick<View, "user" | "role" | "filter"> & { authors?: string | null }} view
+ * @returns {Pick<View, "user" | "filter"> & { authors?: string | null }}
  */
 // NOTE: A value that isn’t a login, e.g. `author:app/foo`, becomes the user all the same
-export function normalize ({ user, role, filter }) {
+export function normalize ({ user, role, filter, authors }) {
 	let { values, rest } = qualifier(filter, roleQualifier(role));
 	if (values.length > 0) {
 		// `@me` is the signed-in user, as is no `user`
 		user = values.at(-1) === "@me" ? null : values.at(-1);
+	}
+
+	// The author view’s PRs are all the user’s, so a picked author becomes the user, the last one as with `author:`, e.g. after a role switch.
+	// A filter’s own `author:` is the newer choice
+	if (role === "author") {
+		let last = authors
+			?.split(",")
+			.filter(author => !author.startsWith("@"))
+			.at(-1);
+		if (last && values.length === 0) {
+			user = last;
+		}
+		authors = null;
+	}
+	else {
+		let found = qualifier(rest, "author");
+		rest = found.rest;
+		// A bot’s PRs name it without `app/`, e.g. `foo` for `author:app/foo`
+		let logins = found.values.map(value => value.replace(/^app\//, ""));
+		if (logins.length > 0) {
+			authors = logins
+				.filter((login, i) => logins.findIndex(other => isLogin(login, other)) === i)
+				.join(",");
+		}
 	}
 
 	// Other repos, closed PRs and issues, which the queue of open PRs in its repo leaves out
@@ -92,7 +118,7 @@ export function normalize ({ user, role, filter }) {
 		rest = qualifier(rest, name, value).rest;
 	}
 
-	return { user, filter: rest || null };
+	return { user, filter: rest || null, authors };
 }
 
 /**

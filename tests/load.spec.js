@@ -450,15 +450,29 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 		await expect.poll(() => view(page)).toEqual({ user: null, filter: "-author:other-user" });
 	});
 
-	test("An author in the reviewer view stays in the filter, as it narrows the search", async ({
+	// Two places would pick authors apart, e.g. `author:foo` with `foo` unpicked in the list, and show nothing
+	test("Authors in the reviewer view’s filter become the Author button’s picks, in place of the ones before", async ({
+		page,
+		github,
+	}) => {
+		await page.goto("/?repo=foo/bar&authors=qux");
+
+		await apply(page, "author:other-user author:app/foo label:bar");
+
+		await expect
+			.poll(() => Object.fromEntries(new URL(page.url()).searchParams))
+			.toEqual({ repo: "foo/bar", filter: "label:bar", authors: "other-user,foo" });
+	});
+
+	test("A negated author in the reviewer view stays in the filter, as the Author button can’t exclude", async ({
 		page,
 		github,
 	}) => {
 		await page.goto("/?repo=foo/bar");
 
-		await apply(page, "author:other-user");
+		await apply(page, "-author:other-user");
 
-		await expect.poll(() => view(page)).toEqual({ user: null, filter: "author:other-user" });
+		await expect.poll(() => view(page)).toEqual({ user: null, filter: "-author:other-user" });
 	});
 
 	test("A link to the view with other repos in the filter searches only its own repo", async ({
@@ -504,7 +518,7 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 	}) => {
 		await page.goto(`/?repo=foo/bar&filter=${encodeURIComponent("author:other-user")}`);
 
-		await page.getByRole("link", { name: "Author" }).click();
+		await page.getByRole("link", { name: "Author", exact: true }).click();
 
 		await expect.poll(() => view(page)).toEqual({ user: "other-user", filter: null });
 	});
