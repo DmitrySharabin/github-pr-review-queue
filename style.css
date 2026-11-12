@@ -8,6 +8,8 @@
 	--positive: oklch(52% 0.13 145);
 	--negative: oklch(53% 0.19 25);
 	--attention: oklch(72% 0.15 75);
+	/* What was typed, inside a value that matches it */
+	--match: color-mix(in oklch, var(--attention) 40%, var(--surface));
 	--radius: 0.5rem;
 	/* Buttons and text fields */
 	--control-size: 2.5rem;
@@ -457,6 +459,13 @@ main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #upd
 	--icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round'%3E%3Cpath d='M4 4l8 8M12 4l-8 8'/%3E%3C/svg%3E");
 }
 
+/* What was typed, in a recent value or an author’s login. Colored, as bold on black text barely shows */
+:is(.recent, #authors) mark {
+	border-radius: 0.15em;
+	background: var(--match);
+	color: inherit;
+}
+
 /* Every button, text or icon, with the page’s font and no browser chrome. Each kind adds its own size and fill */
 button {
 	padding: 0;
@@ -847,12 +856,6 @@ hgroup {
 		}
 	}
 
-	mark {
-		background: none;
-		color: inherit;
-		font-weight: 700;
-	}
-
 	/* With a mouse, shown only on the row it would remove */
 	li button {
 		flex: none;
@@ -1201,12 +1204,6 @@ hgroup {
 	.prs {
 		color: var(--muted);
 		font-variant-numeric: tabular-nums;
-	}
-
-	mark {
-		background: none;
-		color: inherit;
-		font-weight: 700;
 	}
 
 	.none {
