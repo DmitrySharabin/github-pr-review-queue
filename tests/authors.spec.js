@@ -92,9 +92,10 @@ test("Esc drops the authors checked since the list opened", async ({ page, githu
 	await page.getByRole("button", { name: "Author" }).click();
 	await pick(page, "qux").check();
 	await page.keyboard.press("Escape");
+	await expect(page.locator("#authors")).toBeHidden();
+	await page.getByRole("button", { name: "Author" }).click();
 
-	await expect(page.locator("#queue tbody tr")).toHaveCount(6);
-	await expect(page).not.toHaveURL(/authors/);
+	await expect(pick(page, "qux")).not.toBeChecked();
 });
 
 test("A click outside the list shows the authors checked in it", async ({ page, github }) => {
@@ -146,10 +147,11 @@ test("Enter in the list with no change closes it without a new search", async ({
 	await page.getByRole("button", { name: "Author" }).click();
 	await page.getByRole("searchbox", { name: "Filter authors" }).press("Enter");
 	await expect(page.locator("#authors")).toBeHidden();
-	// A search would start at once
-	await page.waitForTimeout(500);
+	// A search that Enter started would come before the refresh’s
+	await page.getByRole("button", { name: "Refresh" }).click();
+	await expect(page.locator("progress")).toBeHidden();
 
-	expect(searches).toBe(1);
+	expect(searches).toBe(2);
 });
 
 test("Every collaborator picked by name stays those people, not every later collaborator", async ({
