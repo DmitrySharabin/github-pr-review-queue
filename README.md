@@ -10,6 +10,7 @@ It runs in the browser, with no build step and no server of its own.
 - **Only what is new to you**: each PR shows the changes since your last review, so a re-review starts where you left off.
 - **Review history**: how many times you were asked to review again, when the last request came, and what the other reviewers did.
 - **Labels and filters**: click a label to show only its PRs, or filter the queue with any GitHub search terms.
+- **Authors**: pick whose PRs to show, by name or all the repo’s collaborators at once.
 - **Exclude from counts**: leave out files such as tests or lockfiles. Each size then shows the code left to read, with the total under it.
 - **Sorting**: sort by any column except the pull request and the reviewers. The page remembers the sort for each view.
 - **Changes since the last refresh**: new PRs and changed values stay marked. A counter shows how many PRs came and went.
@@ -65,6 +66,7 @@ http://localhost:8123/?repo=foo/bar&role=author
 | `role` | No | `author` shows the PRs `user` wrote. Without it, the page shows the PRs that wait for `user`’s review. |
 | `filter` | No | More [GitHub search terms](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests), e.g. `label:foo -label:bar` or words from the title. As on GitHub’s pulls page, `author:` in the author view and `review-requested:` in the reviewer view choose the user. If there are several, the last one wins. The search ignores `repo:`, `org:`, `user:`, `is:closed` and `is:issue`. |
 | `exclude` | No | A regular expression for the paths of files to exclude from counts, e.g. `test\|\.lock$`. Their lines count only in the total. A size that adds up the commits since the review, or the size of a PR of over 3000 files, shows only the total. Not in the author view. |
+| `authors` | No | Whose PRs to show, as logins separated by commas, e.g. `foo,bar`. `@collaborators` stands for the repo’s owners, organization members and collaborators, including later ones. The page hides the other rows, so no search runs. Not in the author view. |
 
 You can change the repo, the user and the view above the table too.
 
