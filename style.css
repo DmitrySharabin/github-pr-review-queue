@@ -1693,9 +1693,22 @@ tbody {
 	}
 }
 
+/* The byline adds nothing to the column’s width, so a long login cuts off instead of widening it, e.g. on a phone.
+   “by” stays on the login’s line */
+.pull-request small {
+	contain: inline-size;
+
+	.by {
+		display: inline-flex;
+		gap: 0.25em;
+		align-items: baseline;
+		max-inline-size: 100%;
+	}
+}
+
 /* A login too long for its line ends in an ellipsis. Hover or keyboard focus scrolls the rest into view inside its box.
    Ellipsis and scroll, not a wrap: a login is one word */
-#authors .login {
+:is(.pull-request .author, #authors .login) {
 	display: inline-block;
 	max-inline-size: 100%;
 	overflow: hidden;
@@ -1707,7 +1720,10 @@ tbody {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-	#authors label:is(:hover, :has(:focus-visible)) .login {
+	:is(
+		.pull-request .author:is(:hover, :focus-visible),
+		#authors label:is(:hover, :has(:focus-visible)) .login
+	) {
 		text-overflow: clip;
 	}
 
@@ -1715,7 +1731,11 @@ tbody {
 	   Only with scroll timelines: without them, e.g. in Firefox before 159, the flag is on for every login */
 	@supports (animation-timeline: scroll()) {
 		@container style(--truncated: 1) {
-			#authors label:is(:hover, :has(:focus-visible)) .login > span {
+			:is(
+					.pull-request .author:is(:hover, :focus-visible),
+					#authors label:is(:hover, :has(:focus-visible)) .login
+				)
+				> span {
 				display: inline-block;
 				margin-inline-start: 100%;
 				translate: calc(1px - 100%);

@@ -189,7 +189,7 @@ function render ({
 	link.textContent = title;
 	showLabels(tr.querySelector(".headline"), labels);
 	tr.querySelector(".number").textContent = `#${number}`;
-	tr.querySelector(".author").textContent = author;
+	tr.querySelector(".author span").textContent = author;
 	// An author’s PRs are all theirs, so the byline says when, not by whom
 	tr.querySelector(opened ? ".by" : ".opened").remove();
 	if (opened) {
