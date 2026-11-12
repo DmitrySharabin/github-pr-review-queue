@@ -63,7 +63,7 @@ export async function graphql (text, signal) {
 
 /**
  * The nodes that a `nodes(ids:)` query finds, e.g. of `details()`. GitHub stops a query that runs too long,
- * so a failed one asks again in two halves, each faster. Only once, since a failure of another kind, e.g. offline, would fan out into many requests
+ * so one it stopped asks again in two halves, each faster. Only once, so a slow GitHub doesn’t get many more requests
  * @param {(ids: string[]) => string} query
  * @param {string[]} ids
  * @param {AbortSignal} signal - The load’s
@@ -72,13 +72,31 @@ export async function nodes (query, ids, signal) {
 	try {
 		return (await graphql(query(ids), signal)).nodes;
 	}
-	catch {
+	catch (error) {
+		if (!stopped(error)) {
+			throw error;
+		}
+
 		let half = Math.ceil(ids.length / 2);
 		// One PR asks again as it is
 		let halves = [ids.slice(0, half), ids.slice(half)].filter(part => part.length > 0);
 		let answers = await Promise.all(halves.map(ids => graphql(query(ids), signal)));
 		return answers.flatMap(answer => answer.nodes);
 	}
+}
+
+/**
+ * Whether GitHub stopped a query that ran too long, which a smaller one may not.
+ * Not a refusal, e.g. a 403, nor a request inTime() stopped, e.g. on a dropped connection, which would fail again
+ * @param {unknown} error - What Madata or graphql() threw
+ */
+function stopped (error) {
+	// A 502’s body is its HTML page, which Madata throws as text, or JSON with its status or GitHub’s words, as is a query’s error
+	return (
+		typeof error === "string" ||
+		error?.status === "502" ||
+		/result of a timeout/.test(error?.message ?? error?.errors?.[0]?.message)
+	);
 }
 
 /**

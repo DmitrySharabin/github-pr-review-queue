@@ -147,6 +147,38 @@ test("Details GitHub stops for running too long load in two halves, so a slow ba
 	await expect(page.locator("#queue td.diff a")).toHaveCount(6);
 });
 
+test("Details GitHub says may have timed out load in two halves too", async ({ page, github }) => {
+	github.details = answer => {
+		if (answer.data.nodes.length > 3) {
+			answer.errors = [
+				{
+					message:
+						"Something went wrong while executing your query. This may be the result of a timeout, or it could be a GitHub bug.",
+				},
+			];
+		}
+	};
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+
+	await expect(page.locator("#queue td.diff a")).toHaveCount(6);
+});
+
+test("Details GitHub refuses, e.g. with a 403, aren’t asked for again in halves, which it would refuse too", async ({
+	page,
+	github,
+}) => {
+	let asked = 0;
+	github.details = () => {
+		asked++;
+		return 403;
+	};
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("#failure")).toContainText("Boom");
+
+	expect(asked).toBe(1);
+});
+
 test("A role switch stops the requests of the load it leaves", async ({ page, github }) => {
 	await page.goto("/?repo=foo/bar");
 	await expect(page.locator("progress")).toBeHidden();
