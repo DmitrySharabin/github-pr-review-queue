@@ -359,3 +359,27 @@ test("Unchecking the only picked author shows every PR", async ({ page, github }
 
 	await expect(page.locator("#queue tbody tr")).toHaveCount(6);
 });
+
+test("A step back to other authors after a failed load loads the queue, as none is on screen", async ({
+	page,
+	github,
+}) => {
+	authored(github);
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+	await page.getByRole("button", { name: "Author" }).click();
+	await pick(page, "qux").check();
+	await page.getByRole("button", { name: "Show 2 PRs" }).click();
+	await expect(page).toHaveURL(/authors=qux/);
+
+	// Nothing stored shows either
+	await page.evaluate(() => localStorage.clear());
+	let answer = github.search;
+	github.search = () => 500;
+	await page.reload();
+	await expect(page.locator("#repo-form .notice")).toBeVisible();
+	github.search = answer;
+	await page.goBack();
+
+	await expect(page.locator("#queue tbody tr")).toHaveCount(6);
+});

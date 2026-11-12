@@ -68,8 +68,6 @@ let rows = [];
 let shown;
 /** Whose queue the rows show, e.g. the signed-in user’s when the URL names no `user` */
 let shownUser;
-/** The view the URL last asked for, which may differ from the one {@link shown}, e.g. while it loads or after it failed */
-let asked;
 /** Whose PRs show, e.g. `["@collaborators", "foo"]`, see {@link matches}. An author’s PRs are all theirs */
 let authors = [];
 /** @type {AbortController | undefined} Aborts the load in flight */
@@ -248,14 +246,25 @@ window.navigation?.addEventListener("navigate", event => {
 		return;
 	}
 
+	// The same view submitted again, e.g. Apply with the same terms, loads it again
+	let onlyAuthors =
+		viewNames.every(name => next.get(name) === current.get(name)) &&
+		next.get("authors") !== current.get("authors");
 	// The handler runs once the URL has changed. Focus and scroll stay where they were, e.g. on the Apply button
-	event.intercept({ focusReset: "manual", scroll: "manual", handler: showView });
+	event.intercept({
+		focusReset: "manual",
+		scroll: "manual",
+		handler: () => showView({ onlyAuthors }),
+	});
 });
 
 showView();
 
-/** Show what the URL asks for, e.g. `?repo=foo/bar&filter=label:baz`. */
-function showView () {
+/**
+ * Show what the URL asks for, e.g. `?repo=foo/bar&filter=label:baz`.
+ * @param {{ onlyAuthors?: boolean }} [options] - Whether the URL changed only its `authors`, e.g. after a pick in the list
+ */
+function showView ({ onlyAuthors } = {}) {
 	let params = new URLSearchParams(location.search);
 	let role = params.get("role");
 	let filter = params.get("filter");
@@ -310,13 +319,9 @@ function showView () {
 
 	if (params.get("repo")) {
 		// Other authors of the view on screen show the same rows, so nothing loads, e.g. not the details of every PR.
-		// The view the last URL asked for may have failed instead, e.g. before a step back to this one
+		// The last URL’s view may have failed instead, e.g. before a step back to other authors
 		let view = viewOf(params);
-		let same = other => Object.entries(view).every(([name, value]) => value === other?.[name]);
-		let last = asked;
-		asked = { ...view, authors: params.get("authors") };
-		// The same view submitted again, e.g. Apply with the same terms, loads it again
-		if (same(last) && same(shown) && last.authors !== asked.authors) {
+		if (onlyAuthors && Object.entries(view).every(([name, value]) => value === shown?.[name])) {
 			return showQueue({ ...view, user: shownUser });
 		}
 		return load();
