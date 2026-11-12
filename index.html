@@ -94,9 +94,6 @@
 				</div>
 				<small id="user-note">Whose queue to show. Empty means yours.</small>
 			</div>
-			<input type="hidden" name="role">
-			<input type="hidden" name="filter">
-			<input type="hidden" name="exclude">
 			<button>Show queue</button>
 		</form>
 
@@ -107,11 +104,6 @@
 					<a class="repo" target="_blank"></a>
 					<form id="repo-edit" hidden>
 						<input name="repo" aria-label="Repository" placeholder="owner/name" pattern="[\w.\-]+/[\w.\-]+" required autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go">
-						<input type="hidden" name="user">
-						<input type="hidden" name="role">
-						<input type="hidden" name="filter">
-						<input type="hidden" name="exclude">
-						<input type="hidden" name="authors">
 						<button class="apply" aria-label="Show queue"></button>
 						<button class="cancel" type="reset" aria-label="Cancel"></button>
 					</form>
@@ -129,11 +121,6 @@
 					<a class="user" target="_blank"><img alt="" width="24" height="24"> <span></span></a>
 					<form id="user-edit" hidden>
 						<input name="user" aria-label="User" placeholder="you" pattern="[\w\-]+" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go">
-						<input type="hidden" name="repo">
-						<input type="hidden" name="role">
-						<input type="hidden" name="filter">
-						<input type="hidden" name="exclude">
-						<input type="hidden" name="authors">
 						<button class="apply" aria-label="Show queue"></button>
 						<button class="cancel" type="reset" aria-label="Cancel"></button>
 					</form>
@@ -152,11 +139,6 @@
 		<!-- GitHub’s search can’t tell the repo’s collaborators from other authors, so the list narrows the rows on screen -->
 		<button id="author-button" type="button" popovertarget="authors" hidden><span class="faces"></span><span class="text">Author</span></button>
 		<form id="authors" popover aria-label="Filter by author">
-			<input type="hidden" name="repo">
-			<input type="hidden" name="user">
-			<input type="hidden" name="role">
-			<input type="hidden" name="filter">
-			<input type="hidden" name="exclude">
 			<input type="search" placeholder="Filter authors" aria-label="Filter authors" autocomplete="off" spellcheck="false">
 			<div class="list">
 				<label class="all"><input type="checkbox"> <span class="who"><b>All collaborators</b> <small></small></span></label>
@@ -175,11 +157,6 @@
 		<details id="narrow" hidden>
 			<summary><span id="filter-name">Filter</span> <code></code></summary>
 			<form>
-				<input type="hidden" name="repo">
-				<input type="hidden" name="user">
-				<input type="hidden" name="role">
-				<input type="hidden" name="exclude">
-				<input type="hidden" name="authors">
 				<input name="filter" type="search" placeholder="label:foo -label:bar" autocomplete="off" spellcheck="false" aria-labelledby="filter-name" aria-describedby="filter-note">
 				<button>Apply</button>
 				<a class="clear" aria-label="Clear filter" hidden>Clear</a>
@@ -190,12 +167,7 @@
 		<details id="ignored" hidden>
 			<summary><span id="exclude-name">Exclude from counts</span> <code></code></summary>
 			<form>
-				<input type="hidden" name="repo">
-				<input type="hidden" name="user">
-				<input type="hidden" name="role">
-				<input type="hidden" name="filter">
 				<input name="exclude" type="search" placeholder="test|\.lock$" autocomplete="off" spellcheck="false" aria-labelledby="exclude-name" aria-describedby="exclude-note">
-				<input type="hidden" name="authors">
 				<button>Apply</button>
 				<a class="clear" aria-label="Clear exclusions" hidden>Clear</a>
 				<small id="exclude-note">A regular expression that matches any part of a file path, such as <code>test|\.lock$</code></small>

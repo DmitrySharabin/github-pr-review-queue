@@ -338,3 +338,24 @@ test("The author view has no list of authors, since its PRs are all the user’s
 	await expect(page.locator("#author-button")).toBeHidden();
 	await expect(page.locator("#queue tbody tr")).toHaveCount(6);
 });
+
+test("The form after a failed load keeps the picked authors", async ({ page, github }) => {
+	github.search = () => 500;
+	await page.goto("/?repo=foo/bar&authors=qux");
+	await expect(page.locator("#repo-form .notice")).toBeVisible();
+	await page.getByRole("button", { name: "Show queue" }).click();
+
+	await expect(page).toHaveURL(/authors=qux/);
+});
+
+test("Unchecking the only picked author shows every PR", async ({ page, github }) => {
+	authored(github);
+	await page.goto("/?repo=foo/bar&authors=qux");
+	await expect(page.locator("progress")).toBeHidden();
+
+	await page.getByRole("button", { name: "Author: qux" }).click();
+	await pick(page, "qux").uncheck();
+	await page.getByRole("button", { name: "Show 6 PRs" }).click();
+
+	await expect(page.locator("#queue tbody tr")).toHaveCount(6);
+});

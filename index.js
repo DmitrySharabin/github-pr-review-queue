@@ -33,6 +33,9 @@ import { offerRecent } from "./recent.js";
 import { plural } from "./plural.js";
 import { collaborators, matches, showAuthors } from "./authors.js";
 
+/** The URL parameters of a view, see {@link viewOf} */
+const viewNames = ["repo", "user", "role", "filter", "exclude"];
+
 let table = document.querySelector("#queue");
 let status = document.querySelector("#status");
 let progress = document.querySelector("progress");
@@ -114,17 +117,30 @@ signOut.addEventListener("click", async () => {
 	location.reload();
 });
 
-// The forms submit their fields as URL parameters, so the URL they open can be copied and reused
+// The forms submit their fields as URL parameters, so the URL they open can be copied and reused.
+// A form has fields only for what it changes, and keeps the rest of the URL, e.g. the filter form its `repo`.
+// Capturing, this runs before a form’s own listener, e.g. the author list’s, which then replaces the URL’s `authors`
 for (let form of forms) {
-	form.addEventListener("formdata", ({ formData }) => {
-		normalizeParams(formData);
-		// An empty field means its default, e.g. the signed-in user: ?repo=foo/bar, not ?repo=foo/bar&user=
-		for (let [name, value] of [...formData]) {
-			if (!value) {
-				formData.delete(name);
+	form.addEventListener(
+		"formdata",
+		({ formData }) => {
+			let params = new URLSearchParams(location.search);
+			for (let name of [...viewNames, "authors"]) {
+				if (!formData.has(name) && params.has(name)) {
+					formData.set(name, params.get(name));
+				}
 			}
-		}
-	});
+
+			normalizeParams(formData);
+			// An empty field means its default, e.g. the signed-in user: ?repo=foo/bar, not ?repo=foo/bar&user=
+			for (let [name, value] of [...formData]) {
+				if (!value) {
+					formData.delete(name);
+				}
+			}
+		},
+		{ capture: true },
+	);
 }
 
 // The repos and users of the stored queues, e.g. those opened yesterday. Forgetting one forgets its queues
@@ -338,9 +354,7 @@ function normalizeParams (params) {
  * @returns {View}
  */
 function viewOf (params) {
-	return Object.fromEntries(
-		["repo", "user", "role", "filter", "exclude"].map(name => [name, params.get(name)]),
-	);
+	return Object.fromEntries(viewNames.map(name => [name, params.get(name)]));
 }
 
 /** Mark the pattern field invalid while it holds no regular expression. */

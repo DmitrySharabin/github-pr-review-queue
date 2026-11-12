@@ -248,14 +248,20 @@ function changed () {
 }
 
 // “All collaborators” is the keyword, so a new collaborator’s PRs show too.
-// Runs before the forms’ shared listener in index.js, which imports this module first and drops an empty `authors`
+// No one picked means anyone, so the URL has no `authors`
 form.addEventListener("formdata", ({ formData }) => {
 	let inside = boxes(insiders);
 	let every = everyone && inside.every(box => box.checked);
 	let logins = boxes()
 		.filter(box => box.checked && !(every && inside.includes(box)))
 		.map(box => box.value);
-	formData.set("authors", [...(every ? [collaborators] : []), ...logins].join(","));
+	let authors = [...(every ? [collaborators] : []), ...logins].join(",");
+	if (authors) {
+		formData.set("authors", authors);
+	}
+	else {
+		formData.delete("authors");
+	}
 });
 
 form.addEventListener("submit", event => {
