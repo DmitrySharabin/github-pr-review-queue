@@ -12,6 +12,7 @@ import {
 	pattern,
 	query,
 	search,
+	searchLimit,
 	summarize,
 } from "./pull-request.js";
 import {
@@ -409,7 +410,8 @@ async function load () {
 
 	// A label added to the filter, e.g. by a click on it, keeps the rows on screen that have it. The search would find just those.
 	// A search that found its maximum of 100 PRs may have missed others with the label, so then the rows wait for the search
-	let label = sameQueue && rows.length < 100 ? addedLabel(shown.filter, filter) : undefined;
+	let label =
+		sameQueue && rows.length < searchLimit ? addedLabel(shown.filter, filter) : undefined;
 	if (label !== undefined) {
 		rows = rows.filter(({ pr }) => hasLabel(pr, label));
 		// The load marks what changed against the last finished load’s rows that stay on screen. Before the first load finishes there are none

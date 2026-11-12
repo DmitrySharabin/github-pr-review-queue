@@ -202,6 +202,9 @@ export function outdated (earlier, pr) {
 	return earlier.updatedAt !== pr.updatedAt || earlier.headRefOid !== pr.headRefOid;
 }
 
+/** The most PRs a search finds, GitHub’s largest page */
+export const searchLimit = 100;
+
 /**
  * GraphQL query for the PRs {@link search} finds, with the fields that are cheap to get.
  * @param {View} options
@@ -216,7 +219,7 @@ export function query ({ repo, user, role, filter }) {
 	return `query {
 	repository(owner: ${JSON.stringify(owner)}, name: ${JSON.stringify(name)}) { viewerPermission }
 	user(login: ${JSON.stringify(user)}) { id }
-	search(type: ISSUE, first: 100, query: ${JSON.stringify(search({ repo, user, role, filter }))}) {
+	search(type: ISSUE, first: ${searchLimit}, query: ${JSON.stringify(search({ repo, user, role, filter }))}) {
 		nodes {
 			... on PullRequest {
 				id number title url createdAt updatedAt headRefOid isDraft authorAssociation

@@ -469,6 +469,27 @@ test("A click on a label keeps the rows that have it while the search runs", asy
 	await expect(page.locator("#queue tbody .number")).toHaveText(["#65", "#67"]);
 });
 
+test("A click on a label in a queue of 100 PRs, the most a search finds, keeps every row until the search ends", async ({
+	page,
+	github,
+}) => {
+	github.search = answer => {
+		let { nodes } = answer.data.search;
+		nodes[0].labels.nodes = [{ name: "bug", color: "d73a4a", description: null }];
+		for (let i = nodes.length; i < 100; i++) {
+			nodes.push({ ...nodes[1], id: `P${i}`, number: 100 + i });
+		}
+	};
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+
+	github.search = () => new Promise(() => {});
+	await page.getByRole("link", { name: "Filter by label bug" }).click();
+	await expect(page.locator("#refresh")).toHaveAttribute("aria-disabled", "true");
+
+	await expect(page.locator("#queue tbody tr")).toHaveCount(100);
+});
+
 test.describe("A filter that repeats the view’s qualifiers", () => {
 	/** Apply `filter` in the open view, as the user types it */
 	async function apply (page, filter) {
