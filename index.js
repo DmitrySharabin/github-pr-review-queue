@@ -287,7 +287,10 @@ function showView ({ onlyAuthors } = {}) {
 				field.defaultValue = params.get(field.name) ?? "";
 			}
 		}
-		form.reset();
+		// The open author list keeps what is checked in it, e.g. on a step back, as it does while a refresh ends
+		if (!form.matches(":popover-open")) {
+			form.reset();
+		}
 	}
 	// A reset fires no input event, e.g. after Clear, so the last message would stay
 	checkPattern();

@@ -433,3 +433,22 @@ test("A refresh after a pick of authors marks no row that didn’t change", asyn
 
 	await expect(page.locator("#queue tbody mark:not([hidden])")).toHaveCount(0);
 });
+
+test("A step back while the list is open keeps the authors checked in it", async ({
+	page,
+	github,
+}) => {
+	authored(github);
+	await page.goto("/?repo=foo/bar");
+	await page.locator("#narrow summary").click();
+	await page.getByRole("searchbox", { name: "Filter" }).fill("label:baz");
+	await page.getByRole("button", { name: "Apply" }).click();
+	await expect(page.locator("progress")).toBeHidden();
+
+	await page.getByRole("button", { name: "Author" }).click();
+	await pick(page, "qux").check();
+	await page.goBack();
+	await expect(page).not.toHaveURL(/filter/);
+
+	await expect(pick(page, "qux")).toBeChecked();
+});
