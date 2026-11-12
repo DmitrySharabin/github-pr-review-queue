@@ -226,6 +226,13 @@ if (normalized.has("files")) {
 	}
 	normalized.delete("files");
 }
+// A repo or user that its field would reject, e.g. `foo/bar/issues`, names none, so it reaches neither GitHub’s URLs nor the page
+for (let field of [repoForm.elements.repo, repoForm.elements.user]) {
+	field.value = normalized.get(field.name) ?? "";
+	if (field.validity.patternMismatch) {
+		normalized.delete(field.name);
+	}
+}
 if (`${normalized}` !== `${current}`) {
 	history.replaceState(null, "", `?${normalized}${location.hash}`);
 }
@@ -327,6 +334,8 @@ function showView ({ onlyAuthors } = {}) {
 		return load();
 	}
 
+	// The page’s first script hides the controls before the first paint, but it still sees a repo that the URL drops, e.g. `foo/bar/issues`
+	controls.hidden = true;
 	// The form’s heading says what to do
 	status.hidden = true;
 	progress.hidden = true;

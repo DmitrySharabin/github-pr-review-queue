@@ -694,3 +694,27 @@ for (let size of ["diff", "diffSinceReview"]) {
 		expect(asked).toEqual(["A"]);
 	});
 }
+
+test("A repo that isn’t `owner/name` asks for a repo, as no repo does", async ({
+	page,
+	github,
+}) => {
+	let form = page.locator("#repo-form");
+	await page.goto("/");
+	await expect(form).toBeVisible();
+	let top = await form.evaluate(form => form.getBoundingClientRect().top);
+
+	await page.goto("/?repo=foo/bar/issues");
+
+	// In the same place, with no room kept for the controls
+	await expect.poll(() => form.evaluate(form => form.getBoundingClientRect().top)).toBe(top);
+});
+
+test("A user that isn’t a login shows the signed-in user’s queue, as no user does", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar&user=foo/baz");
+
+	await expect(page.locator("#summary .user")).toHaveText("DmitrySharabin");
+});
