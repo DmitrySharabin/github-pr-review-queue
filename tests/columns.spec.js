@@ -301,19 +301,6 @@ test.describe("Exclude from counts", () => {
 		await expect(cell.locator(".total")).toHaveText("+510 −0");
 	});
 
-	test("A link with the old `files` name still excludes the files, under the name `exclude`", async ({
-		page,
-		github,
-	}) => {
-		detail(github, { A: files({ "src/a.js": 10, "test/a.test.js": 500 }) });
-		await page.goto("/?repo=foo/bar&files=test");
-
-		await expect(row(page, "A").locator(".diff a")).toHaveAccessibleName(
-			"+10 −0 without excluded files",
-		);
-		await expect(page).toHaveURL(/\?repo=foo%2Fbar&exclude=test$/);
-	});
-
 	test("A screen reader hears which line leaves the excluded files out", async ({
 		page,
 		github,

@@ -750,7 +750,7 @@ test("A queue stored before PRs had steps shows while it loads, then counts the 
 			reviewers: [],
 		};
 		localStorage.setItem(
-			"review-queue:queue:repo=foo%2Fbar&role=author",
+			"review-queue:queue:2:repo=foo%2Fbar&role=author",
 			JSON.stringify({
 				user: "DmitrySharabin",
 				at: new Date().toISOString(),
@@ -783,7 +783,7 @@ test("A stored queue says when each PR was opened while it loads, though storage
 			opened,
 		};
 		localStorage.setItem(
-			"review-queue:queue:repo=foo%2Fbar&role=author",
+			"review-queue:queue:2:repo=foo%2Fbar&role=author",
 			JSON.stringify({
 				user: "DmitrySharabin",
 				at: new Date().toISOString(),

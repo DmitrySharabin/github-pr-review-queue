@@ -222,13 +222,6 @@ refresh.addEventListener("click", () => {
 let current = new URLSearchParams(location.search);
 let normalized = new URLSearchParams(current);
 normalizeParams(normalized);
-// `files` is the old name of `exclude`, e.g. in a link saved before the rename
-if (normalized.has("files")) {
-	if (!normalized.has("exclude")) {
-		normalized.set("exclude", normalized.get("files"));
-	}
-	normalized.delete("files");
-}
 // A repo or user that its field would reject, e.g. `foo/bar/issues`, names none, so it reaches neither GitHub’s URLs nor the page
 for (let field of [repoForm.elements.repo, repoForm.elements.user]) {
 	field.value = normalized.get(field.name) ?? "";
@@ -528,8 +521,7 @@ async function load () {
 			// Without details the summary has no slow fields, so a refreshed row keeps its old ones, dimmed, until they arrive
 			fill(row, { ...row.summary, ...summarize(pr, user, role) });
 
-			// Ranges left mean a comparison failed, so the next load tries again. So does a list of files GitHub didn’t send,
-			// and a count stored with `ignored: null` by an older version, which gave no reason.
+			// Ranges left mean a comparison failed, so the next load tries again. So does a list of files GitHub didn’t send.
 			// The details are checked against their own copy. A load stopped before they came, e.g. by a label click, already replaced `pr`.
 			// An author’s details are checked on every load, since a finished check run changes neither `updatedAt` nor the head commit
 			if (
@@ -537,9 +529,6 @@ async function load () {
 				role === "author" ||
 				row.summary.diffSinceReview.ranges ||
 				row.summary.diff.unsplit === "unlisted" ||
-				[row.summary.diff, row.summary.diffSinceReview].some(
-					diff => diff.ignored === null,
-				) ||
 				outdated(row.detailed, pr)
 			) {
 				stale.push(row);

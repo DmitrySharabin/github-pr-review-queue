@@ -1,9 +1,19 @@
 /** @import { Summary, View } from "./pull-request.js" */
 
-const queuePrefix = "review-queue:queue:";
+const prefix = "review-queue:queue:";
+/** The format of the stored queues. A new one, e.g. after a step is renamed, leaves the queues stored before unread */
+const version = 2;
+const queuePrefix = `${prefix}${version}:`;
+
+// A queue of another version is never read, so it goes, e.g. on the first visit after an update
+for (let key of Object.keys(localStorage)) {
+	if (key.startsWith(prefix) && !key.startsWith(queuePrefix)) {
+		localStorage.removeItem(key);
+	}
+}
 
 /**
- * The key a view’s queue is stored under, e.g. `review-queue:queue:repo=foo%2Fbar&role=author`.
+ * The key a view’s queue is stored under, e.g. `review-queue:queue:2:repo=foo%2Fbar&role=author`.
  * @param {View} view
  */
 function queueKey (view) {

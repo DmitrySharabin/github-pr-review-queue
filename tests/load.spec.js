@@ -1,4 +1,4 @@
-import { test, expect, commit, detail } from "./github.js";
+import { test, expect, commit } from "./github.js";
 
 test("A failed search hides the bars that stood in for its rows, even of the view shown last", async ({
 	page,
@@ -669,6 +669,38 @@ test("A queue stored by another version, e.g. with a step this one doesn’t kno
 	await expect(page.locator("#summary .count")).toHaveText("6");
 });
 
+test("A queue stored by the version before is neither shown nor kept", async ({ page, github }) => {
+	await page.goto("/");
+	await page.evaluate(() =>
+		localStorage.setItem(
+			"review-queue:queue:repo=foo%2Fbar",
+			JSON.stringify({
+				user: "DmitrySharabin",
+				at: new Date().toISOString(),
+				rows: [
+					{
+						pr: { id: "A", labels: { nodes: [] } },
+						summary: {
+							number: 65,
+							title: "A pull request titled A",
+							url: "",
+							author: "ghost",
+							avatar: "",
+							labels: [],
+						},
+					},
+				],
+			}),
+		));
+	github.search = () => new Promise(() => {});
+	await page.goto("/?repo=foo/bar");
+
+	await expect(page.locator("#queue tr.skeleton").first()).toBeVisible();
+	expect(await page.evaluate(() => Object.keys(localStorage))).not.toContain(
+		"review-queue:queue:repo=foo%2Fbar",
+	);
+});
+
 test("A refreshed row of a PR deleted before its details shows as it was, not dimmed as if still loading", async ({
 	page,
 	github,
@@ -729,46 +761,6 @@ test("An empty queue of another user names them", async ({ page, github }) => {
 		"other-user has no open pull requests in foo/bar.",
 	);
 });
-
-for (let size of ["diff", "diffSinceReview"]) {
-	test(`A count stored by an older version as unsplit asks for the details again, so its cell gets a reason (${size})`, async ({
-		page,
-		github,
-	}) => {
-		// Every PR lists its files, as GitHub does when the details ask for them
-		detail(
-			github,
-			Object.fromEntries(
-				[..."ABCDEF"].map(id => [
-					id,
-					{
-						files: {
-							totalCount: 1,
-							nodes: [{ path: "src/a.js", additions: 1, deletions: 0 }],
-						},
-					},
-				]),
-			),
-		);
-		await page.goto("/?repo=foo/bar&exclude=test");
-		await expect(page.locator("progress")).toBeHidden();
-		await page.evaluate(size => {
-			let key = Object.keys(localStorage).find(key => key.startsWith("review-queue:queue:"));
-			let queue = JSON.parse(localStorage.getItem(key));
-			queue.rows.find(row => row.pr.id === "A").summary[size].ignored = null;
-			localStorage.setItem(key, JSON.stringify(queue));
-		}, size);
-
-		let asked = [];
-		github.details = answer => {
-			asked.push(...answer.data.nodes.map(pr => pr.id));
-		};
-		await page.reload();
-		await expect(page.locator("progress")).toBeHidden();
-
-		expect(asked).toEqual(["A"]);
-	});
-}
 
 test("A repo that isn’t `owner/name` asks for a repo, as no repo does", async ({
 	page,
