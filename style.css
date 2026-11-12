@@ -1754,9 +1754,10 @@ tbody {
 }
 
 @media (prefers-reduced-motion: no-preference) {
+	/* A focused checkbox finds its login through `~`, not `label:has()`, which made each load restyle the page through the `main:has()` rules */
 	:is(
 		.pull-request .author:is(:hover, :focus-visible),
-		#authors label:is(:hover, :has(:focus-visible)) .login
+		#authors :is(label:hover, :focus-visible ~ .who) .login
 	) {
 		text-overflow: clip;
 	}
@@ -1767,7 +1768,7 @@ tbody {
 		@container style(--truncated: 1) {
 			:is(
 					.pull-request .author:is(:hover, :focus-visible),
-					#authors label:is(:hover, :has(:focus-visible)) .login
+					#authors :is(label:hover, :focus-visible ~ .who) .login
 				)
 				> span {
 				display: inline-block;
