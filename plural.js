@@ -6,6 +6,7 @@ const plurals = {
 	conversation: "conversations",
 	label: "labels",
 	person: "people",
+	PR: "PRs",
 	"pull request": "pull requests",
 };
 

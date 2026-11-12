@@ -921,9 +921,12 @@ hgroup {
 		transition-property: opacity;
 	}
 
-	/* The value’s text sits on the name’s baseline, not the pill’s box on its middle, which a smaller font lifts */
+	/* The value’s text sits on the name’s baseline, not the pill’s box on its middle, which a smaller font lifts.
+	   A block with a cap, as only an auto-width block narrows beside the Author button in every engine.
+	   An inline box, or `fit-content` in Firefox and Safari, drops below the button whole */
 	summary {
-		display: inline-flex;
+		display: flex;
+		max-inline-size: max-content;
 		gap: 0.5em;
 		align-items: baseline;
 		color: var(--muted);
@@ -1005,30 +1008,32 @@ hgroup {
 	margin-block-start: -0.5rem;
 }
 
-/* On a line of its own, so its avatars never cover the filter’s terms, however long they get */
+/* Quiet text at the end of the Filter line, as the lines under it are. Floated, so the filter’s terms wrap beside it rather than under it.
+   A long login gets 40% of the line at most, so the terms keep room on a phone.
+   The margin below is the gap between the lines, so the next line passes under it, but the empty card keeps clear of it */
 #author-button {
+	float: inline-end;
 	display: flex;
 	gap: 0.4em;
 	align-items: center;
-	max-inline-size: 100%;
-	min-block-size: 2rem;
-	margin-block-end: 0.75rem;
-	padding-inline: 0.75em 0.6em;
-	border: 1px solid var(--border);
-	border-radius: 1e5px;
-	background: var(--surface);
+	max-inline-size: 40%;
+	margin-inline-start: 1em;
+	margin-block-end: 0.5rem;
+	color: var(--muted);
 	font-weight: 500;
 
 	&[hidden] {
 		display: none;
 	}
 
-	&:hover {
-		background: color-mix(in oklch, var(--text) 4%, var(--surface));
+	/* Muted at rest, as the Filter line is. The faces show who is picked */
+	&:enabled:hover {
+		color: var(--text);
 	}
 
-	&.picked {
-		border-color: color-mix(in oklch, var(--text) 35%, var(--surface));
+	/* It opens a list rather than acts, as a select does */
+	&:active {
+		scale: none;
 	}
 
 	/* While bars stand in for the rows, there are no authors to list */
@@ -1043,7 +1048,7 @@ hgroup {
 		flex: none;
 		inline-size: 1em;
 		aspect-ratio: 1;
-		background-color: var(--muted);
+		background-color: currentColor;
 		mask: var(--chevron) no-repeat center / contain;
 		rotate: 90deg;
 	}
@@ -1063,8 +1068,9 @@ hgroup {
 			display: none;
 		}
 
+		/* The page’s ground between faces that overlap */
 		img {
-			box-shadow: 0 0 0 2px var(--surface);
+			box-shadow: 0 0 0 2px var(--ground);
 		}
 
 		img + img {
@@ -1094,14 +1100,36 @@ hgroup {
 	box-shadow: 0 0.5rem 1.5rem color-mix(in oklch, var(--text) 12%, transparent);
 	/* Scrolling past the list’s end doesn’t scroll the page */
 	overscroll-behavior: contain;
-	/* Under the button, its implicit anchor, as the recent values under their field */
-	position-area: block-end span-inline-end;
+	/* Under the button, its implicit anchor, and in from its end, where the button sits */
+	position-area: block-end span-inline-start;
 	position-try-fallbacks: flip-block;
 	margin: 0.375rem 0;
+	/* Comes out of the button, or up from the bottom as a sheet on a phone. `display` and `overlay` keep it on screen while it fades out */
+	--from: 0 -0.25rem;
+	transition-property: opacity, translate, display, overlay;
+	transition-duration: 150ms;
+	transition-timing-function: var(--ease-out);
+	transition-behavior: allow-discrete;
+
+	/* A column also while it fades out, after it stops matching :popover-open */
+	flex-direction: column;
 
 	&:popover-open {
 		display: flex;
-		flex-direction: column;
+
+		@starting-style {
+			opacity: 0;
+			translate: var(--from);
+		}
+	}
+
+	&:not(:popover-open) {
+		opacity: 0;
+		translate: var(--from);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		--from: 0 0;
 	}
 
 	/* The phone’s full width, from the bottom, as its own pickers open */
@@ -1110,6 +1138,10 @@ hgroup {
 		inset: auto 0 0;
 		inline-size: 100%;
 		max-block-size: 85dvh;
+
+		@media (prefers-reduced-motion: no-preference) {
+			--from: 0 100%;
+		}
 		margin: 0;
 		border-end-start-radius: 0;
 		border-end-end-radius: 0;
@@ -1186,6 +1218,11 @@ hgroup {
 
 	.all {
 		border-block-end: 1px solid var(--rule);
+
+		&:has(:disabled) {
+			color: var(--muted);
+			cursor: default;
+		}
 	}
 
 	.who {
@@ -1976,8 +2013,10 @@ td:is(.diff, .since-review) small {
 	}
 }
 
-/* Framed as the table it replaces, so a queue that empties keeps its place on the page */
+/* Framed as the table it replaces, so a queue that empties keeps its place on the page.
+   Below the Author button, which floats alone when no line is left to sit on */
 #empty {
+	clear: inline-end;
 	display: grid;
 	justify-items: center;
 	gap: 1.25rem;

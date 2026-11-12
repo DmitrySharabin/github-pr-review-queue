@@ -11,17 +11,6 @@
 import { isLogin } from "./pull-request.js";
 import { plural } from "./plural.js";
 
-/** GitHub’s words for each `authorAssociation`, as its badges on comments say them */
-const associations = {
-	OWNER: "Owner",
-	MEMBER: "Member",
-	COLLABORATOR: "Collaborator",
-	CONTRIBUTOR: "Contributor",
-	FIRST_TIME_CONTRIBUTOR: "First-time contributor",
-	FIRST_TIMER: "First-time contributor",
-	MANNEQUIN: "Mannequin",
-};
-
 /** The roles GitHub gives people added to the repo, or to the organization that owns it */
 const roles = ["OWNER", "MEMBER", "COLLABORATOR"];
 
@@ -29,7 +18,7 @@ const roles = ["OWNER", "MEMBER", "COLLABORATOR"];
 export const collaborators = "@collaborators";
 
 /** The most avatars the button shows. Its text says how many authors there are */
-const faces = 3;
+const limit = 3;
 
 let form = document.querySelector("#authors");
 let button = document.querySelector("#author-button");
@@ -42,7 +31,7 @@ let template = document.querySelector("#author");
 
 /** @type {Map<string, Person>} By lowercase login */
 let people = new Map();
-/** How many PRs the queue has, for “Show all” */
+/** How many PRs the queue has, which show when no one is picked */
 let total = 0;
 /** What the list shows once it closes, e.g. the rows of a refresh that ended while it was open */
 let latest = { rows: [], authors: [] };
@@ -109,8 +98,12 @@ export function showAuthors (rows, authors) {
 					? picked[0].author
 					: `${picked.length} ${plural("author", picked.length)}`;
 	button.ariaLabel = authors.length === 0 ? null : `Author: ${text.textContent}`;
-	button.classList.toggle("picked", authors.length > 0);
-	button.querySelector(".faces").replaceChildren(...picked.slice(0, faces).map(avatar));
+	// The same faces stay, so they don’t flash while new images load, e.g. each time the list closes
+	let faces = button.querySelector(".faces").cloneNode();
+	faces.append(...picked.slice(0, limit).map(avatar));
+	if (!faces.isEqualNode(button.querySelector(".faces"))) {
+		button.querySelector(".faces").replaceWith(faces);
+	}
 
 	// Changes made in the open list stay, e.g. while a refresh ends, and so do the counts its checkboxes add up
 	if (form.matches(":popover-open")) {
@@ -136,9 +129,17 @@ export function showAuthors (rows, authors) {
 	}
 
 	let members = sorted.filter(person => roles.includes(person.association));
+	// A heading names a difference, so one group alone has none, e.g. a queue of outside contributors only
+	for (let group of [insiders, others]) {
+		group.querySelector("legend").hidden =
+			members.length === 0 || members.length === sorted.length;
+	}
 	let prs = members.reduce((sum, person) => sum + person.count, 0);
+	// Shown, not hidden, when the queue has no collaborators, so the filter stays where it was and says why it can’t pick anyone
 	form.querySelector(".all small").textContent =
-		`${members.length} ${plural("person", members.length)} · ${prs} ${plural("pull request", prs)}`;
+		members.length > 0
+			? `${members.length} ${plural("person", members.length)} · ${prs} ${plural("PR", prs)}`
+			: "None in this queue";
 	narrow();
 	update();
 }
@@ -151,7 +152,7 @@ function avatar ({ avatar }) {
 	return img;
 }
 
-/** A checkbox for an author, with their role in the repo and how many PRs are theirs. */
+/** A checkbox for an author, with how many PRs are theirs. The group says their role in the repo. */
 function option (person, checked) {
 	let label = template.content.firstElementChild.cloneNode(true);
 	let box = label.querySelector("input");
@@ -160,7 +161,6 @@ function option (person, checked) {
 	box.defaultChecked = checked;
 	label.querySelector("img").src = person.avatar;
 	label.querySelector(".login span").textContent = person.author;
-	label.querySelector("small").textContent = associations[person.association] ?? "";
 	label.querySelector(".prs").textContent = person.count;
 	return label;
 }
@@ -193,7 +193,7 @@ function narrow () {
 		group.hidden = !group.querySelector("label:not([hidden])");
 	}
 	// Picks every collaborator, not just those that match
-	form.querySelector(".all").hidden = Boolean(typed) || boxes(insiders).length === 0;
+	form.querySelector(".all").hidden = Boolean(typed);
 	none.hidden = !insiders.hidden || !others.hidden;
 	none.textContent = `No authors match “${typed}”`;
 }
@@ -202,14 +202,17 @@ function narrow () {
 function update () {
 	let inside = boxes(insiders);
 	let on = inside.filter(box => box.checked).length;
-	all.checked = inside.length > 0 && on === inside.length;
+	// With no collaborators to check, it shows the pick itself, e.g. `@collaborators` kept after theirs were merged
+	all.checked = inside.length > 0 ? on === inside.length : everyone;
 	all.indeterminate = on > 0 && on < inside.length;
+	all.disabled = inside.length === 0 && !everyone;
 
 	let picked = boxes().filter(box => box.checked);
 	let prs = picked.reduce((sum, box) => sum + people.get(box.value.toLowerCase()).count, 0);
-	form.querySelector(".show").textContent =
-		picked.length > 0 ? `Show ${prs} ${plural("pull request", prs)}` : `Show all ${total}`;
-	form.querySelector(".clear").hidden = picked.length === 0;
+	// Every PR when no one is picked
+	let count = picked.length > 0 ? prs : total;
+	form.querySelector(".show").textContent = `Show ${count} ${plural("PR", count)}`;
+	form.querySelector(".clear").hidden = picked.length === 0 && !everyone;
 }
 
 form.addEventListener("change", event => {
@@ -236,9 +239,12 @@ form.querySelector(".clear").addEventListener("click", () => {
 	update();
 });
 
-/** Whether a checkbox differs from what the URL picks. */
+/** Whether the picks differ from the URL’s. */
 function changed () {
-	return boxes().some(box => box.checked !== box.defaultChecked);
+	return (
+		everyone !== latest.authors.includes(collaborators) ||
+		boxes().some(box => box.checked !== box.defaultChecked)
+	);
 }
 
 // “All collaborators” is the keyword, so a new collaborator’s PRs show too.

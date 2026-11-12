@@ -39,7 +39,7 @@ test("Picked authors show only their PRs, without a new search", async ({ page, 
 
 	await page.getByRole("button", { name: "Author" }).click();
 	await pick(page, "qux").check();
-	await page.getByRole("button", { name: "Show 2 pull requests" }).click();
+	await page.getByRole("button", { name: "Show 2 PRs" }).click();
 
 	await expect(page.locator("#queue tbody tr")).toHaveCount(2);
 	expect(searches).toBe(1);
@@ -55,7 +55,7 @@ test("“All collaborators” keeps the PRs of owners, members and collaborators
 
 	await page.getByRole("button", { name: "Author" }).click();
 	await page.getByRole("checkbox", { name: "All collaborators" }).check();
-	await page.getByRole("button", { name: "Show 3 pull requests" }).click();
+	await page.getByRole("button", { name: "Show 3 PRs" }).click();
 
 	await expect(page).toHaveURL(/authors=%40collaborators$/);
 	await expect(page.locator("#queue tbody tr")).toHaveCount(3);
@@ -144,7 +144,7 @@ test("Every collaborator picked by name stays those people, not every later coll
 	for (let login of ["foo", "other-user", "third-user"]) {
 		await pick(page, login).check();
 	}
-	await page.getByRole("button", { name: "Show 3 pull requests" }).click();
+	await page.getByRole("button", { name: "Show 3 PRs" }).click();
 
 	await expect(page).toHaveURL(/authors=foo%2Cother-user%2Cthird-user$/);
 });
@@ -172,6 +172,71 @@ test("A list open while a refresh ends lists the refresh’s authors once opened
 	await page.getByRole("button", { name: "Author" }).click();
 
 	await expect(pick(page, "newcomer")).toBeVisible();
+});
+
+test("A list of outside contributors only has no group headings, as there is nothing to tell apart", async ({
+	page,
+	github,
+}) => {
+	authored(github, {
+		A: ["foo", "CONTRIBUTOR"],
+		B: ["other-user", "CONTRIBUTOR"],
+		C: ["third-user", "NONE"],
+	});
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+
+	await page.getByRole("button", { name: "Author" }).click();
+
+	await expect(page.locator("#authors legend:visible")).toHaveCount(0);
+});
+
+test("A queue without collaborators keeps “All collaborators” in the list, grayed out, and says why", async ({
+	page,
+	github,
+}) => {
+	authored(github, {
+		A: ["foo", "CONTRIBUTOR"],
+		B: ["other-user", "CONTRIBUTOR"],
+		C: ["third-user", "NONE"],
+	});
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+
+	await page.getByRole("button", { name: "Author" }).click();
+
+	let all = page.getByRole("checkbox", { name: /All collaborators/ });
+	await expect(all).toBeDisabled();
+	await expect(page.locator("#authors .all")).toContainText("None in this queue");
+});
+
+test("A list of collaborators and others names both groups", async ({ page, github }) => {
+	authored(github);
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+
+	await page.getByRole("button", { name: "Author" }).click();
+
+	await expect(page.locator("#authors legend:visible")).toHaveText([
+		"Collaborators",
+		"Other authors",
+	]);
+});
+
+test("The button keeps its avatars when the list closes unchanged, so they don’t flash while they load again", async ({
+	page,
+	github,
+}) => {
+	authored(github);
+	await page.goto("/?repo=foo/bar&authors=qux");
+	await expect(page.locator("progress")).toBeHidden();
+	let face = await page.locator("#author-button img").elementHandle();
+
+	await page.getByRole("button", { name: "Author: qux" }).click();
+	await page.keyboard.press("Escape");
+	await expect(page.locator("#authors")).toBeHidden();
+
+	expect(await face.evaluate(img => img.isConnected)).toBe(true);
 });
 
 test("The count says how many PRs of all the search found are by the picked authors", async ({
