@@ -31,6 +31,7 @@ import { showSort, sort, sortBy } from "./sort.js";
 import { showTime } from "./time.js";
 import { offerRecent } from "./recent.js";
 import { plural } from "./plural.js";
+import { collaborators, matches, showAuthors } from "./authors.js";
 
 let table = document.querySelector("#queue");
 let status = document.querySelector("#status");
@@ -54,7 +55,9 @@ let changes = document.querySelector("#updated .changes");
 let delta = strip.querySelector(".delta");
 let filterForm = narrow.querySelector("form");
 let excludeForm = ignored.querySelector("form");
-let forms = [repoForm, filterForm, excludeForm, ...strip.querySelectorAll("form")];
+let authorButton = document.querySelector("#author-button");
+let authorForm = document.querySelector("#authors");
+let forms = [repoForm, filterForm, excludeForm, authorForm, ...strip.querySelectorAll("form")];
 
 /** @type {Row[]} */
 let rows = [];
@@ -62,12 +65,16 @@ let rows = [];
 let shown;
 /** Whose queue the rows show, e.g. the signed-in user’s when the URL names no `user` */
 let shownUser;
+/** The view the URL last asked for, which may differ from the one {@link shown}, e.g. while it loads or after it failed */
+let asked;
+/** Whose PRs show, e.g. `["@collaborators", "foo"]`, see {@link matches}. An author’s PRs are all theirs */
+let authors = [];
 /** @type {AbortController | undefined} Aborts the load in flight */
 let loading;
 /** @type {Map<string, HTMLTableRowElement> | undefined} The rows the last finished load of this view showed, by PR id, for the next to mark what changed */
 let seen;
 
-table.addEventListener("command", event => sortBy(rows, event.source.value));
+table.addEventListener("command", event => sortBy(rows, event.source.value, { shows }));
 
 // Opening a link in a marked row, e.g. its PR, is seeing what changed in it. A middle click opens a link too. A right click opens a menu instead
 for (let type of ["click", "auxclick"]) {
@@ -237,6 +244,7 @@ function showView () {
 	let role = params.get("role");
 	let filter = params.get("filter");
 	let exclude = params.get("exclude");
+	authors = role === "author" ? [] : (params.get("authors")?.split(",").filter(Boolean) ?? []);
 
 	// As defaults, so a reset, e.g. Esc in a summary form, goes back to what the URL says
 	for (let form of forms) {
@@ -285,6 +293,16 @@ function showView () {
 	}
 
 	if (params.get("repo")) {
+		// Other authors of the view on screen show the same rows, so nothing loads, e.g. not the details of every PR.
+		// The view the last URL asked for may have failed instead, e.g. before a step back to this one
+		let view = viewOf(params);
+		let same = other => Object.entries(view).every(([name, value]) => value === other?.[name]);
+		let last = asked;
+		asked = { ...view, authors: params.get("authors") };
+		// The same view submitted again, e.g. Apply with the same terms, loads it again
+		if (same(last) && same(shown) && last.authors !== asked.authors) {
+			return showQueue({ ...view, user: shownUser });
+		}
 		return load();
 	}
 
@@ -312,6 +330,17 @@ function normalizeParams (params) {
 	}
 }
 
+/**
+ * The parameters that decide which PRs a load finds and how it counts them, e.g. not `authors`, which only hides rows.
+ * @param {URLSearchParams} params
+ * @returns {View}
+ */
+function viewOf (params) {
+	return Object.fromEntries(
+		["repo", "user", "role", "filter", "exclude"].map(name => [name, params.get(name)]),
+	);
+}
+
 /** Mark the pattern field invalid while it holds no regular expression. */
 function checkPattern () {
 	let field = excludeForm.elements.exclude;
@@ -332,9 +361,7 @@ async function load () {
 
 	// A missing parameter means its default, e.g. no `user` is the signed-in user. A repeated one counts once, as in the forms
 	let params = new URLSearchParams(location.search);
-	let view = Object.fromEntries(
-		["repo", "user", "role", "filter", "exclude"].map(name => [name, params.get(name)]),
-	);
+	let view = viewOf(params);
 	let { repo, role, filter } = view;
 	// Another pattern counts every PR’s lines anew, so its rows are another queue’s
 	let sameQueue = ["repo", "user", "role", "exclude"].every(name => view[name] === shown?.[name]);
@@ -493,21 +520,25 @@ async function load () {
 
 		let failed = await fillDetails(stale, task, { ...view, user }, signal);
 		signal.throwIfAborted();
-		sort(rows, { animate: true });
+		sort(rows, { animate: true, shows });
 		showSummary({ ...view, user });
 
 		let now = new Date();
 		showUpdated(now);
 		// Rows whose details didn’t arrive, e.g. failed or of a deleted PR, show what they had, undimmed.
 		// The next load asks for them again
-		for (let tr of table.querySelectorAll("tr.stale")) {
-			unmark(tr);
+		// Rows of other authors are off the page, so not in the table
+		for (let { tr } of rows) {
+			if (tr.classList.contains("stale")) {
+				unmark(tr);
+			}
 		}
 
 		// The user has seen what the search found, even when details failed
 		let last = seen;
 		seen = snapshot(rows);
 		if (last) {
+			// NOTE: Counts the PRs of authors not picked too, e.g. “+1” for a new PR that doesn’t show
 			showDelta(mark(rows, last));
 		}
 
@@ -625,24 +656,33 @@ async function fillDetails (stale, task, { repo, user, role, exclude }, signal) 
 		.find(result => result.status === "rejected");
 }
 
+/** Whether the table shows a row: whether its PR is by one of the picked authors. */
+function shows (row) {
+	return matches(row.summary, authors);
+}
+
 /** Show the rows, sorted, with what goes around them: the strip above them, or why there are none. */
 function showQueue ({ repo, user, role, filter }) {
+	let shownRows = rows.filter(shows);
 	showRole(role);
-	sort(rows);
+	sort(rows, { shows });
 	showSummary({ repo, user, role, filter });
 
-	table.parentElement.hidden = rows.length === 0;
-	empty.hidden = rows.length > 0;
+	table.parentElement.hidden = shownRows.length === 0;
+	empty.hidden = shownRows.length > 0;
 	repoForm.hidden = true;
+	showAuthors(rows, authors);
+	authorButton.disabled = false;
+	authorButton.hidden = role === "author" || (rows.length === 0 && authors.length === 0);
 	// Nothing to narrow down, unless a filter is why nothing is left. Open, it may hold focus, e.g. on Apply after the terms were cleared
 	narrow.hidden = rows.length === 0 && !filter && !narrow.open;
 	// An author’s view counts no lines
 	ignored.hidden = role === "author" || (rows.length === 0 && !ignored.open);
 	// The status names the progress bar, so it says “Loading” until there is nothing left to load
-	if (rows.length === 0) {
+	if (shownRows.length === 0) {
 		showEmpty({ repo, user, role, filter });
 	}
-	status.hidden = rows.length > 0;
+	status.hidden = shownRows.length > 0;
 }
 
 /**
@@ -666,6 +706,9 @@ function showSkeleton ({ repo, user, role, filter }) {
 	table.parentElement.hidden = false;
 	empty.hidden = true;
 	repoForm.hidden = true;
+	authorButton.hidden = role === "author";
+	// No authors to list until the search ends
+	authorButton.disabled = true;
 	narrow.hidden = false;
 	ignored.hidden = role === "author";
 }
@@ -675,6 +718,7 @@ function hideQueue () {
 	strip.hidden = true;
 	table.parentElement.hidden = true;
 	empty.hidden = true;
+	authorButton.hidden = true;
 	narrow.hidden = true;
 	ignored.hidden = true;
 }
@@ -711,7 +755,15 @@ function showEmpty ({ repo, user, role, filter }) {
 	let text = author
 		? `${you ? "You have" : `${user} has`} no open pull requests in ${repo}.`
 		: `No pull requests in ${repo} are waiting for ${whose} review.`;
-	if (filter) {
+	// The search found PRs, but none by the picked authors, e.g. after theirs were merged. The card names them, and Clear shows the others’
+	let picked = authors.length > 0 && rows.length > 0;
+	if (picked) {
+		let names = authors.map(name =>
+			name === collaborators ? "the repo’s collaborators" : name);
+		title = "No matching pull requests";
+		text = `None of the pull requests waiting for ${whose} review in ${repo} are by ${new Intl.ListFormat("en", { type: "disjunction" }).format(names)}.`;
+	}
+	else if (filter) {
 		title = "No matching pull requests";
 		text = author
 			? `None of ${whose} open pull requests in ${repo}`
@@ -720,10 +772,15 @@ function showEmpty ({ repo, user, role, filter }) {
 	}
 
 	empty.classList.toggle("author", author);
-	empty.classList.toggle("filtered", Boolean(filter));
+	empty.classList.toggle("filtered", Boolean(filter) || picked);
 	empty.querySelector("h2").textContent = title;
 	empty.querySelector("p").textContent = text;
-	empty.querySelector("a").href = `https://github.com/${repo}/pulls`;
+	empty.querySelector(".github").href = `https://github.com/${repo}/pulls`;
+	let clear = empty.querySelector(".clear");
+	let without = new URLSearchParams(location.search);
+	without.delete("authors");
+	clear.href = `?${without}`;
+	clear.hidden = !picked;
 	status.textContent = text;
 }
 
@@ -774,7 +831,9 @@ function showSummary ({ repo, user, role, filter }) {
 
 	let count = strip.querySelector(".count");
 	count.href = `https://github.com/pulls?q=${encodeURIComponent(search({ repo, user, role, filter }))}`;
-	count.textContent = rows.length;
+	// Of all the search found, e.g. “3 of 12” for the picked authors
+	count.textContent =
+		authors.length > 0 ? `${rows.filter(shows).length} of ${rows.length}` : rows.length;
 
 	// A reviewer sees when the last request came. An author sees how many PRs wait for them, or for the user they look at.
 	let author = role === "author";
@@ -791,14 +850,14 @@ function showSummary ({ repo, user, role, filter }) {
 
 	// Unknown until every row has its details, e.g. of a queue stored before PRs had steps
 	if (author) {
-		let steps = rows.map(row => row.summary.step);
+		let steps = rows.filter(shows).map(row => row.summary.step);
 		turns.textContent = steps.includes(undefined)
 			? ""
 			: steps.filter(step => step.whose === "author").length;
 	}
 	else {
 		// Requests to a team have no date for the user
-		let dates = rows.map(row => row.summary.waitingSince);
+		let dates = rows.filter(shows).map(row => row.summary.waitingSince);
 		let known = dates.filter(Boolean);
 		let latest = known.length > 0 ? new Date(Math.max(...known)) : null;
 		showTime(time, dates.includes(undefined) ? undefined : latest);

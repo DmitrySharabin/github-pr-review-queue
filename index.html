@@ -111,6 +111,7 @@
 						<input type="hidden" name="role">
 						<input type="hidden" name="filter">
 						<input type="hidden" name="exclude">
+						<input type="hidden" name="authors">
 						<button class="apply" aria-label="Show queue"></button>
 						<button class="cancel" type="reset" aria-label="Cancel"></button>
 					</form>
@@ -132,6 +133,7 @@
 						<input type="hidden" name="role">
 						<input type="hidden" name="filter">
 						<input type="hidden" name="exclude">
+						<input type="hidden" name="authors">
 						<button class="apply" aria-label="Show queue"></button>
 						<button class="cancel" type="reset" aria-label="Cancel"></button>
 					</form>
@@ -147,6 +149,27 @@
 			</div>
 		</dl>
 
+		<!-- GitHub’s search can’t tell the repo’s collaborators from other authors, so the list narrows the rows on screen -->
+		<button id="author-button" type="button" popovertarget="authors" hidden><span class="faces"></span><span class="text">Author</span></button>
+		<form id="authors" popover aria-label="Filter by author">
+			<input type="hidden" name="repo">
+			<input type="hidden" name="user">
+			<input type="hidden" name="role">
+			<input type="hidden" name="filter">
+			<input type="hidden" name="exclude">
+			<input type="search" placeholder="Filter authors" aria-label="Filter authors" autocomplete="off" spellcheck="false">
+			<div class="list">
+				<label class="all"><input type="checkbox"> <span class="who"><b>All collaborators</b> <small></small></span></label>
+				<fieldset class="collaborators"><legend>Collaborators</legend></fieldset>
+				<fieldset class="others"><legend>Other authors</legend></fieldset>
+				<p class="none" hidden></p>
+			</div>
+			<footer>
+				<button type="button" class="clear" aria-label="Clear authors">Clear</button>
+				<button class="show"></button>
+			</footer>
+		</form>
+
 		<!-- Each field takes its name from its summary, which names it once.
 		     Each Clear names what it clears, so a list of links tells them apart -->
 		<details id="narrow" hidden>
@@ -156,6 +179,7 @@
 				<input type="hidden" name="user">
 				<input type="hidden" name="role">
 				<input type="hidden" name="exclude">
+				<input type="hidden" name="authors">
 				<input name="filter" type="search" placeholder="label:foo -label:bar" autocomplete="off" spellcheck="false" aria-labelledby="filter-name" aria-describedby="filter-note">
 				<button>Apply</button>
 				<a class="clear" aria-label="Clear filter" hidden>Clear</a>
@@ -171,6 +195,7 @@
 				<input type="hidden" name="role">
 				<input type="hidden" name="filter">
 				<input name="exclude" type="search" placeholder="test|\.lock$" autocomplete="off" spellcheck="false" aria-labelledby="exclude-name" aria-describedby="exclude-note">
+				<input type="hidden" name="authors">
 				<button>Apply</button>
 				<a class="clear" aria-label="Clear exclusions" hidden>Clear</a>
 				<small id="exclude-note">A regular expression that matches any part of a file path, such as <code>test|\.lock$</code></small>
@@ -221,7 +246,8 @@
 				<h2 id="empty-title"></h2>
 				<p></p>
 			</hgroup>
-			<a target="_blank">See all open pull requests on GitHub</a>
+			<a class="github" target="_blank">See all open pull requests on GitHub</a>
+			<a class="clear" hidden>Clear authors</a>
 		</section>
 
 		<template id="row">
@@ -253,6 +279,10 @@
 				<td class="requested"><time></time></td>
 				<td class="reviewers"></td>
 			</tr>
+		</template>
+
+		<template id="author">
+			<label><input type="checkbox"> <img alt="" width="20" height="20"> <span class="who"><span class="login"><span></span></span> <small></small></span> <span class="prs"></span></label>
 		</template>
 
 		<template id="label">

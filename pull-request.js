@@ -37,6 +37,7 @@
  * @property {string} url
  * @property {string} author
  * @property {string} avatar - The author’s avatar URL
+ * @property {string} [association] - How the author relates to the repo, as GitHub’s `authorAssociation`, e.g. `MEMBER`
  * @property {Label[]} labels
  * @property {Date} [opened] - When the PR was opened, in the author’s view, where it says that instead of by whom
  * @property {boolean} [draft] - Whether the PR is a draft, in the author’s view, where an icon says so in place of the avatar
@@ -192,7 +193,7 @@ export function query ({ repo, user, role, filter }) {
 	search(type: ISSUE, first: 100, query: ${JSON.stringify(search({ repo, user, role, filter }))}) {
 		nodes {
 			... on PullRequest {
-				id number title url createdAt updatedAt headRefOid isDraft
+				id number title url createdAt updatedAt headRefOid isDraft authorAssociation
 				author { login avatarUrl(size: 64) }
 				labels(first: 100) { nodes { name color description } }
 			}
@@ -281,6 +282,7 @@ export function summarize (pr, user, role, ignore) {
 		url: pr.url,
 		author: pr.author?.login ?? "ghost",
 		avatar: pr.author?.avatarUrl ?? "https://github.com/ghost.png",
+		association: pr.authorAssociation,
 		labels: pr.labels.nodes,
 	};
 	if (role === "author") {

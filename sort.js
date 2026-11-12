@@ -47,8 +47,9 @@ export function showSort (role) {
  * Sort the rows by a column, or reverse them when they are sorted by it already, and save the choice for the next visit.
  * @param {Row[]} rows
  * @param {string} column - A key of {@link sortKeys}, e.g. `diff`
+ * @param {{ shows?: (row: Row) => boolean }} [options] - See {@link sort}
  */
-export function sortBy (rows, column) {
+export function sortBy (rows, column, { shows } = {}) {
 	let th = table.tHead.querySelector(`[value="${column}"]`).closest("th");
 	let sorted = { column, direction: th.ariaSort === "descending" ? "ascending" : "descending" };
 	markSort(sorted);
@@ -57,7 +58,7 @@ export function sortBy (rows, column) {
 	// No transition. Its capture holds the new order back up to 300 ms on 100 rows, and when every row moves, no one follows one.
 	// Bars wait for the search, which sorts what it finds. Sorting now would put the rows of the last queue, or none, in their place
 	if (!table.tBodies[0].querySelector(".skeleton")) {
-		sort(rows);
+		sort(rows, { shows });
 	}
 }
 
@@ -77,9 +78,10 @@ function markSort ({ column, direction }) {
 /**
  * Sort the rows on screen by the sorted column.
  * @param {Row[]} rows - Sorted in place, then put on screen in that order
- * @param {{ animate?: boolean }} [options] - Whether moved rows slide to their new places
+ * @param {{ animate?: boolean, shows?: (row: Row) => boolean }} [options] - Whether moved rows slide to their new places,
+ * and which rows the table shows, e.g. those of the picked authors. All are sorted, so a tie keeps its order when the picks change
  */
-export function sort (rows, { animate } = {}) {
+export function sort (rows, { animate, shows = () => true } = {}) {
 	let th = table.tHead.querySelector("[aria-sort]");
 	let key = sortKeys[th.querySelector("button").value];
 	let sign = th.ariaSort === "ascending" ? 1 : -1;
@@ -94,11 +96,12 @@ export function sort (rows, { animate } = {}) {
 		return sign * (x - y);
 	});
 
+	let listed = rows.filter(shows);
 	let body = table.tBodies[0];
 	let place = () => {
 		// A row already at its place stays, e.g. every row on a refresh that changes no order.
 		// moveBefore() keeps a moved row’s focus and selected text, which insertBefore() drops. A new row isn’t on the page yet
-		rows.forEach(({ tr }, i) => {
+		listed.forEach(({ tr }, i) => {
 			let next = body.rows[i] ?? null;
 			if (tr === next) {
 				return;
@@ -112,16 +115,17 @@ export function sort (rows, { animate } = {}) {
 			}
 		});
 
-		// Rows left after the sorted ones belong to PRs the search no longer finds
-		while (body.rows.length > rows.length) {
-			body.rows[rows.length].remove();
+		// Rows left after the listed ones belong to PRs the search no longer finds, or to authors not picked
+		while (body.rows.length > listed.length) {
+			body.rows[listed.length].remove();
 		}
 	};
 
 	// A transition styles 4 pseudo-elements per row, e.g. 400 for 100 rows, and blocks clicks while it runs.
 	// So it runs only when someone can see a row move. A hidden tab, e.g. switched away from during a load, skips it with an error.
 	// Firefox before 144 has no view transitions, so the rows sort there without moving
-	let moves = body.rows.length !== rows.length || rows.some(({ tr }, i) => tr !== body.rows[i]);
+	let moves =
+		body.rows.length !== listed.length || listed.some(({ tr }, i) => tr !== body.rows[i]);
 	if (animate && moves && !document.hidden && document.startViewTransition) {
 		document.startViewTransition(place);
 	}

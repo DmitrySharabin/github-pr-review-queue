@@ -2,8 +2,10 @@ const rules = new Intl.PluralRules("en");
 
 /** The plural of each noun the page counts, keyed by its singular */
 const plurals = {
+	author: "authors",
 	conversation: "conversations",
 	label: "labels",
+	person: "people",
 	"pull request": "pull requests",
 };
 
