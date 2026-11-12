@@ -405,9 +405,9 @@ test.describe("Exclude from counts", () => {
 		await page.goto("/?repo=foo/bar&exclude=test");
 		await expect(row(page, "A").locator(".diff a .added")).toHaveText("+10");
 
-		await page.locator("#ignored summary").click();
+		await page.getByRole("button", { name: /^Display/ }).click();
 		await page.getByRole("searchbox", { name: "Exclude from counts" }).fill("src");
-		await page.locator("#ignored").getByRole("button", { name: "Apply" }).click();
+		await page.locator("#display").getByRole("button", { name: "Apply" }).click();
 
 		// Now the tests are what is left to read
 		await expect(row(page, "A").locator(".diff a .added")).toHaveText("+500");
@@ -525,7 +525,7 @@ test.describe("Exclude from counts", () => {
 
 	test("A pattern that isn’t a regular expression stops Apply", async ({ page, github }) => {
 		await page.goto("/?repo=foo/bar");
-		await page.locator("#ignored summary").click();
+		await page.getByRole("button", { name: /^Display/ }).click();
 		let field = page.getByRole("searchbox", { name: "Exclude from counts" });
 		await field.fill("test(");
 		// The browser fires `invalid` when it stops a form, and shows the field’s message
@@ -535,36 +535,20 @@ test.describe("Exclude from counts", () => {
 					input.addEventListener("invalid", () => resolve(input.validationMessage))),
 		);
 
-		await page.locator("#ignored").getByRole("button", { name: "Apply" }).click();
+		await page.locator("#display").getByRole("button", { name: "Apply" }).click();
 
 		expect(await stopped).toBe("Enter a valid regular expression.");
 	});
 
-	test("A pattern the URL brings back after an invalid one can be applied", async ({
-		page,
-		github,
-	}) => {
-		await page.goto("/?repo=foo/bar&exclude=test");
-		await page.locator("#ignored summary").click();
-		let field = page.getByRole("searchbox", { name: "Exclude from counts" });
-		await field.fill("test(");
-
-		// The role switch resets the field to the URL’s `test`, firing no input event
-		await page.getByRole("link", { name: "Author" }).click();
-		await page.getByRole("link", { name: "Reviewer" }).click();
-		await expect(field).toHaveValue("test");
-
-		expect(await field.evaluate(input => input.validity.valid)).toBe(true);
-	});
-
-	test("Clear opens the queue without the pattern, and keeps the filter", async ({
+	test("Clear and Apply open the queue without the pattern, and keep the filter", async ({
 		page,
 		github,
 	}) => {
 		await page.goto("/?repo=foo/bar&filter=label:bug&exclude=test");
-		await page.locator("#ignored summary").click();
+		await page.getByRole("button", { name: /^Display/ }).click();
 
-		await page.locator("#ignored").getByRole("link", { name: "Clear exclusions" }).click();
+		await page.getByRole("button", { name: "Clear display settings" }).click();
+		await page.locator("#display").getByRole("button", { name: "Apply" }).click();
 
 		await expect(page).toHaveURL(/\?repo=foo%2Fbar&filter=label%3Abug$/);
 	});
@@ -572,22 +556,16 @@ test.describe("Exclude from counts", () => {
 	test("Clear leaves the focus in the emptied field, not on the page", async ({
 		page,
 		github,
-		browserName,
 	}) => {
-		// NOTE: Firefox leaves the focus outside the field. Not yet known whether a user sees it or only Playwright’s press()
-		test.fail(browserName === "firefox");
 		await page.goto("/?repo=foo/bar&exclude=test");
-		await page.locator("#ignored summary").click();
+		await page.getByRole("button", { name: /^Display/ }).click();
 
-		await page
-			.locator("#ignored")
-			.getByRole("link", { name: "Clear exclusions" })
-			.press("Enter");
+		await page.getByRole("button", { name: "Clear display settings" }).press("Enter");
 
 		await expect(page.getByRole("searchbox", { name: "Exclude from counts" })).toBeFocused();
 	});
 
-	test("The filter’s Clear leaves the focus in its emptied field too", async ({
+	test("The filter’s ✕ leaves the focus in its emptied field", async ({
 		page,
 		github,
 		browserName,
@@ -595,25 +573,23 @@ test.describe("Exclude from counts", () => {
 		// NOTE: Firefox leaves the focus outside the field. Not yet known whether a user sees it or only Playwright’s press()
 		test.fail(browserName === "firefox");
 		await page.goto("/?repo=foo/bar&filter=label:bug");
-		await page.locator("#narrow summary").click();
 
-		await page.locator("#narrow").getByRole("link", { name: "Clear filter" }).press("Enter");
+		await page.getByRole("button", { name: "Clear filter" }).press("Enter");
 
-		await expect(page.getByRole("searchbox", { name: "Filter" })).toBeFocused();
+		await expect(page.getByRole("searchbox", { name: "Filter", exact: true })).toBeFocused();
 	});
 
-	test("A click on Clear leaves the field alone, so a phone opens no keyboard", async ({
+	test("A click on the filter’s ✕ opens the queue without it and leaves the field alone, so a phone opens no keyboard", async ({
 		page,
 		github,
 	}) => {
-		await page.goto("/?repo=foo/bar&exclude=test");
-		await page.locator("#ignored summary").click();
+		await page.goto("/?repo=foo/bar&filter=label:bug");
 
-		await page.locator("#ignored").getByRole("link", { name: "Clear exclusions" }).click();
+		await page.getByRole("button", { name: "Clear filter" }).click();
 		await expect(page).toHaveURL(/\?repo=foo%2Fbar$/);
 
 		await expect(
-			page.getByRole("searchbox", { name: "Exclude from counts" }),
+			page.getByRole("searchbox", { name: "Filter", exact: true }),
 		).not.toBeFocused();
 	});
 
@@ -654,20 +630,19 @@ test.describe("Exclude from counts", () => {
 
 	test("Applying a filter keeps the pattern", async ({ page, github }) => {
 		await page.goto("/?repo=foo/bar&exclude=test");
-		await page.locator("#narrow summary").click();
-
-		await page.getByRole("searchbox", { name: "Filter" }).fill("label:bug");
-		await page.locator("#narrow").getByRole("button", { name: "Apply" }).click();
+		let field = page.getByRole("searchbox", { name: "Filter", exact: true });
+		await field.fill("label:bug");
+		await field.press("Enter");
 
 		await expect(page).toHaveURL(/^(?=.*filter=label%3Abug)(?=.*exclude=test)/);
 	});
 
 	test("Applying a pattern keeps the filter", async ({ page, github }) => {
 		await page.goto("/?repo=foo/bar&filter=label:bug");
-		await page.locator("#ignored summary").click();
+		await page.getByRole("button", { name: /^Display/ }).click();
 
 		await page.getByRole("searchbox", { name: "Exclude from counts" }).fill("test");
-		await page.locator("#ignored").getByRole("button", { name: "Apply" }).click();
+		await page.locator("#display").getByRole("button", { name: "Apply" }).click();
 
 		await expect(page).toHaveURL(/^(?=.*filter=label%3Abug)(?=.*exclude=test)/);
 	});
@@ -677,7 +652,7 @@ test.describe("Exclude from counts", () => {
 		github,
 	}) => {
 		await page.goto("/?repo=foo/bar&exclude=test");
-		await page.locator("#ignored summary").click();
+		await page.getByRole("button", { name: /^Display/ }).click();
 		let field = page.getByRole("searchbox", { name: "Exclude from counts" });
 		let valid = await field.evaluate(input => getComputedStyle(input).borderColor);
 

@@ -1,0 +1,252 @@
+import { test, expect } from "./github.js";
+
+/** The Display button, whose name says how many of its settings are changed */
+function display (page) {
+	return page.getByRole("button", { name: /^Display/ });
+}
+
+/** The pattern field in the Display menu */
+function pattern (page) {
+	return page.getByRole("searchbox", { name: "Exclude from counts" });
+}
+
+test("The note on search terms shows only while the filter has focus, so at rest it covers no row", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+	let note = page.locator("#filter-note");
+	await expect(note).toBeHidden();
+
+	await page.getByRole("searchbox", { name: "Filter", exact: true }).focus();
+
+	await expect(note).toBeVisible();
+});
+
+test("A queue a filter emptied keeps the filter, to change or clear it", async ({
+	page,
+	github,
+}) => {
+	github.search = answer => {
+		answer.data.search.nodes = [];
+	};
+	await page.goto("/?repo=foo/bar&filter=label:none");
+
+	await expect(page.locator("#empty")).toBeVisible();
+	await expect(page.getByRole("searchbox", { name: "Filter", exact: true })).toHaveValue(
+		"label:none",
+	);
+});
+
+test("An empty queue with no filter has nothing to narrow, so no filter", async ({
+	page,
+	github,
+}) => {
+	github.search = answer => {
+		answer.data.search.nodes = [];
+	};
+	await page.goto("/?repo=foo/bar");
+
+	await expect(page.locator("#empty")).toBeVisible();
+	await expect(page.locator("#filters")).toBeHidden();
+});
+
+test("Display says how many of its settings differ from their defaults", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar&exclude=test");
+
+	await expect(page.getByRole("button", { name: "Display, 1 setting changed" })).toBeVisible();
+	await expect(page.locator("#display-button .count")).toHaveText("1");
+});
+
+test("Display with every setting at its default shows no count, nor names one", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+
+	await expect(page.getByRole("button", { name: "Display", exact: true })).toBeVisible();
+	await expect(page.locator("#display-button .count")).toBeHidden();
+});
+
+test("Display closed with no change loads nothing", async ({ page, github }) => {
+	let searches = 0;
+	let answer = github.search;
+	github.search = found => {
+		searches++;
+		answer(found);
+	};
+	await page.goto("/?repo=foo/bar&exclude=test");
+	await expect(page.locator("progress")).toBeHidden();
+
+	await display(page).click();
+	await page.locator("h1").click();
+	await expect(page.locator("#display")).toBeHidden();
+	// A search would start at once
+	await page.waitForTimeout(500);
+
+	expect(searches).toBe(1);
+});
+
+test("Enter in Display applies the pattern", async ({ page, github }) => {
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+
+	await display(page).click();
+	await pattern(page).fill("test");
+	await pattern(page).press("Enter");
+
+	await expect(page).toHaveURL(/[?&]exclude=test(&|$)/);
+});
+
+test("Display opens with the focus in its field, to type at once", async ({ page, github }) => {
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+
+	await display(page).click();
+
+	await expect(pattern(page)).toBeFocused();
+});
+
+test("Clear in Display shows only while there is a pattern to clear", async ({ page, github }) => {
+	await page.goto("/?repo=foo/bar&exclude=test");
+	await expect(page.locator("progress")).toBeHidden();
+	await display(page).click();
+	let clear = page.getByRole("button", { name: "Clear display settings" });
+	await expect(clear).toBeVisible();
+
+	await clear.click();
+	await expect(clear).toBeHidden();
+	await pattern(page).fill("src");
+
+	await expect(clear).toBeVisible();
+});
+
+test("The filter’s ✕ shows only while a filter is applied", async ({ page, github }) => {
+	await page.goto("/?repo=foo/bar&filter=label:bug");
+	let clear = page.getByRole("button", { name: "Clear filter" });
+	await expect(clear).toBeVisible();
+
+	let field = page.getByRole("searchbox", { name: "Filter", exact: true });
+	await field.fill("");
+	await field.press("Enter");
+
+	await expect(clear).toBeHidden();
+});
+
+test("An empty queue keeps the filter row while authors are picked, so they can be unpicked", async ({
+	page,
+	github,
+}) => {
+	// All their PRs merged, and no one else’s left
+	github.search = answer => {
+		answer.data.search.nodes = [];
+	};
+	await page.goto("/?repo=foo/bar&authors=nobody");
+	await expect(page.locator("#empty")).toBeVisible();
+
+	await expect(page.getByRole("button", { name: "Author: nobody" })).toBeVisible();
+});
+
+test("An empty queue hides Display, as there is nothing to count", async ({ page, github }) => {
+	github.search = answer => {
+		answer.data.search.nodes = [];
+	};
+	await page.goto("/?repo=foo/bar&filter=label:none&exclude=test");
+	await expect(page.locator("#empty")).toBeVisible();
+
+	await expect(page.locator("#display-button")).toBeHidden();
+});
+
+test("The field focused after its ✕ stays, though the queue without the filter is empty too", async ({
+	page,
+	github,
+	browserName,
+}) => {
+	// NOTE: Firefox leaves the focus outside the field. Not yet known whether a user sees it or only Playwright’s press()
+	test.fail(browserName === "firefox");
+	github.search = answer => {
+		answer.data.search.nodes = [];
+	};
+	await page.goto("/?repo=foo/bar&filter=label:none");
+	await expect(page.locator("#empty")).toBeVisible();
+
+	await page.getByRole("button", { name: "Clear filter" }).press("Enter");
+	await expect(page).toHaveURL(/\?repo=foo%2Fbar$/);
+	await expect(page.locator("progress")).toBeHidden();
+
+	await expect(page.getByRole("searchbox", { name: "Filter", exact: true })).toBeFocused();
+});
+
+test("A failed search hides the filter row with the queue", async ({ page, github }) => {
+	github.search = () => 500;
+	await page.goto("/?repo=foo/bar&filter=label:bug");
+	await expect(page.locator("#repo-form .notice")).toBeVisible();
+
+	await expect(page.locator("#filters")).toBeHidden();
+});
+
+test("While the author view loads, it has no Display either", async ({ page, github }) => {
+	github.search = () => new Promise(() => {});
+	await page.goto("/?repo=foo/bar&role=author");
+	await expect(page.locator("#queue .skeleton").first()).toBeVisible();
+
+	await expect(page.locator("#display-button")).toBeHidden();
+});
+
+test("A click outside Display applies the pattern typed in it, as the author list does", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+
+	await display(page).click();
+	await pattern(page).fill("test");
+	await page.locator("h1").click();
+
+	await expect(page).toHaveURL(/[?&]exclude=test(&|$)/);
+});
+
+test("Esc drops the pattern typed in Display", async ({ page, github }) => {
+	await page.goto("/?repo=foo/bar&exclude=test");
+	await expect(page.locator("progress")).toBeHidden();
+
+	await display(page).click();
+	await pattern(page).fill("src");
+	// The first Esc in a filled search field only clears it
+	await page.keyboard.press("Escape");
+	await page.keyboard.press("Escape");
+	await expect(page.locator("#display")).toBeHidden();
+	await display(page).click();
+
+	await expect(pattern(page)).toHaveValue("test");
+	await expect(page).toHaveURL(/[?&]exclude=test(&|$)/);
+});
+
+test("A click outside Display drops a pattern that isn’t a regular expression, rather than keep it unapplied", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar&exclude=test");
+	await expect(page.locator("progress")).toBeHidden();
+
+	await display(page).click();
+	await pattern(page).fill("test(");
+	await page.locator("h1").click();
+	await expect(page.locator("#display")).toBeHidden();
+	await display(page).click();
+
+	await expect(pattern(page)).toHaveValue("test");
+});
+
+test("The author view has no Display, as it counts no lines", async ({ page, github }) => {
+	await page.goto("/?repo=foo/bar&role=author");
+	await expect(page.locator("progress")).toBeHidden();
+
+	await expect(page.locator("#display-button")).toBeHidden();
+	await expect(page.getByRole("searchbox", { name: "Filter", exact: true })).toBeVisible();
+});

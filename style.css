@@ -418,28 +418,6 @@ main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #upd
 		}
 	}
 
-	/* Icon buttons as big as the role switch, the smallest target WCAG allows */
-	button {
-		flex: none;
-		inline-size: 1.5rem;
-		min-block-size: 1.5rem;
-		border-radius: var(--control-radius);
-		color: var(--muted);
-
-		&::before {
-			content: "";
-			display: block;
-			block-size: 1rem;
-			background-color: currentColor;
-			mask: var(--icon) no-repeat center / contain;
-		}
-
-		&:hover {
-			background: var(--rule);
-			color: var(--text);
-		}
-	}
-
 	.edit {
 		--icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10.5 2.5l3 3L6 13H3v-3z'/%3E%3C/svg%3E");
 	}
@@ -454,7 +432,29 @@ main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #upd
 	}
 }
 
-/* In the summary’s forms and on each recent value */
+/* Icon buttons as big as the role switch in the summary, the smallest target WCAG allows. ✕ in the filter field too */
+:is(#summary, #narrow) button {
+	flex: none;
+	inline-size: 1.5rem;
+	min-block-size: 1.5rem;
+	border-radius: var(--control-radius);
+	color: var(--muted);
+
+	&::before {
+		content: "";
+		display: block;
+		block-size: 1rem;
+		background-color: currentColor;
+		mask: var(--icon) no-repeat center / contain;
+	}
+
+	&:hover {
+		background: var(--rule);
+		color: var(--text);
+	}
+}
+
+/* In the summary’s forms, in the filter field, and on each recent value */
 .cancel {
 	--icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round'%3E%3Cpath d='M4 4l8 8M12 4l-8 8'/%3E%3C/svg%3E");
 }
@@ -490,7 +490,7 @@ button {
 #refresh,
 #sign-out,
 #sign-in > button,
-:is(#repo-form, #token-form, #narrow form, #ignored form, #authors footer) > button {
+:is(#repo-form, #token-form, #authors footer, #display footer) > button {
 	min-block-size: var(--control-size);
 	padding-inline: 1em;
 	border-radius: var(--control-radius);
@@ -499,7 +499,7 @@ button {
 
 #sign-in > button,
 #repo-form > button,
-#authors .show {
+:is(#authors, #display) .show {
 	background: var(--text);
 	color: white;
 
@@ -512,7 +512,7 @@ button {
 #refresh,
 #sign-out,
 #token-form button,
-:is(#narrow, #ignored) button,
+:is(#author-button, #display-button),
 #queue td.step a.action {
 	background: color-mix(in oklch, var(--text) 8%, var(--surface));
 	color: var(--text);
@@ -902,144 +902,102 @@ hgroup {
 	}
 }
 
-/* The filter, and the files whose lines count apart */
-:is(#narrow, #ignored) {
+/* Which PRs show and how they count, on one line over the table. The filter takes the room the menus leave */
+#filters {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	align-items: center;
 	margin-block-end: 1rem;
 
-	/* The content fades with the turning chevron. content-visibility keeps it on screen while it fades out */
-	&::details-content {
-		opacity: 0;
-		transition-property: opacity, content-visibility;
-		transition-duration: 150ms;
-		transition-timing-function: var(--ease-out);
-		transition-behavior: allow-discrete;
+	&[hidden] {
+		display: none;
 	}
+}
 
-	/* Opening shows the content at once, so the toggle handler can focus the field in it. Only the fade-out waits */
-	&[open]::details-content {
-		opacity: 1;
-		transition-property: opacity;
-	}
+#narrow {
+	position: relative;
+	flex: 1 1 20rem;
+	display: flex;
+	gap: 0.75em;
+	align-items: center;
 
-	/* The value’s text sits on the name’s baseline, not the pill’s box on its middle, which a smaller font lifts.
-	   A block with a cap, as only an auto-width block narrows beside the Author button in every engine.
-	   An inline box, or `fit-content` in Firefox and Safari, drops below the button whole */
-	summary {
-		display: flex;
-		max-inline-size: max-content;
-		gap: 0.5em;
-		align-items: baseline;
+	label {
 		color: var(--muted);
-		font-weight: 500;
-		cursor: pointer;
+	}
 
-		&:hover {
-			color: var(--text);
-		}
+	/* ✕ shares the field’s cell, as the chevron of a field with recent values does */
+	.box {
+		flex: 1;
+		display: grid;
+		align-items: center;
 
-		/* A chevron that turns down while open. Turned, its stroke starts 3.25 of 16 units in, so this margin puts it on the edge of the boxes around it.
-		   Closed, it starts 5.25 in, and those 2 units more are too few to notice.
-		   One line tall at the start, so it stays beside the name when the value wraps */
-		&::before {
-			content: "";
-			align-self: start;
-			flex: none;
-			inline-size: 1em;
-			block-size: 1lh;
-			margin-inline: calc(-3.25em / 16);
-			background-color: currentColor;
-			mask: var(--chevron) no-repeat center / 1em;
-
-			@media (prefers-reduced-motion: no-preference) {
-				transition: rotate 150ms var(--ease-out);
-			}
+		> * {
+			grid-area: 1 / 1;
 		}
 	}
 
-	&[open] summary::before {
-		rotate: 90deg;
-	}
+	input {
+		min-inline-size: 0;
+		padding-inline-end: var(--control-size);
 
-	/* Half a one-line pill’s height, so a value that wraps, e.g. many terms on a phone, keeps its text inside the corners */
-	code {
-		padding: 0.1em 0.5em;
-		border-radius: calc(0.5lh + 0.1em);
-		background: var(--rule);
-		color: var(--text);
-		font-size: 0.85em;
-
-		&:empty {
+		/* ✕ after the field clears the filter, not just the text */
+		&::-webkit-search-cancel-button {
 			display: none;
 		}
 	}
 
-	form {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.5em 0.75em;
-		align-items: center;
-		margin-block-start: 0.75em;
-		padding: 0.85em var(--inset);
-		background: var(--surface);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
+	.cancel {
+		justify-self: end;
+		margin-inline-end: 0.5rem;
+
+		&[hidden] {
+			display: none;
+		}
 	}
 
-	input[type="search"] {
-		flex: 1;
-		min-inline-size: 16ch;
-	}
-
+	/* While the field has focus, over the table as a menu is, so nothing under it moves */
 	small {
+		position: absolute;
+		z-index: 1;
+		inset-block-start: calc(100% + 0.375rem);
+		inset-inline: 0;
+		padding: 0.5rem 0.75rem;
+		color: var(--muted);
+	}
+
+	&:not(:focus-within) small {
+		display: none;
+	}
+
+	/* A phone’s first row, with the menus under it */
+	@container (width < 36rem) {
 		flex-basis: 100%;
 	}
 
 	a {
-		color: var(--muted);
-
-		&:hover {
-			color: var(--text);
-		}
+		color: inherit;
 	}
 }
 
-/* One group of two lines, closer to each other than to the table. Their margins collapse to 1rem − 0.5rem */
-#narrow:not([hidden]) + #ignored {
-	margin-block-start: -0.5rem;
-}
-
-/* Quiet text at the end of the Filter line, as the lines under it are. Floated, so the filter’s terms wrap beside it rather than under it.
-   A long login gets 40% of the line at most, so the terms keep room on a phone.
-   The margin below is the gap between the lines, so the next line passes under it, but the empty card keeps clear of it */
-#author-button {
-	float: inline-end;
+/* Menus at the end of the filter, as tall as its field. Each opens a list rather than acts, as a select does */
+:is(#author-button, #display-button) {
 	display: flex;
+	flex: none;
 	gap: 0.4em;
 	align-items: center;
-	max-inline-size: 40%;
-	margin-inline-start: 1em;
-	margin-block-end: 0.5rem;
-	color: var(--muted);
+	max-inline-size: 16rem;
+	min-block-size: var(--control-size);
+	padding-inline: 0.75em;
+	border-radius: var(--control-radius);
 	font-weight: 500;
 
 	&[hidden] {
 		display: none;
 	}
 
-	/* Muted at rest, as the Filter line is. The faces show who is picked */
-	&:enabled:hover {
-		color: var(--text);
-	}
-
-	/* It opens a list rather than acts, as a select does */
 	&:active {
 		scale: none;
-	}
-
-	/* While bars stand in for the rows, there are no authors to list */
-	&:disabled {
-		color: var(--muted);
-		cursor: progress;
 	}
 
 	/* Points down: a list opens under it */
@@ -1060,6 +1018,23 @@ hgroup {
 		white-space: nowrap;
 	}
 
+	/* A phone’s row of their own, half each, under the field */
+	@container (width < 36rem) {
+		flex: 1;
+		justify-content: center;
+		max-inline-size: none;
+	}
+}
+
+#author-button {
+	min-inline-size: 0;
+
+	/* While bars stand in for the rows, there are no authors to list */
+	&:disabled {
+		color: var(--muted);
+		cursor: progress;
+	}
+
 	.faces {
 		display: flex;
 		flex: none;
@@ -1068,14 +1043,30 @@ hgroup {
 			display: none;
 		}
 
-		/* The page’s ground between faces that overlap */
+		/* The button’s fill between faces that overlap */
 		img {
-			box-shadow: 0 0 0 2px var(--ground);
+			box-shadow: 0 0 0 2px color-mix(in oklch, var(--text) 8%, var(--surface));
 		}
 
 		img + img {
 			margin-inline-start: -0.4em;
 		}
+	}
+}
+
+/* How many settings differ from their defaults, as a pill */
+#display-button .count {
+	min-inline-size: 1lh;
+	padding-inline: 0.4em;
+	box-sizing: border-box;
+	border-radius: 1e5px;
+	background: var(--surface);
+	font-size: 0.85em;
+	font-variant-numeric: tabular-nums;
+	text-align: center;
+
+	&[hidden] {
+		display: none;
 	}
 }
 
@@ -1088,16 +1079,20 @@ hgroup {
 	background: var(--rule);
 }
 
-#authors {
-	inline-size: min(24rem, 100vw - 2rem);
-	max-block-size: min(32rem, 100dvh - 2rem);
+/* A card over the page: a menu, or the filter’s note */
+:is(#authors, #display, #narrow small) {
 	box-sizing: border-box;
-	padding: 0;
 	border: 1px solid var(--border);
 	border-radius: var(--radius);
 	background: var(--surface);
-	color: var(--text);
 	box-shadow: 0 0.5rem 1.5rem color-mix(in oklch, var(--text) 12%, transparent);
+}
+
+:is(#authors, #display) {
+	inline-size: min(24rem, 100vw - 2rem);
+	max-block-size: min(32rem, 100dvh - 2rem);
+	padding: 0;
+	color: var(--text);
 	/* Scrolling past the list’s end doesn’t scroll the page */
 	overscroll-behavior: contain;
 	/* Under the button, its implicit anchor, and in from its end, where the button sits */
@@ -1156,6 +1151,25 @@ hgroup {
 		}
 	}
 
+	footer {
+		display: flex;
+		gap: 0.5rem;
+		justify-content: end;
+		padding: 0.5rem;
+		border-block-start: 1px solid var(--border);
+
+		.clear {
+			margin-inline-end: auto;
+			color: var(--muted);
+
+			&:hover {
+				color: var(--text);
+			}
+		}
+	}
+}
+
+#authors {
 	> input[type="search"] {
 		min-block-size: var(--control-size);
 		box-sizing: border-box;
@@ -1248,23 +1262,10 @@ hgroup {
 		color: var(--muted);
 		text-align: center;
 	}
+}
 
-	footer {
-		display: flex;
-		gap: 0.5rem;
-		justify-content: end;
-		padding: 0.5rem;
-		border-block-start: 1px solid var(--border);
-
-		.clear {
-			margin-inline-end: auto;
-			color: var(--muted);
-
-			&:hover {
-				color: var(--text);
-			}
-		}
-	}
+#display .field {
+	padding: 1rem;
 }
 
 #token-form {

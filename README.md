@@ -11,7 +11,7 @@ It runs in the browser, with no build step and no server of its own.
 - **Review history**: how many times you were asked to review again, when the last request came, and what the other reviewers did.
 - **Labels and filters**: click a label to show only its PRs, or filter the queue with any GitHub search terms.
 - **Authors**: pick whose PRs to show, by name or all the repo’s collaborators at once.
-- **Exclude from counts**: leave out files such as tests or lockfiles. Each size then shows the code left to read, with the total under it.
+- **Exclude from counts**, under Display: leave out files such as tests or lockfiles. Each size then shows the code left to read, with the total under it.
 - **Sorting**: sort by any column except the pull request and the reviewers. The page remembers the sort for each view.
 - **Changes since the last refresh**: new PRs and changed values stay marked. A counter shows how many PRs came and went.
 - **Fast start**: on the next visit, the page shows the last queue at once and loads the fresh one.

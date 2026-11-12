@@ -321,9 +321,9 @@ test("Picked authors with no PRs left, e.g. all merged, are named in the card, w
 test("A new filter keeps the picked authors", async ({ page, github }) => {
 	authored(github);
 	await page.goto("/?repo=foo/bar&authors=qux");
-	await page.locator("#narrow summary").click();
-	await page.getByRole("searchbox", { name: "Filter" }).fill("label:baz");
-	await page.getByRole("button", { name: "Apply" }).click();
+	let field = page.getByRole("searchbox", { name: "Filter", exact: true });
+	await field.fill("label:baz");
+	await field.press("Enter");
 
 	await expect(page).toHaveURL(/authors=qux/);
 });
@@ -342,8 +342,7 @@ test("The same filter applied again loads the queue again, as only other authors
 	await page.goto("/?repo=foo/bar&filter=label:baz");
 	await expect(page.locator("progress")).toBeHidden();
 
-	await page.locator("#narrow summary").click();
-	await page.getByRole("button", { name: "Apply" }).click();
+	await page.getByRole("searchbox", { name: "Filter", exact: true }).press("Enter");
 
 	await expect.poll(() => searches).toBe(2);
 });
@@ -456,9 +455,9 @@ test("A step back while the list is open keeps the authors checked in it", async
 }) => {
 	authored(github);
 	await page.goto("/?repo=foo/bar");
-	await page.locator("#narrow summary").click();
-	await page.getByRole("searchbox", { name: "Filter" }).fill("label:baz");
-	await page.getByRole("button", { name: "Apply" }).click();
+	let field = page.getByRole("searchbox", { name: "Filter", exact: true });
+	await field.fill("label:baz");
+	await field.press("Enter");
 	await expect(page.locator("progress")).toBeHidden();
 
 	await page.getByRole("button", { name: "Author" }).click();

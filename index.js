@@ -33,6 +33,7 @@ import { showTime } from "./time.js";
 import { offerRecent } from "./recent.js";
 import { plural } from "./plural.js";
 import { collaborators, matches, showAuthors } from "./authors.js";
+import { applyOnClose } from "./menu.js";
 
 /** The URL parameters of a view, see {@link viewOf} */
 const viewNames = ["repo", "user", "role", "filter", "exclude"];
@@ -48,8 +49,7 @@ let controls = document.querySelector("#controls");
 let tokenForm = document.querySelector("#token-form");
 let skeletonTemplate = document.querySelector("#skeleton");
 let repoForm = document.querySelector("#repo-form");
-let narrow = document.querySelector("#narrow");
-let ignored = document.querySelector("#ignored");
+let filters = document.querySelector("#filters");
 let empty = document.querySelector("#empty");
 let strip = document.querySelector("#summary");
 let header = document.querySelector("header");
@@ -57,11 +57,12 @@ let failure = document.querySelector("#failure");
 let updated = document.querySelector("#updated time");
 let changes = document.querySelector("#updated .changes");
 let delta = strip.querySelector(".delta");
-let filterForm = narrow.querySelector("form");
-let excludeForm = ignored.querySelector("form");
+let filterForm = document.querySelector("#narrow");
 let authorButton = document.querySelector("#author-button");
 let authorForm = document.querySelector("#authors");
-let forms = [repoForm, filterForm, excludeForm, authorForm, ...strip.querySelectorAll("form")];
+let displayButton = document.querySelector("#display-button");
+let displayForm = document.querySelector("#display");
+let forms = [repoForm, filterForm, authorForm, displayForm, ...strip.querySelectorAll("form")];
 
 /** @type {Row[]} */
 let rows = [];
@@ -197,19 +198,40 @@ for (let form of strip.querySelectorAll("form")) {
 	});
 }
 
-for (let [details, field] of [
-	[narrow, filterForm.elements.filter],
-	[ignored, excludeForm.elements.exclude],
-]) {
-	details.addEventListener("toggle", () => {
-		if (details.open) {
-			field.focus();
-		}
-	});
-}
-
 // A pattern that isn’t a regular expression, e.g. `test(`, stops Apply with the browser’s message
-excludeForm.elements.exclude.addEventListener("input", checkPattern);
+displayForm.elements.exclude.addEventListener("input", checkPattern);
+
+displayForm.querySelector(".clear").addEventListener("click", event => {
+	let field = displayForm.elements.exclude;
+	field.value = "";
+	// Clear pressed from the keyboard hides itself and would drop the focus to the page, so the emptied field takes it.
+	// Not after a tap, since a focused field opens the on-screen keyboard
+	if (event.currentTarget.matches(":focus-visible")) {
+		field.focus();
+	}
+	checkPattern();
+});
+
+// An empty field submits no `filter`
+filterForm.querySelector(".cancel").addEventListener("click", event => {
+	let field = filterForm.elements.filter;
+	field.value = "";
+	// ✕ pressed from the keyboard hides itself and would drop the focus to the page, so the emptied field takes it.
+	// Not after a tap, since a focused field opens the on-screen keyboard
+	if (event.currentTarget.matches(":focus-visible")) {
+		field.focus();
+	}
+	filterForm.requestSubmit();
+});
+
+applyOnClose(displayForm, {
+	changed: () =>
+		[...displayForm.elements].some(field => field.name && field.value !== field.defaultValue),
+	discard () {
+		displayForm.reset();
+		checkPattern();
+	},
+});
 
 refresh.addEventListener("click", () => {
 	if (refresh.ariaDisabled !== "true") {
@@ -305,23 +327,12 @@ function showView ({ onlyAuthors } = {}) {
 		link.ariaCurrent = (link.dataset.role === "author") === (role === "author") ? "page" : null;
 	}
 
-	// Folded, each still shows its value. Clear opens the view without it
-	for (let [details, name, value] of [
-		[narrow, "filter", filter],
-		[ignored, "exclude", exclude],
-	]) {
-		details.querySelector("summary code").textContent = value;
-		let without = new URLSearchParams(params);
-		without.delete(name);
-		let clear = details.querySelector(".clear");
-		clear.href = `?${without}`;
-		// A Clear pressed from the keyboard hides itself and would drop the focus to the page, so the emptied field takes it.
-		// Not after a tap, since a focused field opens the on-screen keyboard
-		if (!value && clear.matches(":focus-visible")) {
-			details.querySelector("input[type=search]").focus();
-		}
-		clear.hidden = !value;
-	}
+	filterForm.querySelector(".cancel").hidden = !filter;
+	// Closed, the menu says that a setting in it differs from its default
+	let count = displayButton.querySelector(".count");
+	count.textContent = exclude ? 1 : "";
+	count.hidden = !exclude;
+	displayButton.ariaLabel = exclude ? "Display, 1 setting changed" : null;
 
 	if (params.get("repo")) {
 		// Other authors of the view on screen show the same rows, so nothing loads, e.g. not the details of every PR.
@@ -370,12 +381,13 @@ function viewOf (params) {
 	return Object.fromEntries(viewNames.map(name => [name, params.get(name)]));
 }
 
-/** Mark the pattern field invalid while it holds no regular expression. */
+/** Mark the pattern field invalid while it holds no regular expression, and offer Clear while it holds anything. */
 function checkPattern () {
-	let field = excludeForm.elements.exclude;
+	let field = displayForm.elements.exclude;
 	field.setCustomValidity(
 		field.value && !pattern(field.value) ? "Enter a valid regular expression." : "",
 	);
+	displayForm.querySelector(".clear").hidden = !field.value;
 }
 
 /**
@@ -701,10 +713,16 @@ function showQueue ({ repo, user, role, filter }) {
 	relink(rows);
 	authorButton.disabled = false;
 	authorButton.hidden = role === "author" || (rows.length === 0 && authors.length === 0);
-	// Nothing to narrow down, unless a filter is why nothing is left. Open, it may hold focus, e.g. on Apply after the terms were cleared
-	narrow.hidden = rows.length === 0 && !filter && !narrow.open;
+	// Nothing to narrow down, unless a filter or picked authors are why nothing is left.
+	// In use, the row stays, e.g. a field focused after its terms were cleared, or a menu open while a refresh ends
+	filters.hidden =
+		rows.length === 0 &&
+		!filter &&
+		authors.length === 0 &&
+		!filters.matches(":focus-within, :has(:popover-open)");
 	// An author’s view counts no lines
-	ignored.hidden = role === "author" || (rows.length === 0 && !ignored.open);
+	displayButton.hidden =
+		role === "author" || (rows.length === 0 && !displayForm.matches(":popover-open"));
 	// The status names the progress bar, so it says “Loading” until there is nothing left to load
 	if (shownRows.length === 0) {
 		showEmpty({ repo, user, role, filter });
@@ -736,8 +754,8 @@ function showSkeleton ({ repo, user, role, filter }) {
 	authorButton.hidden = role === "author";
 	// No authors to list until the search ends
 	authorButton.disabled = true;
-	narrow.hidden = false;
-	ignored.hidden = role === "author";
+	filters.hidden = false;
+	displayButton.hidden = role === "author";
 }
 
 /** Hide the queue and what goes around it, e.g. for the sign-in card or the form after a failed load. */
@@ -745,9 +763,7 @@ function hideQueue () {
 	strip.hidden = true;
 	table.parentElement.hidden = true;
 	empty.hidden = true;
-	authorButton.hidden = true;
-	narrow.hidden = true;
-	ignored.hidden = true;
+	filters.hidden = true;
 }
 
 /** Name things after the role, since an author sees their own PRs, e.g. “Awaiting review” becomes “Open”, and show the role’s columns. */

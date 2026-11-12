@@ -11,6 +11,7 @@
 import { isLogin } from "./pull-request.js";
 import { plural } from "./plural.js";
 import { highlight } from "./highlight.js";
+import { applyOnClose } from "./menu.js";
 
 /** The roles GitHub gives people added to the repo, or to the organization that owns it */
 const roles = ["OWNER", "MEMBER", "COLLABORATOR"];
@@ -38,10 +39,6 @@ let total = 0;
 let latest = { rows: [], authors: [] };
 /** Whether “All collaborators” was picked, so later collaborators show too, rather than each of today’s */
 let everyone = false;
-/** Whether Esc closed the list, which drops the changes made in it */
-let cancelled = false;
-/** Whether the list closes because it was submitted, which needs no second submit */
-let submitted = false;
 
 /**
  * Whether a PR is by one of the authors, e.g. `["@collaborators", "foo"]` for the repo’s collaborators and foo. No authors means anyone.
@@ -255,44 +252,12 @@ form.addEventListener("formdata", ({ formData }) => {
 	}
 });
 
-form.addEventListener("submit", event => {
-	// The same picks show the same rows, so nothing loads, e.g. after Enter in the search field
-	if (!changed()) {
-		event.preventDefault();
-	}
-	submitted = true;
-	if (form.matches(":popover-open")) {
-		form.hidePopover();
-	}
-});
-
-// On the document: Safari doesn’t focus a checkbox on a click, so Esc after one goes to the page.
-// Esc in a filled search field only clears it, so the next key or click decides how the list closes
-for (let type of ["keydown", "pointerdown"]) {
-	document.addEventListener(type, event => {
-		cancelled = event.key === "Escape";
-	});
-}
-
-// Esc drops the changes. Any other way of closing, e.g. a click outside, shows them, as GitHub’s own filter menus do
-form.addEventListener("toggle", event => {
-	if (event.newState === "open") {
-		cancelled = false;
-		submitted = false;
+// Built anew from the URL’s picks and the latest rows when nothing is applied, e.g. after Esc or a refresh that ended while the list was open
+applyOnClose(form, {
+	changed,
+	open () {
 		search.value = "";
 		narrow();
-		// A focused field opens the on-screen keyboard over the list on a phone
-		if (matchMedia("(pointer: fine)").matches) {
-			search.focus();
-		}
-		return;
-	}
-
-	if (!cancelled && !submitted && changed()) {
-		form.requestSubmit();
-	}
-	// Built anew from the URL’s picks and the latest rows, e.g. after Esc or a refresh that ended while the list was open
-	else if (!submitted) {
-		showAuthors(latest.rows, latest.authors);
-	}
+	},
+	discard: () => showAuthors(latest.rows, latest.authors),
 });

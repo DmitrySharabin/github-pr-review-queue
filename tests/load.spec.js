@@ -493,9 +493,9 @@ test("A click on a label in a queue of 100 PRs, the most a search finds, keeps e
 test.describe("A filter that repeats the view’s qualifiers", () => {
 	/** Apply `filter` in the open view, as the user types it */
 	async function apply (page, filter) {
-		await page.locator("#narrow summary").click();
-		await page.getByRole("searchbox", { name: "Filter" }).fill(filter);
-		await page.locator("#narrow").getByRole("button", { name: "Apply" }).click();
+		let field = page.getByRole("searchbox", { name: "Filter", exact: true });
+		await field.fill(filter);
+		await field.press("Enter");
 	}
 
 	/** The view the page’s URL asks for, e.g. `{ user: "foo", filter: null }` */
