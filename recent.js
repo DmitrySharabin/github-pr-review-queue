@@ -1,3 +1,5 @@
+import { highlight } from "./highlight.js";
+
 /**
  * Offer the values a text field had before, as a combo box. A click or ↓ opens them, typing narrows them, and Enter or a click picks one.
  * The field’s `aria-controls` names a listbox inside a popover, and the button after the listbox clears them all.
@@ -29,12 +31,8 @@ export function offerRecent (input, { values, remove }) {
 		options = all
 			.filter(value => value.toLowerCase().includes(typed))
 			.map(value => {
-				let at = value.toLowerCase().indexOf(typed);
-				let mark = document.createElement("mark");
-				mark.textContent = value.slice(at, at + typed.length);
-
 				let text = document.createElement("span");
-				text.append(value.slice(0, at), mark, value.slice(at + typed.length));
+				text.append(...highlight(value, typed));
 
 				// A screen reader user removes the active option with Shift+Delete instead
 				let button = document.createElement("button");

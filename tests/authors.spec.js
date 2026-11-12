@@ -290,6 +290,20 @@ test("Typing in the list narrows it to the logins that have what is typed", asyn
 	await expect(page.locator("#authors fieldset label:visible")).toHaveText([/qux/, /quux/]);
 });
 
+test("Typing in the list marks the typed part of each login, in any case", async ({
+	page,
+	github,
+}) => {
+	authored(github);
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+
+	await page.getByRole("button", { name: "Author" }).click();
+	await page.getByRole("searchbox", { name: "Filter authors" }).fill("QU");
+
+	await expect(page.locator("#authors fieldset label:visible mark")).toHaveText(["qu", "qu"]);
+});
+
 test("Picked authors with no PRs left, e.g. all merged, are named in the card, which clears them in one click", async ({
 	page,
 	github,

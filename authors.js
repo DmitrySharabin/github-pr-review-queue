@@ -10,6 +10,7 @@
  */
 import { isLogin } from "./pull-request.js";
 import { plural } from "./plural.js";
+import { highlight } from "./highlight.js";
 
 /** The roles GitHub gives people added to the repo, or to the organization that owns it */
 const roles = ["OWNER", "MEMBER", "COLLABORATOR"];
@@ -175,18 +176,8 @@ function narrow () {
 	let typed = search.value.trim();
 	for (let label of form.querySelectorAll("fieldset label")) {
 		let login = label.querySelector("input").value;
-		let at = login.toLowerCase().indexOf(typed.toLowerCase());
-		label.hidden = at < 0;
-
-		let mark = document.createElement("mark");
-		mark.textContent = login.slice(at, at + typed.length);
-		label
-			.querySelector(".login span")
-			.replaceChildren(
-				...(typed && at >= 0
-					? [login.slice(0, at), mark, login.slice(at + typed.length)]
-					: [login]),
-			);
+		label.hidden = !login.toLowerCase().includes(typed.toLowerCase());
+		label.querySelector(".login span").replaceChildren(...highlight(login, typed));
 	}
 
 	for (let group of [insiders, others]) {
