@@ -218,6 +218,28 @@ test("A role switch stops the details requests of the load it leaves too", async
 	resolve();
 });
 
+test("Sign out stops the load in flight, so it stores no queue after the queues are forgotten", async ({
+	page,
+	github,
+}) => {
+	let stopped = 0;
+	page.on("requestfailed", request => {
+		if (request.url() === "https://api.github.com/graphql") {
+			stopped++;
+		}
+	});
+	let { promise, resolve } = Promise.withResolvers();
+	github.details = () => promise;
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("#counter")).toBeVisible();
+	// The reload after it waits, so it stops nothing itself
+	await page.route("/?repo=foo/bar", () => {});
+	await page.getByRole("button", { name: "Sign out" }).click({ noWaitAfter: true });
+
+	await expect.poll(() => stopped).toBe(1);
+	resolve();
+});
+
 test("A request GitHub doesn’t answer in time stops, and says GitHub took too long", async ({
 	page,
 	github,

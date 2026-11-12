@@ -111,6 +111,8 @@ tokenForm.addEventListener("submit", event => {
 // A token that works but can’t read the repo keeps the sign-in hidden, so signing out is the way to replace it
 signOut.addEventListener("click", async () => {
 	await github.logout();
+	// A load that ends before the reload would store its queue again
+	loading?.abort();
 	forget();
 	location.reload();
 });
