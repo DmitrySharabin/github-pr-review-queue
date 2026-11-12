@@ -931,15 +931,17 @@ hgroup {
 		}
 
 		/* A chevron that turns down while open. Turned, its stroke starts 3.25 of 16 units in, so this margin puts it on the edge of the boxes around it.
-		   Closed, it starts 5.25 in, and those 2 units more are too few to notice */
+		   Closed, it starts 5.25 in, and those 2 units more are too few to notice.
+		   One line tall at the start, so it stays beside the name when the value wraps */
 		&::before {
 			content: "";
-			align-self: center;
+			align-self: start;
+			flex: none;
 			inline-size: 1em;
-			aspect-ratio: 1;
+			block-size: 1lh;
 			margin-inline: calc(-3.25em / 16);
 			background-color: currentColor;
-			mask: var(--chevron) no-repeat center / contain;
+			mask: var(--chevron) no-repeat center / 1em;
 
 			@media (prefers-reduced-motion: no-preference) {
 				transition: rotate 150ms var(--ease-out);
@@ -951,9 +953,10 @@ hgroup {
 		rotate: 90deg;
 	}
 
+	/* Half a one-line pill’s height, so a value that wraps, e.g. many terms on a phone, keeps its text inside the corners */
 	code {
 		padding: 0.1em 0.5em;
-		border-radius: 1e5px;
+		border-radius: calc(0.5lh + 0.1em);
 		background: var(--rule);
 		color: var(--text);
 		font-size: 0.85em;
@@ -1484,7 +1487,8 @@ tbody {
 		display: block;
 		padding: 0 0.6em;
 		border: 1px solid color-mix(in oklch, var(--color), var(--text) 12%);
-		border-radius: 2em;
+		/* Half a one-line pill’s height, so a long name that wraps keeps its text inside the corners */
+		border-radius: calc(0.5lh + 1px);
 		background: var(--color);
 		outline-offset: 1px;
 		transition: scale 160ms var(--ease-out);
