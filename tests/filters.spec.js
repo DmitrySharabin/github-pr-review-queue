@@ -150,24 +150,24 @@ test("Folded, the line says what is applied, not what was typed and left", async
 	await expect(page.locator("#filters .applied")).toHaveText("Filter label:bug");
 });
 
-test("Folding from the keyboard closes an open menu unapplied, which would otherwise apply unseen on the next click", async ({
+test("Tab from an open menu to the fold button applies the menu, so folding leaves no menu open unseen", async ({
 	page,
 	github,
+	browserName,
 }) => {
+	test.skip(browserName === "webkit", "WebKit’s Tab skips buttons, as Safari’s does by default");
 	await page.goto("/?repo=foo/bar");
 	await expect(page.locator("progress")).toBeHidden();
 	await unfold(page);
 	await display(page).click();
 	await pattern(page).fill("src");
 
-	// A click outside would apply it, as it does with any menu, so the fold is reached by Tab
-	await page.getByRole("button", { name: "Hide filters" }).focus();
+	await page.getByRole("button", { name: "Apply" }).focus();
+	await page.keyboard.press("Tab");
+	await expect(page.getByRole("button", { name: "Hide filters" })).toBeFocused();
 	await page.keyboard.press("Enter");
 
-	// Unapplied, the pattern goes, so Display opens empty again
-	await unfold(page);
-	await display(page).click();
-	await expect(pattern(page)).toHaveValue("");
+	await expect(page).toHaveURL(/exclude=src/);
 });
 
 test("Folded, the filters say what they apply, keyed as the Author button names its pick", async ({

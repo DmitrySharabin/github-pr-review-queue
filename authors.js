@@ -34,6 +34,7 @@ let all = form.querySelector(".all input");
 let insiders = form.querySelector(".collaborators");
 let others = form.querySelector(".others");
 let none = form.querySelector(".none");
+let said = form.querySelector("output");
 let template = document.querySelector("#author");
 
 /** @type {Map<string, Person>} By lowercase login */
@@ -148,9 +149,8 @@ export function showAuthors (rows, authors) {
 		members.length > 0
 			? `${members.length} ${plural("person", members.length)} · ${prs} ${plural("PR", prs)}`
 			: "None in this queue";
-	// “All collaborators” is enabled first, so the list’s Tab stop can be on it
-	update();
 	narrow();
+	update();
 	return shown;
 }
 
@@ -208,7 +208,14 @@ function narrow () {
 	form.querySelector(".all").hidden = Boolean(typed);
 	none.hidden = !insiders.hidden || !others.hidden;
 	none.textContent = `No authors match “${typed}”`;
-	rove(listed()[0]);
+
+	let first = listed()[0];
+	rove(first);
+	// What Enter in the field checks, marked as GitHub’s pickers mark it
+	form.querySelector(".next")?.classList.remove("next");
+	if (typed) {
+		first?.closest("label").classList.add("next");
+	}
 }
 
 /** Check “All collaborators” when all are, and say how many PRs the picked authors have. */
@@ -244,22 +251,26 @@ form.addEventListener("change", event => {
 
 search.addEventListener("input", narrow);
 
-// Enter with something typed checks or unchecks the first author that matches, as in GitHub’s pickers, rather than closes the list unchanged
+// Enter with something typed checks or unchecks the first author that matches, as in GitHub’s pickers
 search.addEventListener("keydown", event => {
-	let first = listed()[0];
-	if (event.key === "Enter" && search.value.trim() && first) {
+	let first = event.key === "Enter" && search.value.trim() && listed()[0];
+	if (first) {
 		event.preventDefault();
 		first.click();
+		said.textContent = `${first.value} ${first.checked ? "checked" : "unchecked"}`;
 	}
 });
 
 // ↓ and ↑ move from the search field through the authors it shows and back
 form.addEventListener("keydown", event => {
 	let step = { ArrowDown: 1, ArrowUp: -1 }[event.key];
+	if (!step) {
+		return;
+	}
 	let items = [search, ...listed()];
 	let index = items.indexOf(event.target);
 	let next = items[index + step];
-	if (step && index >= 0 && next) {
+	if (index >= 0 && next) {
 		event.preventDefault();
 		next.focus();
 	}

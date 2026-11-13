@@ -1,6 +1,4 @@
 /** @import { Picked } from "./authors.js" */
-import { dismissMenus } from "./menu.js";
-
 let filters = document.querySelector("#filters");
 let applied = filters.querySelector(".applied");
 let controls = filters.querySelector(".controls");
@@ -19,12 +17,8 @@ applied.addEventListener("click", event => {
 	(control.disabled ? fold : control).focus();
 });
 
-// A menu open while the fold button is pressed from the keyboard closes unapplied, as on Esc. Folded away, it would stay open unseen, and the next click would apply it.
-// A click on the fold button is a click outside the menu, which applies it first
-fold.addEventListener("click", () => {
-	dismissMenus();
-	setFolded(!folded);
-});
+// No menu is open by then: a click on the fold button is a click outside it, and Tab to the button is focus out of it, which both apply it
+fold.addEventListener("click", () => setFolded(!folded));
 
 /**
  * Say on the folded line what the controls apply, e.g. “Filter label:foo Author bar Exclude test”, or just “Filter”.

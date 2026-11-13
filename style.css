@@ -1443,6 +1443,12 @@ hgroup {
 			background: color-mix(in oklch, var(--text) 6%, var(--surface));
 		}
 
+		/* What Enter in the search field checks. An outline, so it shows on a checked row’s gray too */
+		&.next {
+			outline: 1px solid var(--border);
+			outline-offset: -1px;
+		}
+
 		input {
 			flex: none;
 			inline-size: 1rem;
