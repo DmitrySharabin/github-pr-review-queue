@@ -478,3 +478,32 @@ test("A step back while the list is open keeps the authors checked in it", async
 
 	await expect(pick(page, "qux")).toBeChecked();
 });
+
+test("A step back to other authors while their view loads after a failed load searches once", async ({
+	page,
+	github,
+}) => {
+	// Failed details store no queue, so nothing stands in for the rows on a step back
+	github.details = () => 500;
+	await page.goto("/?repo=foo/bar&authors=foo");
+	await expect(page.locator("progress")).toBeHidden();
+	await page.evaluate(() => navigation.navigate("?repo=foo/bar&authors=qux").finished);
+	await expect(page.locator("progress")).toBeHidden();
+	github.search = () => 500;
+	await page.getByRole("link", { name: "Author", exact: true }).click();
+	await expect(page.locator("#repo-form .notice")).toBeVisible();
+
+	let searches = 0;
+	let { promise, resolve } = Promise.withResolvers();
+	github.search = () => {
+		searches++;
+		return promise;
+	};
+	await page.goBack();
+	await expect.poll(() => searches).toBe(1);
+	await page.goBack();
+	resolve();
+	await expect(page.locator("progress")).toBeHidden();
+
+	expect(searches).toBe(1);
+});

@@ -330,10 +330,14 @@ function showView ({ onlyAuthors } = {}) {
 
 	if (params.get("repo")) {
 		// Other authors of the view on screen show the same rows, so nothing loads, e.g. not the details of every PR.
-		// The last URL’s view may have failed instead, e.g. before a step back to other authors
+		// The last URL’s view may have failed instead, e.g. before a step back to other authors.
+		// Its load may still run then, and it shows the authors the URL names once its search ends
 		let view = viewOf(params);
 		if (onlyAuthors && onScreen(view)) {
 			return showQueue();
+		}
+		if (onlyAuthors && loading) {
+			return;
 		}
 		return load();
 	}
@@ -959,6 +963,7 @@ async function login (repo, signal) {
 
 	// No stored token. The sign-in popup needs a click, or the browser blocks it.
 	// Whoever signs in may be someone else, e.g. after a token expired, so the queues of the last one go, stored and on screen
+	// NOTE: The same user signed in again loses the marks of the next load, and its details load anew
 	forget();
 	queue = undefined;
 	hideQueue();
