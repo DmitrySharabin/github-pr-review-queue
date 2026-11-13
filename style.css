@@ -1398,7 +1398,8 @@ hgroup {
 	.list {
 		flex: 1;
 		min-block-size: 0;
-		padding: 0 0.25rem;
+		/* As far in as the search field and the buttons, so the rows’ fills line up with them */
+		padding: 0 0.5rem;
 		overflow-y: auto;
 		overscroll-behavior: contain;
 		scrollbar-width: thin;
