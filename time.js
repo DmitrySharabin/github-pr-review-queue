@@ -23,33 +23,33 @@ const durations = Object.fromEntries(
 /**
  * Show in a `<time>` how long ago a date was, e.g. “3 yr. ago”, or how long since, e.g. “35 days”, with the date itself in its tooltip.
  * @param {HTMLTimeElement} time
- * @param {number | null} [date] - In epoch ms. `null` shows “—”, e.g. a request to a team, and `undefined` nothing, e.g. while it loads
+ * @param {number | null} [at] - In epoch ms. `null` shows “—”, e.g. a request to a team, and `undefined` nothing, e.g. while it loads
  * @param {{ duration?: boolean }} [options] - Whether to show how long since
  */
-export function showTime (time, date, { duration } = {}) {
-	let elapsed = Date.now() - date;
+export function showTime (time, at, { duration } = {}) {
+	let elapsed = Date.now() - at;
 	// The largest unit the wait rounds to at least one of, so 23.8 hours read “yesterday”, not “24 hr. ago”
 	let [unit, length] =
 		units.find(([, length], i) => elapsed >= length - (units[i + 1]?.[1] ?? 0) / 2) ??
 		units.at(-1);
 	// Months and years round off days, so the tooltip adds them, e.g. “Jan 4, 2024, 11:05 AM · 1,036 days”
-	let rounded = Boolean(date) && length >= month;
+	let rounded = Boolean(at) && length >= month;
 
-	let at = date ? new Date(date) : undefined;
-	time.dateTime = at?.toISOString() ?? "";
+	let date = at ? new Date(at) : undefined;
+	time.dateTime = date?.toISOString() ?? "";
 	// To the minute, as GitHub’s own tooltips
-	time.title = at?.toLocaleString("en", { dateStyle: "medium", timeStyle: "short" }) ?? "";
+	time.title = date?.toLocaleString("en", { dateStyle: "medium", timeStyle: "short" }) ?? "";
 	if (rounded) {
 		time.title += ` · ${durations.day.format(Math.round(elapsed / day))}`;
 	}
 	time.classList.toggle("rounded", rounded);
 	// To the nearest, so the count agrees with the days, e.g. 1,036 days are “3 yr. ago”, not 2
 	let count = Math.round(elapsed / length);
-	time.textContent = date
+	time.textContent = at
 		? duration
 			? durations[unit].format(count)
 			: relative.format(-count, unit)
-		: date === null
+		: at === null
 			? "—"
 			: "";
 }
