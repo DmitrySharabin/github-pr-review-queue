@@ -767,7 +767,10 @@ test("A queue stored before PRs had steps shows while it loads, then counts the 
 	await expect(page.locator("#summary .turns")).toHaveText("6");
 });
 
-test("A stored queue shows its times while it loads again", async ({ page, github }) => {
+test("A stored queue shows when each PR was opened and when it was asked for review, while it loads again", async ({
+	page,
+	github,
+}) => {
 	github.search = answer => {
 		answer.data.search.nodes[0].createdAt = ago(21);
 	};

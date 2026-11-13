@@ -40,12 +40,15 @@ test("Enter picks the active recent repository", async ({ page, github }) => {
 	await field.press("Enter");
 
 	await expect(field).toHaveValue("foo/bar");
+	// Picked, not submitted
+	await expect(page).toHaveURL("/");
 });
 
 test("Esc closes the recent repositories and keeps what is typed", async ({ page, github }) => {
 	let field = await visit(page, "foo/bar");
 
 	await field.fill("foo");
+	await expect(page.getByRole("option")).toHaveText(["foo/bar"]);
 	await field.press("Escape");
 
 	await expect(page.getByRole("listbox", { name: "Recent repositories" })).toBeHidden();
@@ -73,9 +76,47 @@ test("Clear recent repositories empties the list, also on the next visit", async
 	let field = await visit(page, "foo/bar", "foo/baz");
 
 	await field.press("ArrowDown");
+	await expect(page.getByRole("option")).toHaveCount(2);
 	await page.getByRole("button", { name: "Clear recent repositories" }).click();
 	await page.reload();
 	await field.press("ArrowDown");
 
 	await expect(page.getByRole("listbox", { name: "Recent repositories" })).toBeHidden();
+});
+
+test("A repo with queues of two roles shows once, and removing it forgets both", async ({
+	page,
+	github,
+}) => {
+	let field = await visit(page, "foo/bar", "foo/bar&role=author", "foo/baz");
+
+	await field.press("ArrowDown");
+	await expect(page.getByRole("option")).toHaveText(["foo/baz", "foo/bar"]);
+	await field.press("ArrowUp");
+	await field.press("Shift+Delete");
+	await page.reload();
+	await field.press("ArrowDown");
+
+	await expect(page.getByRole("option")).toHaveText(["foo/baz"]);
+});
+
+test("Delete without Shift keeps the active recent repository", async ({ page, github }) => {
+	let field = await visit(page, "foo/bar");
+
+	await field.press("ArrowDown");
+	await field.press("Delete");
+
+	await expect(page.getByRole("option")).toHaveText(["foo/bar"]);
+});
+
+test("Removing a recent user forgets that user’s queues only", async ({ page, github }) => {
+	let field = await visit(page, "foo/bar&user=other-user", "foo/baz");
+
+	let user = page.getByRole("combobox", { name: "User" });
+	await user.press("ArrowDown");
+	await user.press("Shift+Delete");
+	await page.reload();
+	await field.press("ArrowDown");
+
+	await expect(page.getByRole("option")).toHaveText(["foo/baz"]);
 });

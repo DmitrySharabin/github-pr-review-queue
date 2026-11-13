@@ -659,13 +659,8 @@ test("A full storage drops the queue stored longest ago, and keeps the newer one
 		await page.goto(`/?repo=${repo}`);
 		await expect(page.locator("progress")).toBeHidden();
 	}
-	// The older queue grows, and other data fills the rest, so the next queue fits only once the older one goes
+	// Other data fills the rest, so the next queue fits only once another goes
 	await page.evaluate(() => {
-		let key = Object.keys(localStorage).find(key => key.includes("repo=foo%2Fbar"));
-		localStorage.setItem(
-			key,
-			localStorage.getItem(key).replace(/}$/, `,"pad":"${"x".repeat(1e6)}"}`),
-		);
 		let [low, high] = [0, 2e7];
 		while (low < high) {
 			let size = Math.ceil((low + high) / 2);
@@ -677,7 +672,6 @@ test("A full storage drops the queue stored longest ago, and keeps the newer one
 				high = size - 1;
 			}
 		}
-		localStorage.setItem("filler", "x".repeat(low));
 	});
 
 	await page.goto("/?repo=foo/qux");
