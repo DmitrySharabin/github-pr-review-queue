@@ -118,7 +118,7 @@ function inTime (signal) {
 export async function count (repo, diff, signal, ignore) {
 	let { ranges } = diff ?? {};
 	if (ranges) {
-		// Compared either way. Only a failure compares again on the next load, see incomplete(), not e.g. 300 files GitHub would list again
+		// The ranges go before the try. A failure sets `failed` below, so the next load compares again. A comparison of 300 files does not
 		delete diff.ranges;
 		try {
 			// NOTE: A failed comparison leaves the PR’s others running until they answer or time out
@@ -147,7 +147,6 @@ export async function count (repo, diff, signal, ignore) {
 				`Couldn’t compare ${ranges.join(", ")}, adding up its commits instead.`,
 				error,
 			);
-			// The next load compares again, see incomplete()
 			diff.failed = true;
 		}
 	}
