@@ -283,6 +283,24 @@ test("Sign out stops the load in flight, so it stores no queue after the queues 
 	resolve();
 });
 
+test("Sign out forgets the stored queues, e.g. the titles of private repos", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+	// The reload after it opens a blank page, so no sign-in card forgets them instead
+	await page.route("/?repo=foo/bar", route =>
+		route.fulfill({ contentType: "text/html", body: "" }));
+	await page.getByRole("button", { name: "Sign out" }).click();
+
+	await expect
+		.poll(() =>
+			page.evaluate(() =>
+				Object.keys(localStorage).filter(key => key.startsWith("review-queue:queue:"))))
+		.toEqual([]);
+});
+
 test("A request GitHub doesn’t answer in time stops, and says GitHub took too long", async ({
 	page,
 	github,
