@@ -886,7 +886,6 @@ hgroup {
 	/* Names what it clears, so it reads apart from the rows above */
 	> button {
 		min-block-size: 2rem;
-		margin-block-start: 0.25rem;
 		padding-inline: 0.5rem;
 		border-block-start: 1px solid var(--rule);
 		text-align: start;
@@ -1214,7 +1213,7 @@ hgroup {
 	.list {
 		flex: 1;
 		min-block-size: 0;
-		padding: 0 0.25rem 0.25rem;
+		padding: 0 0.25rem;
 		overflow-y: auto;
 		overscroll-behavior: contain;
 		scrollbar-width: thin;
@@ -1464,8 +1463,9 @@ progress {
 			display: block;
 			position: sticky;
 			z-index: 1;
-			block-size: 0;
-			box-shadow: 0 0 0.625rem 0.25rem color-mix(in oklch, var(--text) 20%, transparent);
+			/* How far the shadow reaches into the rows. Radial, so it tapers off before the sides */
+			block-size: 0.75rem;
+			pointer-events: none;
 			/* Off while nothing scrolls, when the timeline is inactive */
 			opacity: 0;
 			animation: linear both;
@@ -1474,12 +1474,26 @@ progress {
 
 		&::before {
 			inset-block-start: 0;
+			margin-block-end: -0.75rem;
+			background: radial-gradient(
+				farthest-side at 50% 0,
+				color-mix(in oklch, var(--text) 15%, transparent),
+				transparent
+			);
 			animation-name: shadow-start;
 			animation-range: 0 1.5rem;
 		}
 
+		/* It keeps 0.25rem of its height as the room under the last row, so the list needs no padding there.
+		   A padding would lift the shadow off the line under the list */
 		&::after {
 			inset-block-end: 0;
+			margin-block-start: -0.5rem;
+			background: radial-gradient(
+				farthest-side at 50% 100%,
+				color-mix(in oklch, var(--text) 15%, transparent),
+				transparent
+			);
 			animation-name: shadow-end;
 			animation-range: calc(100% - 1.5rem) 100%;
 		}
