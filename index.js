@@ -71,7 +71,7 @@ let forms = [repoForm, filterForm, authorForm, displayForm, ...strip.querySelect
  * @property {number} [at] - When its rows last finished loading, in epoch ms
  * @property {Map<string, Summary>} [seen] - What they showed then, by PR id, for the next load to mark what changed
  */
-/** @type {Queue | undefined} None while nothing or bars are on screen */
+/** @type {Queue | undefined} None while nothing or bars are on screen. Set by {@link showQueue}, cleared by {@link showSkeleton} and {@link hideQueue} */
 let queue;
 /** Whose PRs show, e.g. `["@collaborators", "foo"]`, see {@link matches}. An author’s PRs are all theirs */
 let authors = [];
@@ -381,6 +381,7 @@ async function load () {
 		countsAs(view) && queue.rows.length < searchLimit
 			? addedLabel(queue.view.filter, filter)
 			: undefined;
+	let next;
 	if (label !== undefined) {
 		let rows = queue.rows.filter(({ pr }) => hasLabel(pr, label));
 		// The load marks what changed against the last finished load’s rows that stay on screen. Before the first load finishes there are none
@@ -388,14 +389,13 @@ async function load () {
 		let seen =
 			queue.seen &&
 			new Map([...queue.seen].filter(([id]) => rows.some(row => row.pr.id === id)));
-		queue = { ...queue, view, rows, seen };
+		next = { ...queue, view, rows, seen };
 	}
 
 	// Another view shows at once what it showed last, e.g. on the last visit, while it loads again.
 	// Its rows then count as the last load’s, so the load marks what changed since
-	let stored;
 	try {
-		stored = refreshing || label !== undefined ? undefined : restore(view);
+		let stored = refreshing || next ? undefined : restore(view);
 		if (stored) {
 			// A row on screen of the same PR stays while it shows the same, e.g. with focus on the label just clicked
 			let previous = new Map(queue?.rows.map(row => [row.pr.id, row]));
@@ -407,24 +407,23 @@ async function load () {
 				fill(row, summary);
 				return row;
 			});
-			queue = {
+			next = {
 				view,
 				user: stored.user,
 				rows,
 				at: stored.at,
 				seen: new Map(rows.map(row => [row.pr.id, row.summary])),
 			};
-			showUpdated();
+			showUpdated(stored.at);
 		}
 	}
 	catch (error) {
 		// A queue this version can’t show, e.g. stored by an older one with a step since renamed, waits for the load, which stores it anew
 		console.warn("Couldn’t show the stored queue.", error);
-		stored = undefined;
 	}
 
-	if (stored || label !== undefined) {
-		showQueue();
+	if (next) {
+		showQueue(next);
 	}
 
 	// A refresh keeps the last delta, dimmed, until it ends. Another view has another count, e.g. one narrowed by a label.
@@ -464,17 +463,12 @@ async function load () {
 
 		let user = view.user || signedInUser();
 
-		// A queue without a `user` parameter is that of whoever was signed in then, e.g. a stored one.
-		// Bars stand in for the rows of the last user, and a failed search hides them
-		if (onScreen(view) && queue.user !== user) {
-			queue = undefined;
-			showUpdated();
-			showDelta();
-		}
-
-		// Nothing on screen yet, e.g. after the sign-in card, or bars that wait for the user’s name
-		if (!queue) {
+		// Bars stand in for the rows while nothing is on screen yet, e.g. after the sign-in card, or while bars wait for the user’s name.
+		// A queue without a `user` parameter is that of whoever was signed in then, e.g. a stored one. Bars replace it when that was someone else.
+		// A failed search hides them
+		if (!queue || (onScreen(view) && queue.user !== user)) {
 			showSkeleton(view, user);
+			showDelta();
 		}
 
 		// Unless values on screen are being checked, e.g. on a refresh
@@ -513,8 +507,7 @@ async function load () {
 		});
 		// What the last finished load showed, and when, holds only for its own view, e.g. not after a role switch
 		let { at, seen } = onScreen(view) ? queue : {};
-		queue = { view, user, rows, at, seen };
-		showQueue();
+		showQueue({ view, user, rows, at, seen });
 		if (stale.length > 0) {
 			showProgress(task, 0, stale.length);
 		}
@@ -525,7 +518,7 @@ async function load () {
 		showCounts();
 
 		queue.at = Date.now();
-		showUpdated();
+		showUpdated(queue.at);
 		// Rows whose details didn’t arrive, e.g. failed or of a deleted PR, show what they had, undimmed.
 		// The next load asks for them again
 		// Rows of other authors are off the page, so not in the table
@@ -662,8 +655,12 @@ function shows (row) {
 	return matches(row.summary, authors);
 }
 
-/** Show the queue’s rows, sorted, with what goes around them: the strip above them, or why there are none. */
-function showQueue () {
+/**
+ * Show a queue’s rows, sorted, with what goes around them: the strip above them, or why there are none.
+ * @param {Queue} [next] - The queue to show, or the one on screen again, e.g. for other authors
+ */
+function showQueue (next = queue) {
+	queue = next;
 	let {
 		view: { role, filter },
 		user,
@@ -703,12 +700,14 @@ function showQueue () {
 }
 
 /**
- * Stand in for a queue that nothing shows yet, e.g. on a first visit, while its search runs.
+ * Stand in for a queue that nothing shows yet, e.g. on a first visit, while its search runs. The queue on screen, if any, goes.
  * The strip shows what the view tells, and rows of bars stand for the PRs.
  * @param {View} view
  * @param {string | null} [user] - None until the sign-in ends when the view names none
  */
 function showSkeleton (view, user = view.user) {
+	queue = undefined;
+	showUpdated();
 	let { role } = view;
 	showRole(role);
 	table.tBodies[0].replaceChildren(
@@ -808,15 +807,18 @@ function showEmpty () {
 	status.textContent = text;
 }
 
-/** Say when the queue on screen was updated, or nothing without one. */
-function showUpdated () {
-	if (!queue?.at) {
+/**
+ * Say when the queue on screen was updated, or nothing without a time.
+ * @param {number} [at] - In epoch ms
+ */
+function showUpdated (at) {
+	if (!at) {
 		updated.dateTime = "";
 		updated.textContent = "";
 		return;
 	}
 
-	let date = new Date(queue.at);
+	let date = new Date(at);
 	updated.dateTime = date.toISOString();
 	// A stored queue may be days old, e.g. “Nov 1, 6:05 PM”
 	let today = date.toDateString() === new Date().toDateString();
