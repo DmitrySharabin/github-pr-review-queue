@@ -1,7 +1,7 @@
 /** @import { Diff } from "./pull-request.js" */
 // The commit is also in index.html, which preloads the modules this one imports
 import GithubAPI from "https://cdn.jsdelivr.net/gh/madatajs/madata@063fc247b1a03924c836d74ea2f3d8fdc86ded2c/backends/github/api/github-api.js";
-import { sizes, split, sum } from "./pull-request.js";
+import { isLogin, sizes, split, sum } from "./pull-request.js";
 
 export let github = new GithubAPI("https://api.github.com/graphql");
 
@@ -20,6 +20,15 @@ export function signedInUser () {
 	}
 
 	return user;
+}
+
+/**
+ * Whether a user is the signed-in one, so the page says “you” to them.
+ * No user is the signed-in one, who may be unknown yet, e.g. during the sign-in
+ * @param {string | null} user
+ */
+export function isYou (user) {
+	return !user || isLogin(user, github.user?.username ?? "");
 }
 
 /**

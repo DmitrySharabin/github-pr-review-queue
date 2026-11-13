@@ -8,7 +8,6 @@ import {
 	details,
 	hasLabel,
 	incomplete,
-	isLogin,
 	outdated,
 	pattern,
 	query,
@@ -21,6 +20,7 @@ import {
 	describe,
 	github,
 	graphql,
+	isYou,
 	listFiles,
 	nodes,
 	notFound,
@@ -752,7 +752,7 @@ function showEmpty () {
 		rows,
 	} = queue;
 	let author = role === "author";
-	let you = isYou(queue.view);
+	let you = isYou(queue.view.user);
 	let whose = you ? "your" : `${user}’s`;
 	let title = author ? "No open pull requests" : "Nothing to review";
 	let text = author
@@ -829,15 +829,6 @@ function onScreen (view) {
 }
 
 /**
- * Whether a view is the signed-in user’s, so the page says “you” to them.
- * A view with no user is the signed-in one’s, who may be unknown yet, e.g. during the sign-in
- * @param {View} view
- */
-function isYou ({ user }) {
-	return !user || isLogin(user, github.user?.username ?? "");
-}
-
-/**
  * Fill the strip above the table with what a view tells: where, for whom, and what its counts mean. {@link showCounts} fills them in.
  * @param {View} view
  * @param {string | null} user - Whose queue it is, or none until the sign-in ends
@@ -873,7 +864,7 @@ function showSummary (view, user) {
 	let author = role === "author";
 	strip.querySelector(".tally").textContent = !author
 		? "Latest request"
-		: isYou(view)
+		: isYou(view.user)
 			? "Your turn"
 			: "Author’s turn";
 	strip.querySelector(".latest").hidden = author;
