@@ -767,34 +767,19 @@ test("A queue stored before PRs had steps shows while it loads, then counts the 
 	await expect(page.locator("#summary .turns")).toHaveText("6");
 });
 
-test("A stored queue says when each PR was opened while it loads, though storage keeps no dates", async ({
-	page,
-	context,
-	github,
-}) => {
-	await context.addInitScript(opened => {
-		let summary = {
-			number: 65,
-			title: "A pull request titled A",
-			url: "",
-			author: "ghost",
-			avatar: "",
-			labels: [],
-			opened,
-		};
-		localStorage.setItem(
-			"review-queue:queue:2:repo=foo%2Fbar&role=author",
-			JSON.stringify({
-				user: "DmitrySharabin",
-				at: new Date().toISOString(),
-				rows: [{ pr: { id: "A", labels: { nodes: [] } }, summary }],
-			}),
-		);
-	}, ago(21));
-	github.search = () => new Promise(() => {});
+test("A stored queue shows its times while it loads again", async ({ page, github }) => {
+	github.search = answer => {
+		answer.data.search.nodes[0].createdAt = ago(21);
+	};
+	detail(github, { A: asked(["reviewer"], 20) });
 	await page.goto("/?repo=foo/bar&role=author");
+	await expect(page.locator("progress")).toBeHidden();
+
+	github.search = () => new Promise(() => {});
+	await page.reload();
 
 	await expect(row(page, "A").locator("small")).toHaveText("#65 opened 21 days ago");
+	await expect(row(page, "A").locator(".requested time")).toHaveText("20 days");
 });
 
 test("The author’s own stored queue says “Your turn” while the sign-in runs", async ({
