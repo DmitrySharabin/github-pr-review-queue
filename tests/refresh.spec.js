@@ -1,4 +1,4 @@
-import { test, expect } from "./github.js";
+import { test, expect, label } from "./github.js";
 
 test("A refresh asks for the details of only the PRs that changed since the last load", async ({
 	page,
@@ -233,13 +233,7 @@ test("A refresh that finds nothing new marks nothing, even after one that marked
 });
 
 test("A refresh keeps showing the labels the user showed", async ({ page, github }) => {
-	github.search = answer => {
-		answer.data.search.nodes[0].labels.nodes = [..."1234567"].map(n => ({
-			name: `label ${n}`,
-			color: "d73a4a",
-			description: null,
-		}));
-	};
+	label(github, { A: [..."1234567"].map(n => `label ${n}`) });
 	await page.goto("/?repo=foo/bar");
 	await expect(page.locator("progress")).toBeHidden();
 	await page.getByRole("button", { name: "+2 more labels" }).click();
@@ -411,14 +405,35 @@ test("A switch to the author and back keeps the reviewer sort of its own tab, th
 });
 
 test("One label past the shown ones is offered in the singular", async ({ page, github }) => {
-	github.search = answer => {
-		answer.data.search.nodes[0].labels.nodes = [..."123456"].map(n => ({
-			name: `label ${n}`,
-			color: "d73a4a",
-			description: null,
-		}));
-	};
+	label(github, { A: [..."123456"].map(n => `label ${n}`) });
 	await page.goto("/?repo=foo/bar");
 
 	await expect(page.getByRole("button", { name: "+1 more label", exact: true })).toBeVisible();
+});
+
+test("A label has its color from GitHub, and its description in the tooltip", async ({
+	page,
+	github,
+}) => {
+	label(github, {
+		A: [{ name: "docs", color: "0075ca", description: "Improvements to the docs" }],
+	});
+	await page.goto("/?repo=foo/bar");
+
+	let link = page.getByRole("link", { name: "Filter by label docs" });
+	await expect(link).toHaveCSS("background-color", "rgb(0, 117, 202)");
+	await expect(link).toHaveAttribute("title", "Improvements to the docs");
+});
+
+test("A label links to the queue with it in place of the filter’s other labels", async ({
+	page,
+	github,
+}) => {
+	label(github, { A: ["bug"] });
+	await page.goto("/?repo=foo/bar&filter=label:docs -label:wip");
+
+	await expect(page.getByRole("link", { name: "Filter by label bug" })).toHaveAttribute(
+		"href",
+		`?${new URLSearchParams({ repo: "foo/bar", filter: '-label:wip label:"bug"' })}`,
+	);
 });

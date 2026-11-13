@@ -120,6 +120,25 @@ export function detail (github, fields) {
 	};
 }
 
+/**
+ * Give PRs labels on top of what the search answers already, e.g. `{ A: ["bug"] }`.
+ * A label is red and has no description, unless it says otherwise, e.g. `{ name: "docs", color: "0075ca" }`.
+ */
+export function label (github, labels) {
+	let search = github.search;
+	github.search = answer => {
+		let status = search(answer);
+		for (let pr of answer.data.search.nodes) {
+			pr.labels.nodes = (labels[pr.id] ?? []).map(label => ({
+				color: "d73a4a",
+				description: null,
+				...(typeof label === "string" ? { name: label } : label),
+			}));
+		}
+		return status;
+	};
+}
+
 /** The row of a PR, e.g. of A, #65. */
 export function row (page, id) {
 	return page.locator("#queue tbody tr").filter({ hasText: `#${id.charCodeAt(0)}` });

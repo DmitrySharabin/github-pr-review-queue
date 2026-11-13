@@ -1,4 +1,4 @@
-import { test, expect, commit, detail, row } from "./github.js";
+import { test, expect, commit, detail, label, row } from "./github.js";
 
 test("A failed search hides the bars that stood in for its rows, even of the view shown last", async ({
 	page,
@@ -514,13 +514,7 @@ test("A click on a label keeps the rows that have it while the search runs", asy
 	page,
 	github,
 }) => {
-	github.search = answer => {
-		for (let pr of answer.data.search.nodes) {
-			if (["A", "C"].includes(pr.id)) {
-				pr.labels.nodes = [{ name: "bug", color: "d73a4a", description: null }];
-			}
-		}
-	};
+	label(github, { A: ["bug"], C: ["bug"] });
 	await page.goto("/?repo=foo/bar");
 	await expect(page.locator("progress")).toBeHidden();
 
@@ -536,11 +530,11 @@ test("A click on a label in a queue of 100 PRs, the most a search finds, keeps e
 }) => {
 	github.search = answer => {
 		let { nodes } = answer.data.search;
-		nodes[0].labels.nodes = [{ name: "bug", color: "d73a4a", description: null }];
 		for (let i = nodes.length; i < 100; i++) {
 			nodes.push({ ...nodes[1], id: `P${i}`, number: 100 + i });
 		}
 	};
+	label(github, { A: ["bug"] });
 	await page.goto("/?repo=foo/bar");
 	await expect(page.locator("progress")).toBeHidden();
 

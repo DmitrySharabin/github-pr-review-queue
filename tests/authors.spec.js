@@ -1,4 +1,4 @@
-import { test, expect, row } from "./github.js";
+import { test, expect, label, row } from "./github.js";
 
 /** Who wrote PRs A–F, and how each relates to the repo, as GitHub’s `authorAssociation` */
 const authors = {
@@ -24,13 +24,7 @@ function authored (github, changes = {}) {
 /** Give PR D, by qux, the label `bug`, as well as the {@link authors}. */
 function labeled (github) {
 	authored(github);
-	let answer = github.search;
-	github.search = found => {
-		answer(found);
-		found.data.search.nodes[3].labels.nodes = [
-			{ name: "bug", color: "d73a4a", description: null },
-		];
-	};
+	label(github, { D: ["bug"] });
 }
 
 /** Pick qux in the list and show their PRs. */
