@@ -1,5 +1,6 @@
 /**
- * @import { Summary, View } from "./pull-request.js"
+ * @import { Summary } from "./pull-request.js"
+ * @import { View } from "./view.js"
  * @import { Row } from "./row.js"
  */
 import {
@@ -8,7 +9,6 @@ import {
 	hasLabel,
 	incomplete,
 	isLogin,
-	normalize,
 	outdated,
 	pattern,
 	query,
@@ -35,9 +35,7 @@ import { offerRecent } from "./recent.js";
 import { plural } from "./plural.js";
 import { collaborators, matches, showAuthors } from "./authors.js";
 import { applyOnClose, dismissMenus } from "./menu.js";
-
-/** The URL parameters of a view, see {@link viewOf} */
-const viewNames = ["repo", "user", "role", "filter", "exclude"];
+import { normalizeParams, viewNames, viewOf } from "./view.js";
 
 let table = document.querySelector("#queue");
 let status = document.querySelector("#status");
@@ -154,11 +152,11 @@ for (let name of ["repo", "user"]) {
 		values: () => [
 			...new Set(
 				storedQueues()
-					.map(({ view }) => view.get(name))
+					.map(({ view }) => view[name])
 					.filter(Boolean),
 			),
 		],
-		remove: value => forget(view => view.get(name) === value),
+		remove: value => forget(view => view[name] === value),
 	});
 }
 
@@ -346,35 +344,6 @@ function showView ({ onlyAuthors } = {}) {
 	status.hidden = true;
 	progress.hidden = true;
 	repoForm.hidden = false;
-}
-
-/**
- * Rewrite URL parameters as GitHub’s pulls page rewrites its query, see {@link normalize}, e.g. `?role=author&user=foo` for `?role=author&filter=author:foo`.
- * @param {URLSearchParams | FormData} params
- */
-function normalizeParams (params) {
-	let { user, filter, authors } = normalize(
-		Object.fromEntries(
-			["user", "role", "filter", "authors"].map(name => [name, params.get(name)]),
-		),
-	);
-	for (let [name, value] of Object.entries({ user, filter, authors })) {
-		if (value) {
-			params.set(name, value);
-		}
-		else {
-			params.delete(name);
-		}
-	}
-}
-
-/**
- * The parameters that decide which PRs a load finds and how it counts them, e.g. not `authors`, which only hides rows.
- * @param {URLSearchParams} params
- * @returns {View}
- */
-function viewOf (params) {
-	return Object.fromEntries(viewNames.map(name => [name, params.get(name)]));
 }
 
 /** Mark the pattern field invalid while it holds no regular expression, and offer Clear while it holds anything. */

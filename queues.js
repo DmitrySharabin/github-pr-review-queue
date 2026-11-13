@@ -1,4 +1,8 @@
-/** @import { Summary, View } from "./pull-request.js" */
+/**
+ * @import { Summary } from "./pull-request.js"
+ * @import { View } from "./view.js"
+ */
+import { parseKey, viewKey } from "./view.js";
 
 const prefix = "review-queue:queue:";
 /** The format of the stored queues. A new one, e.g. after a step is renamed, leaves the queues stored before unread */
@@ -13,11 +17,11 @@ for (let key of Object.keys(localStorage)) {
 }
 
 /**
- * The key a view’s queue is stored under, e.g. `review-queue:queue:2:repo=foo%2Fbar&role=author`.
+ * The key a view’s queue is stored under, e.g. `review-queue:queue:3:repo=foo%2Fbar&role=author`.
  * @param {View} view
  */
 function queueKey (view) {
-	return `${queuePrefix}${new URLSearchParams(Object.entries(view).filter(([, value]) => value))}`;
+	return queuePrefix + viewKey(view);
 }
 
 /**
@@ -30,18 +34,18 @@ export function restore (view) {
 }
 
 /**
- * The keys of the stored queues, with the view each is of, e.g. `repo=foo%2Fbar` for `?repo=foo/bar`.
- * @returns {{ key: string, view: URLSearchParams }[]}
+ * The keys of the stored queues, with the view each is of.
+ * @returns {{ key: string, view: View }[]}
  */
 function storedViews () {
 	return Object.keys(localStorage)
 		.filter(key => key.startsWith(queuePrefix))
-		.map(key => ({ key, view: new URLSearchParams(key.slice(queuePrefix.length)) }));
+		.map(key => ({ key, view: parseKey(key.slice(queuePrefix.length)) }));
 }
 
 /**
  * The stored queues, the latest first. Each read parses a whole queue, so it is slower than {@link storedViews}.
- * @returns {{ key: string, view: URLSearchParams, at: number }[]}
+ * @returns {{ key: string, view: View, at: number }[]}
  */
 export function storedQueues () {
 	return storedViews()
@@ -51,7 +55,7 @@ export function storedQueues () {
 
 /**
  * Remove the stored queues, e.g. the titles of private repos when the signed-in user may change, or those of one repo.
- * @param {(view: URLSearchParams) => boolean} [test] - Which ones, e.g. `view => view.get("repo") === "foo/bar"`
+ * @param {(view: View) => boolean} [test] - Which ones, e.g. `view => view.repo === "foo/bar"`
  */
 export function forget (test = () => true) {
 	for (let { key, view } of storedViews()) {

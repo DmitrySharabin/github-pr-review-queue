@@ -1,4 +1,6 @@
 /**
+ * @import { View } from "./view.js"
+ *
  * @typedef {object} Diff
  * @property {number} additions
  * @property {number} deletions
@@ -12,13 +14,6 @@
  * @property {"too-many-files" | "unlisted" | "commits"} [unsplit] - With a pattern of ignored files, why they can’t be told apart, so `additions` and `deletions` count every file
  *
  * @typedef {"reviewer" | "author"} Role - Whose view of the PRs: `user` reviews them, or wrote them
- *
- * @typedef {object} View
- * @property {string} repo
- * @property {string} user
- * @property {Role | null} [role]
- * @property {string | null} [filter] - Narrows the search further, e.g. `label:foo -label:bar`
- * @property {string | null} [exclude] - A regular expression for the paths of files whose lines count apart, e.g. `test|\.lock$`
  *
  * @typedef {object} Reviewer
  * @property {string} name - The login
