@@ -4,13 +4,15 @@ test("A failed search hides the bars that stood in for its rows, even of the vie
 	page,
 	github,
 }) => {
+	// Failed details store no queue, so nothing stands in for the rows on a step back
+	github.details = () => 500;
 	await page.goto("/?repo=foo/bar");
 	await expect(page.locator("progress")).toBeHidden();
 	github.search = () => 500;
 	await page.getByRole("link", { name: "Author" }).click();
 	await expect(page.locator("#repo-form .notice")).toBeVisible();
 
-	// Back to the reviewer view, still the one last shown, which shows bars since nothing is on screen
+	// Back to the reviewer view, the one last shown, which shows bars since nothing is on screen
 	let { promise, resolve } = Promise.withResolvers();
 	github.search = () => promise;
 	await page.goBack();
@@ -18,6 +20,22 @@ test("A failed search hides the bars that stood in for its rows, even of the vie
 	resolve(500);
 
 	await expect(page.locator("#queue")).toBeHidden();
+});
+
+test("A step back after a failed role switch shows the stored queue at once, as a visit does", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+	github.search = () => 500;
+	await page.getByRole("link", { name: "Author" }).click();
+	await expect(page.locator("#repo-form .notice")).toBeVisible();
+
+	github.search = () => new Promise(() => {});
+	await page.goBack();
+
+	await expect(row(page, "A")).toBeVisible();
 });
 
 test("With a stored token, bars stand in for the rows while the sign-in runs, so nothing jumps in when they arrive", async ({

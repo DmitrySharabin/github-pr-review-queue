@@ -71,7 +71,7 @@ let forms = [repoForm, filterForm, authorForm, displayForm, ...strip.querySelect
  * @property {number} [at] - When the last load of this view finished, in epoch ms
  * @property {Map<string, Summary>} [seen] - What that load showed, by PR id, for the next to mark what changed
  */
-/** @type {Queue | undefined} None before the first rows show */
+/** @type {Queue | undefined} None while nothing or bars are on screen */
 let queue;
 /** Whose PRs show, e.g. `["@collaborators", "foo"]`, see {@link matches}. An author’s PRs are all theirs */
 let authors = [];
@@ -571,11 +571,11 @@ async function load () {
 			return;
 		}
 
-		// Rows of another view would sit under labels they don’t match, e.g. after a failed role switch, so they go,
-		// with the filter of that view and the time they were updated at. So do bars that stand in for rows, e.g. on a first visit
-		let hidden =
-			(!sameView && queue?.view !== view) || table.tBodies[0].querySelector(".skeleton");
-		if (hidden) {
+		// Without a finished load of this view, the rows on screen go, e.g. those of another view after a failed role switch,
+		// which would sit under labels they don’t match, with the filter of that view and the time they were updated at.
+		// So do bars that stand in for rows, e.g. on a first visit. A step back then shows the stored queue, as a visit does
+		if (!queue?.at || viewKey(queue.view) !== viewKey(view)) {
+			queue = undefined;
 			hideQueue();
 			updated.textContent = "";
 		}
@@ -583,7 +583,7 @@ async function load () {
 		showDelta();
 		// A repo or user that GitHub can’t find needs the form to fix them.
 		// So does a failure with no finished load on screen, e.g. on a first visit, where most failures come from the repo or the user
-		if (!hidden && queue?.at && !notFound.test(error?.message)) {
+		if (queue && !notFound.test(error?.message)) {
 			showFailure(describe(error));
 		}
 		else {
