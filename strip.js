@@ -1,6 +1,6 @@
 /**
  * @import { View } from "./view.js"
- * @import { Queue } from "./index.js"
+ * @import { Queue } from "./screen.js"
  */
 import { search } from "./pull-request.js";
 import { isYou } from "./github.js";

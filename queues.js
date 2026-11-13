@@ -2,7 +2,7 @@
  * @import { Summary } from "./pull-request.js"
  * @import { View } from "./view.js"
  * @import { Row } from "./row.js"
- * @import { Queue } from "./index.js"
+ * @import { Queue } from "./screen.js"
  *
  * @typedef {object} Stored - What a view showed after its last full load
  * @property {string} user - Whose queue it is
