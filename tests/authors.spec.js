@@ -84,6 +84,20 @@ test("“All collaborators” keeps the PRs of owners, members and collaborators
 	}
 });
 
+test("Clear pressed from the keyboard leaves the focus in the list’s search field, not on the page", async ({
+	page,
+	github,
+}) => {
+	authored(github);
+	await page.goto("/?repo=foo/bar&authors=qux");
+	await expect(page.locator("progress")).toBeHidden();
+
+	await page.getByRole("button", { name: "Author: qux" }).click();
+	await page.getByRole("button", { name: "Clear authors" }).press("Enter");
+
+	await expect(page.getByRole("searchbox", { name: "Filter authors" })).toBeFocused();
+});
+
 test("Esc drops the authors checked since the list opened", async ({ page, github }) => {
 	authored(github);
 	await page.goto("/?repo=foo/bar");

@@ -219,10 +219,14 @@ form.addEventListener("change", event => {
 
 search.addEventListener("input", narrow);
 
-form.querySelector(".clear").addEventListener("click", () => {
+form.querySelector(".clear").addEventListener("click", event => {
 	everyone = false;
 	for (let box of boxes()) {
 		box.checked = false;
+	}
+	// Pressed from the keyboard, it hides itself and would drop the focus to the page, so the search field takes it
+	if (event.currentTarget.matches(":focus-visible")) {
+		search.focus();
 	}
 	update();
 });

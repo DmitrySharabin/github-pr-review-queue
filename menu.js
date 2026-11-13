@@ -9,6 +9,18 @@ for (let type of ["keydown", "pointerdown"]) {
 	});
 }
 
+/** @type {Map<HTMLFormElement, () => void>} How to close each menu without applying it */
+let dismissals = new Map();
+
+/** Close the open menus without applying them, e.g. when the queue they change goes, as after a failed load. */
+export function dismissMenus () {
+	for (let [form, dismiss] of dismissals) {
+		if (form.matches(":popover-open")) {
+			dismiss();
+		}
+	}
+}
+
 /**
  * Make a popover form a menu that applies its changes once it closes, as GitHub’s filter menus do. Esc drops them instead.
  * The form submits its fields as URL parameters, so the same values submitted again would load the same rows.
@@ -17,8 +29,14 @@ for (let type of ["keydown", "pointerdown"]) {
  *   Whether its fields differ from the URL’s, what to do as it opens, and how to show the URL’s values again
  */
 export function applyOnClose (form, { changed, open, discard }) {
-	/** Whether the menu closes because it was submitted, which needs no second submit */
+	/** Whether the menu closes because it was submitted, which needs no second submit, or dismissed */
 	let submitted = false;
+
+	dismissals.set(form, () => {
+		submitted = true;
+		form.hidePopover();
+		discard();
+	});
 
 	form.addEventListener("submit", event => {
 		if (!changed()) {

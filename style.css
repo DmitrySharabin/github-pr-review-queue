@@ -964,7 +964,6 @@ hgroup {
 /* Menus at the end of the filter, as tall as its field. Each opens a list rather than acts, as a select does, so it looks like a field too */
 :is(#author-button, #display-button) {
 	display: flex;
-	flex: 0 1 auto;
 	gap: 0.4em;
 	align-items: center;
 	max-inline-size: 16rem;
@@ -977,12 +976,6 @@ hgroup {
 
 	&:enabled:hover {
 		background: var(--rule);
-	}
-
-	/* While bars stand in for the rows, there are no authors to list, nor counts to change */
-	&:disabled {
-		color: var(--muted);
-		cursor: progress;
 	}
 
 	&[hidden] {
@@ -1022,6 +1015,12 @@ hgroup {
 /* A long login shrinks it, rather than push Display onto a line of its own */
 #author-button {
 	min-inline-size: 0;
+
+	/* While bars stand in for the rows, there are no authors to list */
+	&:disabled {
+		color: var(--muted);
+		cursor: progress;
+	}
 
 	.faces {
 		display: flex;

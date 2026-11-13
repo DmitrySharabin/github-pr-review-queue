@@ -33,7 +33,7 @@ import { showTime } from "./time.js";
 import { offerRecent } from "./recent.js";
 import { plural } from "./plural.js";
 import { collaborators, matches, showAuthors } from "./authors.js";
-import { applyOnClose } from "./menu.js";
+import { applyOnClose, dismissMenus } from "./menu.js";
 
 /** The URL parameters of a view, see {@link viewOf} */
 const viewNames = ["repo", "user", "role", "filter", "exclude"];
@@ -201,9 +201,14 @@ for (let form of strip.querySelectorAll("form")) {
 // A pattern that isn’t a regular expression, e.g. `test(`, stops Apply with the browser’s message
 displayForm.elements.exclude.addEventListener("input", checkPattern);
 
-for (let [clear, field] of [
-	[filterForm.querySelector(".cancel"), filterForm.elements.filter],
-	[displayForm.querySelector(".clear"), displayForm.elements.exclude],
+// An empty filter field submits no `filter`. An empty pattern waits for Apply, as the author list’s Clear does
+for (let [clear, field, then] of [
+	[
+		filterForm.querySelector(".cancel"),
+		filterForm.elements.filter,
+		() => filterForm.requestSubmit(),
+	],
+	[displayForm.querySelector(".clear"), displayForm.elements.exclude, checkPattern],
 ]) {
 	clear.addEventListener("click", () => {
 		field.value = "";
@@ -212,12 +217,9 @@ for (let [clear, field] of [
 		if (clear.matches(":focus-visible")) {
 			field.focus();
 		}
+		then();
 	});
 }
-
-// An empty field submits no `filter`
-filterForm.querySelector(".cancel").addEventListener("click", () => filterForm.requestSubmit());
-displayForm.querySelector(".clear").addEventListener("click", checkPattern);
 
 applyOnClose(displayForm, {
 	changed: () => displayForm.elements.exclude.value !== displayForm.elements.exclude.defaultValue,
@@ -704,7 +706,6 @@ function showQueue ({ repo, user, role, filter }) {
 	showAuthors(rows, authors);
 	relink(rows);
 	authorButton.disabled = false;
-	displayButton.disabled = false;
 	// Open, a menu stays by its button, e.g. while a refresh that empties the queue ends
 	authorButton.hidden =
 		role === "author" ||
@@ -748,11 +749,10 @@ function showSkeleton ({ repo, user, role, filter }) {
 	empty.hidden = true;
 	repoForm.hidden = true;
 	authorButton.hidden = role === "author";
-	displayButton.hidden = role === "author";
-	// No authors to list, nor counts to change, until the search ends. A menu left open would stay over a failed load’s form
+	// No authors to list until the search ends
 	authorButton.disabled = true;
-	displayButton.disabled = true;
 	filters.hidden = false;
+	displayButton.hidden = role === "author";
 }
 
 /** Hide the queue and what goes around it, e.g. for the sign-in card or the form after a failed load. */
@@ -761,6 +761,7 @@ function hideQueue () {
 	table.parentElement.hidden = true;
 	empty.hidden = true;
 	filters.hidden = true;
+	dismissMenus();
 }
 
 /** Name things after the role, since an author sees their own PRs, e.g. “Awaiting review” becomes “Open”, and show the role’s columns. */

@@ -234,10 +234,7 @@ test("Esc drops the pattern typed in Display", async ({ page, github }) => {
 	await expect(page).toHaveURL(/[?&]exclude=test(&|$)/);
 });
 
-test("Esc in Display that leaves a click outside nothing to apply keeps the pattern applied", async ({
-	page,
-	github,
-}) => {
+test("A click after Esc in Display keeps the applied pattern", async ({ page, github }) => {
 	await page.goto("/?repo=foo/bar&exclude=test");
 	await expect(page.locator("progress")).toBeHidden();
 
@@ -249,15 +246,25 @@ test("Esc in Display that leaves a click outside nothing to apply keeps the patt
 	await expect(page).toHaveURL(/[?&]exclude=test(&|$)/);
 });
 
-test("Display waits for the search, as Author does, so no menu stays open over a failed load’s form", async ({
+test("A load that fails closes an open Display without applying it, so a click on the form applies nothing", async ({
 	page,
 	github,
 }) => {
-	github.search = () => new Promise(() => {});
 	await page.goto("/?repo=foo/bar");
-	await expect(page.locator("#queue .skeleton").first()).toBeVisible();
+	await expect(page.locator("progress")).toBeHidden();
+	await display(page).click();
+	await pattern(page).fill("src");
 
-	await expect(display(page)).toBeDisabled();
+	github.search = () => 500;
+	// From the keyboard, which closes no menu
+	await page.locator("#filter").evaluate(field => {
+		field.value = "label:bug";
+		field.form.requestSubmit();
+	});
+	await expect(page.locator("#repo-form .notice")).toBeVisible();
+	await page.getByRole("button", { name: "Show queue" }).click();
+
+	await expect(page).not.toHaveURL(/exclude/);
 });
 
 test("The author list open while a refresh empties the queue stays by its button", async ({
