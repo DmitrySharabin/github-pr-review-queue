@@ -10,18 +10,26 @@ function pattern (page) {
 	return page.getByRole("searchbox", { name: "Exclude from counts" });
 }
 
-test("The note on search terms shows only while the filter has focus, so at rest it covers no row", async ({
+test("A queue a filter emptied links to GitHub’s search terms, when a wrong term is likely why", async ({
 	page,
 	github,
 }) => {
+	github.search = answer => {
+		answer.data.search.nodes = [];
+	};
+	await page.goto("/?repo=foo/bar&filter=lable:bug");
+
+	await expect(page.getByRole("link", { name: "See GitHub’s search terms" })).toBeVisible();
+});
+
+test("An empty queue with no filter has no link to the search terms", async ({ page, github }) => {
+	github.search = answer => {
+		answer.data.search.nodes = [];
+	};
 	await page.goto("/?repo=foo/bar");
-	await expect(page.locator("progress")).toBeHidden();
-	let note = page.locator("#filter-note");
-	await expect(note).toBeHidden();
+	await expect(page.locator("#empty")).toBeVisible();
 
-	await page.getByRole("searchbox", { name: "Filter", exact: true }).focus();
-
-	await expect(note).toBeVisible();
+	await expect(page.getByRole("link", { name: "See GitHub’s search terms" })).toBeHidden();
 });
 
 test("A queue a filter emptied keeps the filter, to change or clear it", async ({

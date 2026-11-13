@@ -141,10 +141,9 @@
 			<form id="narrow">
 				<label for="filter">Filter</label>
 				<span class="box">
-					<input id="filter" name="filter" type="search" placeholder="label:foo -label:bar" autocomplete="off" spellcheck="false" aria-describedby="filter-note">
+					<input id="filter" name="filter" type="search" placeholder="label:foo -label:bar" autocomplete="off" spellcheck="false">
 					<button type="button" class="cancel" aria-label="Clear filter" title="Clear filter" hidden></button>
 				</span>
-				<small id="filter-note">Any <a href="https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests" target="_blank">GitHub search terms</a>, such as labels, or words in the title with <code>in:title</code></small>
 			</form>
 
 			<!-- GitHub’s search can’t tell the repo’s collaborators from other authors, so the list narrows the rows on screen -->
@@ -224,6 +223,7 @@
 			</hgroup>
 			<a class="github" target="_blank">See all open pull requests on GitHub</a>
 			<a class="clear" hidden>Clear authors</a>
+			<a class="terms" href="https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests" target="_blank" hidden>See GitHub’s search terms</a>
 		</section>
 
 		<template id="row">

@@ -14,6 +14,7 @@
 	/* Buttons and text fields */
 	--control-size: 2.5rem;
 	--control-radius: calc(var(--radius) * 0.75);
+	--control-border: color-mix(in oklch, var(--text) 20%, var(--surface));
 	--gutter: clamp(1rem, 3vw, 1.5rem);
 	/* Between the header, the summary and what follows */
 	--block-gap: 1.5rem;
@@ -512,7 +513,6 @@ button {
 #refresh,
 #sign-out,
 #token-form button,
-:is(#author-button, #display-button),
 #queue td.step a.action {
 	background: color-mix(in oklch, var(--text) 8%, var(--surface));
 	color: var(--text);
@@ -638,7 +638,7 @@ form {
 	input {
 		min-block-size: var(--control-size);
 		padding-inline: 0.75em;
-		border: 1px solid color-mix(in oklch, var(--text) 20%, var(--surface));
+		border: 1px solid var(--control-border);
 		border-radius: var(--control-radius);
 		background: var(--surface);
 		font: inherit;
@@ -916,7 +916,6 @@ hgroup {
 }
 
 #narrow {
-	position: relative;
 	flex: 1 1 20rem;
 	display: flex;
 	gap: 0.75em;
@@ -940,11 +939,6 @@ hgroup {
 	input {
 		min-inline-size: 0;
 		padding-inline-end: var(--control-size);
-
-		/* ✕ after the field clears the filter, not just the text */
-		&::-webkit-search-cancel-button {
-			display: none;
-		}
 	}
 
 	.cancel {
@@ -956,31 +950,18 @@ hgroup {
 		}
 	}
 
-	/* While the field has focus, over the table as a menu is, so nothing under it moves */
-	small {
-		position: absolute;
-		z-index: 1;
-		inset-block-start: calc(100% + 0.375rem);
-		inset-inline: 0;
-		padding: 0.5rem 0.75rem;
-		color: var(--muted);
-	}
-
-	&:not(:focus-within) small {
-		display: none;
-	}
-
 	/* A phone’s first row, with the menus under it */
 	@container (width < 36rem) {
 		flex-basis: 100%;
 	}
-
-	a {
-		color: inherit;
-	}
 }
 
-/* Menus at the end of the filter, as tall as its field. Each opens a list rather than acts, as a select does */
+/* ✕ in the filter field, or Clear under the pattern, clears more than the text */
+:is(#narrow, #display) input::-webkit-search-cancel-button {
+	display: none;
+}
+
+/* Menus at the end of the filter, as tall as its field. Each opens a list rather than acts, as a select does, so it looks like a field too */
 :is(#author-button, #display-button) {
 	display: flex;
 	flex: none;
@@ -989,8 +970,14 @@ hgroup {
 	max-inline-size: 16rem;
 	min-block-size: var(--control-size);
 	padding-inline: 0.75em;
+	border: 1px solid var(--control-border);
 	border-radius: var(--control-radius);
+	background: var(--surface);
 	font-weight: 500;
+
+	&:enabled:hover {
+		background: var(--rule);
+	}
 
 	&[hidden] {
 		display: none;
@@ -1045,7 +1032,7 @@ hgroup {
 
 		/* The button’s fill between faces that overlap */
 		img {
-			box-shadow: 0 0 0 2px color-mix(in oklch, var(--text) 8%, var(--surface));
+			box-shadow: 0 0 0 2px var(--surface);
 		}
 
 		img + img {
@@ -1057,13 +1044,16 @@ hgroup {
 /* How many settings differ from their defaults, as a pill */
 #display-button .count {
 	min-inline-size: 1lh;
-	padding-inline: 0.4em;
+	/* Trimmed to the digit’s cap height, then padded back to a line, so the digit sits in the middle of the pill */
+	padding: calc((1lh - 1cap) / 2) 0.4em;
 	box-sizing: border-box;
 	border-radius: 1e5px;
-	background: var(--surface);
+	/* See-through, so the pill still shows on the hover fill */
+	background: color-mix(in oklch, var(--text) 8%, transparent);
 	font-size: 0.85em;
 	font-variant-numeric: tabular-nums;
 	text-align: center;
+	text-box: trim-both cap alphabetic;
 
 	&[hidden] {
 		display: none;
@@ -1079,20 +1069,17 @@ hgroup {
 	background: var(--rule);
 }
 
-/* A card over the page: a menu, or the filter’s note */
-:is(#authors, #display, #narrow small) {
-	box-sizing: border-box;
-	border: 1px solid var(--border);
-	border-radius: var(--radius);
-	background: var(--surface);
-	box-shadow: 0 0.5rem 1.5rem color-mix(in oklch, var(--text) 12%, transparent);
-}
-
+/* A menu’s card over the page */
 :is(#authors, #display) {
 	inline-size: min(24rem, 100vw - 2rem);
 	max-block-size: min(32rem, 100dvh - 2rem);
+	box-sizing: border-box;
 	padding: 0;
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	background: var(--surface);
 	color: var(--text);
+	box-shadow: 0 0.5rem 1.5rem color-mix(in oklch, var(--text) 12%, transparent);
 	/* Scrolling past the list’s end doesn’t scroll the page */
 	overscroll-behavior: contain;
 	/* Under the button, its implicit anchor, and in from its end, where the button sits */
@@ -2015,10 +2002,8 @@ td:is(.diff, .since-review) small {
 	}
 }
 
-/* Framed as the table it replaces, so a queue that empties keeps its place on the page.
-   Below the Author button, which floats alone when no line is left to sit on */
+/* Framed as the table it replaces, so a queue that empties keeps its place on the page */
 #empty {
-	clear: inline-end;
 	display: grid;
 	justify-items: center;
 	gap: 1.25rem;
