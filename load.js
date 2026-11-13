@@ -162,7 +162,7 @@ function narrowed (view) {
 	// NOTE: A PR that a refresh in flight already dropped isn’t among them, so it doesn’t count as left
 	let seen =
 		queue.seen &&
-		new Map([...queue.seen].filter(([id]) => rows.some(row => row.pr.id === id)));
+		new Map(queue.seen.entries().filter(([id]) => rows.some(row => row.pr.id === id)));
 	return { ...queue, view, rows, seen };
 }
 
