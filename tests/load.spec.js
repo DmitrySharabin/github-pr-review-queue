@@ -966,6 +966,21 @@ test("A repo that isn’t `owner/name` asks for a repo, as no repo does", async 
 	await expect.poll(() => form.evaluate(form => form.getBoundingClientRect().top)).toBe(top);
 });
 
+test("A click on the app’s name opens the start page, with nothing in the URL, on a phone too", async ({
+	page,
+	github,
+}) => {
+	// The controls span the title’s cell there
+	await page.setViewportSize({ width: 375, height: 812 });
+	await page.goto("/?repo=foo/bar&filter=label:bug");
+	await expect(page.locator("progress")).toBeHidden();
+
+	await page.getByRole("link", { name: "GitHub PR review queue" }).click();
+
+	await expect(page).toHaveURL(/\/$/);
+	await expect(page.locator("#repo-form")).toBeVisible();
+});
+
 test("A user that isn’t a login shows the signed-in user’s queue, as no user does", async ({
 	page,
 	github,

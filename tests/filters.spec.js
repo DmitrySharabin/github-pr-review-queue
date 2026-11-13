@@ -382,7 +382,7 @@ test("Display closed with no change loads nothing", async ({ page, github }) => 
 	await expect(page.locator("progress")).toBeHidden();
 
 	await display(page).click();
-	await page.locator("h1").click();
+	await page.locator("#updated").click();
 	await expect(page.locator("#display")).toBeHidden();
 	// A search that the close started would come before the refresh’s
 	await page.getByRole("button", { name: "Refresh" }).click();
@@ -511,7 +511,7 @@ test("A click outside Display applies the pattern typed in it, as the author lis
 
 	await display(page).click();
 	await pattern(page).fill("test");
-	await page.locator("h1").click();
+	await page.locator("#updated").click();
 
 	await expect(page).toHaveURL(/[?&]exclude=test(&|$)/);
 });
@@ -538,7 +538,7 @@ test("A click after Esc in Display keeps the applied pattern", async ({ page, gi
 
 	await display(page).click();
 	await page.keyboard.press("Escape");
-	await page.locator("h1").click();
+	await page.locator("#updated").click();
 	await expect(page.locator("#display")).toBeHidden();
 
 	await expect(page).toHaveURL(/[?&]exclude=test(&|$)/);
@@ -595,7 +595,7 @@ test("A click outside Display drops a pattern that isn’t a regular expression,
 
 	await display(page).click();
 	await pattern(page).fill("test(");
-	await page.locator("h1").click();
+	await page.locator("#updated").click();
 	await expect(page.locator("#display")).toBeHidden();
 	await display(page).click();
 

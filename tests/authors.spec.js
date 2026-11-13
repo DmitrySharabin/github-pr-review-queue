@@ -149,7 +149,7 @@ test("A click outside the list shows the authors checked in it", async ({ page, 
 
 	await page.getByRole("button", { name: "Author" }).click();
 	await pick(page, "quux").check();
-	await page.locator("h1").click();
+	await page.locator("#updated").click();
 
 	await expect(page.locator("#queue tbody tr")).toHaveCount(1);
 });
@@ -207,7 +207,7 @@ test("Esc that only clears the search field leaves the picks to show on a click 
 	await field.fill("quux");
 	await pick(page, "quux").check();
 	await field.press("Escape");
-	await page.locator("h1").click();
+	await page.locator("#updated").click();
 
 	await expect(page.locator("#queue tbody tr")).toHaveCount(1);
 });

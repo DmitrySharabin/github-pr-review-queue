@@ -73,6 +73,22 @@ h1 {
 	line-height: 1.3;
 	font-weight: 700;
 	text-wrap: balance;
+
+	/* The link to the start page reads as the title until pointed at, as an app’s name does elsewhere.
+	   The line sits just under the letters, so it breaks around the tail of the “q” */
+	a {
+		color: inherit;
+		text-decoration: none;
+
+		@media (hover: hover) {
+			&:hover {
+				text-decoration: underline;
+				text-decoration-thickness: 0.04em;
+				text-underline-offset: 0.08em;
+				text-decoration-color: var(--muted);
+			}
+		}
+	}
 }
 
 small {
@@ -547,7 +563,7 @@ button {
 
 	h1 {
 		grid-area: 1 / 1;
-		/* Above the controls, which span its cell too, so a pointer still selects the title */
+		/* Above the controls, which span its cell too, so a click still reaches the link to the start page */
 		z-index: 1;
 		font-size: 1.25rem;
 	}
