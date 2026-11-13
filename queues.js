@@ -2,7 +2,7 @@
 
 const prefix = "review-queue:queue:";
 /** The format of the stored queues. A new one, e.g. after a step is renamed, leaves the queues stored before unread */
-const version = 2;
+const version = 3;
 const queuePrefix = `${prefix}${version}:`;
 
 // A queue of another version is never read, so it goes, e.g. on the first visit after an update
@@ -23,13 +23,10 @@ function queueKey (view) {
 /**
  * What a view showed after its last full load, with when and for which user.
  * @param {View} view
- * @returns {{ user: string, at: string, rows: { pr: object, summary: Summary }[] } | undefined}
+ * @returns {{ user: string, at: number, rows: { pr: object, summary: Summary }[] } | undefined}
  */
 export function restore (view) {
-	// JSON has no dates
-	let revive = (key, value) =>
-		["waitingSince", "opened"].includes(key) && value ? new Date(value) : value;
-	return JSON.parse(localStorage.getItem(queueKey(view)), revive) ?? undefined;
+	return JSON.parse(localStorage.getItem(queueKey(view))) ?? undefined;
 }
 
 /**
@@ -44,12 +41,12 @@ function storedViews () {
 
 /**
  * The stored queues, the latest first. Each read parses a whole queue, so it is slower than {@link storedViews}.
- * @returns {{ key: string, view: URLSearchParams, at: string }[]}
+ * @returns {{ key: string, view: URLSearchParams, at: number }[]}
  */
 export function storedQueues () {
 	return storedViews()
 		.map(queue => ({ ...queue, at: JSON.parse(localStorage.getItem(queue.key)).at }))
-		.sort((a, b) => b.at.localeCompare(a.at));
+		.sort((a, b) => b.at - a.at);
 }
 
 /**
@@ -67,7 +64,7 @@ export function forget (test = () => true) {
 /**
  * Store what a view shows, so the next visit shows it at once while it loads again.
  * @param {View} view
- * @param {{ user: string, at: Date, rows: { pr: object, summary: Summary }[] }} queue
+ * @param {{ user: string, at: number, rows: { pr: object, summary: Summary }[] }} queue
  */
 export function store (view, queue) {
 	let key = queueKey(view);

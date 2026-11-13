@@ -440,7 +440,7 @@ async function load () {
 				return row;
 			});
 			shownUser = stored.user;
-			showUpdated(new Date(stored.at));
+			showUpdated(stored.at);
 			seen = new Map(rows.map(row => [row.pr.id, row.summary]));
 		}
 	}
@@ -556,7 +556,7 @@ async function load () {
 		sort(rows, { animate: true, shows });
 		showSummary({ ...view, user });
 
-		let now = new Date();
+		let now = Date.now();
 		showUpdated(now);
 		// Rows whose details didn’t arrive, e.g. failed or of a deleted PR, show what they had, undimmed.
 		// The next load asks for them again
@@ -826,7 +826,9 @@ function showEmpty ({ repo, user, role, filter }) {
 	status.textContent = text;
 }
 
-function showUpdated (date) {
+/** Say when the queue on screen was updated, from epoch ms. */
+function showUpdated (at) {
+	let date = new Date(at);
 	updated.dateTime = date.toISOString();
 	// A stored queue may be days old, e.g. “Nov 1, 6:05 PM”
 	let today = date.toDateString() === new Date().toDateString();
@@ -901,7 +903,7 @@ function showSummary ({ repo, user, role, filter }) {
 		// Requests to a team have no date for the user
 		let dates = rows.filter(shows).map(row => row.summary.waitingSince);
 		let known = dates.filter(Boolean);
-		let latest = known.length > 0 ? new Date(Math.max(...known)) : null;
+		let latest = known.length > 0 ? Math.max(...known) : null;
 		showTime(time, dates.includes(undefined) ? undefined : latest);
 	}
 	strip.hidden = false;

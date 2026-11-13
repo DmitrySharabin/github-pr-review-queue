@@ -750,10 +750,10 @@ test("A queue stored before PRs had steps shows while it loads, then counts the 
 			reviewers: [],
 		};
 		localStorage.setItem(
-			"review-queue:queue:2:repo=foo%2Fbar&role=author",
+			"review-queue:queue:3:repo=foo%2Fbar&role=author",
 			JSON.stringify({
 				user: "DmitrySharabin",
-				at: new Date().toISOString(),
+				at: Date.now(),
 				rows: [{ pr: { id: "A", labels: { nodes: [] } }, summary }],
 			}),
 		);

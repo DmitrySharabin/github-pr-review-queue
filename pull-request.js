@@ -39,13 +39,13 @@
  * @property {string} avatar - The author’s avatar URL
  * @property {string} [association] - How the author relates to the repo, as GitHub’s `authorAssociation`, e.g. `MEMBER`
  * @property {Label[]} labels
- * @property {Date} [opened] - When the PR was opened, in the author’s view, where it says that instead of by whom
+ * @property {number} [opened] - When the PR was opened, in epoch ms, in the author’s view, where it says that instead of by whom
  * @property {boolean} [draft] - Whether the PR is a draft, in the author’s view, where an icon says so in place of the avatar
  * @property {Step} [step] - What the PR waits for, in the author’s view
  * @property {Diff} [diff] - The whole PR
  * @property {Diff} [diffSinceReview] - What the user has left to review, or the whole PR when that is unknown
  * @property {number | null} [iterations] - How many times review was asked for again after a review, `null` when unknown
- * @property {Date | null} [waitingSince] - The latest review request to the user, or for an author since when the PR waits for its {@link Step}
+ * @property {number | null} [waitingSince] - In epoch ms, the latest review request to the user, or for an author since when the PR waits for its {@link Step}
  * @property {Reviewer[]} [reviewers] - Everyone else asked to review it or who reviewed it, but teams
  * The optional ones are `undefined` until {@link details} arrive.
  *
@@ -315,7 +315,7 @@ export function summarize (pr, user, role, ignore) {
 		labels: pr.labels.nodes,
 	};
 	if (role === "author") {
-		summary.opened = new Date(pr.createdAt);
+		summary.opened = Date.parse(pr.createdAt);
 		summary.draft = pr.isDraft;
 	}
 
@@ -345,11 +345,11 @@ function forReviewer (pr, user, ignore) {
 		? []
 		: pr.timelineItems.nodes.filter(event => isUser(event.requestedReviewer?.login));
 	let reviews = pr.reviews.nodes;
-	let waitingSince = requests.length > 0 ? new Date(requests.at(-1).createdAt) : null;
+	let waitingSince = requests.length > 0 ? Date.parse(requests.at(-1).createdAt) : null;
 	let commits = pr.commits.nodes.map(node => node.commit);
 	// A review clears the request, so a reviewer’s one after the latest request is only a reply in a thread
 	let review = reviews.findLast(
-		review => !waitingSince || new Date(review.submittedAt) < waitingSince,
+		review => !waitingSince || Date.parse(review.submittedAt) < waitingSince,
 	);
 	// GitHub answers no commit for one it no longer has, e.g. after a force push
 	let reviewed = review?.commit?.oid;
@@ -457,7 +457,7 @@ const whose = {
  * A pending review request decides the turn, not the order of events. A reviewer asked again after they requested changes has the turn.
  * @param {object} pr
  * @param {string} user - The author’s login
- * @returns {Omit<Step, "whose"> & { since?: Date | null }} With `since`, when the PR started to wait for it. Only reviews and requests give that time, so a conflict has none
+ * @returns {Omit<Step, "whose"> & { since?: number | null }} With `since`, in epoch ms, when the PR started to wait for it. Only reviews and requests give that time, so a conflict has none
  */
 function turn (pr, user) {
 	// Bots, e.g. Copilot, review when asked and never wait for the author. A deleted account has no login
@@ -559,7 +559,7 @@ function turn (pr, user) {
 	let approvals = opinions.filter(review => review.state === "APPROVED");
 	// GitHub merges it on its own once the checks pass. Without an approval, the steps below decide, e.g. a review to ask for again
 	if (approvals.length > 0 && pr.autoMergeRequest) {
-		return { name: "auto-merge", since: new Date(pr.autoMergeRequest.enabledAt) };
+		return { name: "auto-merge", since: Date.parse(pr.autoMergeRequest.enabledAt) };
 	}
 
 	// Before an approval, since GitHub merges only once the checks pass
@@ -571,7 +571,7 @@ function turn (pr, user) {
 		// Waits since the last of them approved
 		return {
 			name: access >= permissions.indexOf("WRITE") ? "approved" : "await-merge",
-			since: new Date(Math.max(...approvals.map(review => new Date(review.submittedAt)))),
+			since: Math.max(...approvals.map(review => Date.parse(review.submittedAt))),
 		};
 	}
 
@@ -592,10 +592,10 @@ function pushedSince (pr, oid) {
 	return index === -1 || commits.slice(index + 1).some(commit => commit.parents.totalCount === 1);
 }
 
-/** The earliest of these times from GitHub, e.g. `createdAt`, or `null` when none is known. */
+/** The earliest of these times from GitHub, e.g. `createdAt`, in epoch ms, or `null` when none is known. */
 function oldest (times) {
-	let dates = times.filter(Boolean).map(time => new Date(time));
-	return dates.length > 0 ? new Date(Math.min(...dates)) : null;
+	let dates = times.filter(Boolean).map(time => Date.parse(time));
+	return dates.length > 0 ? Math.min(...dates) : null;
 }
 
 /** Whether two logins are the same, which GitHub matches in any case. */

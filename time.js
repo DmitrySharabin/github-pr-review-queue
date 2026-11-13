@@ -23,7 +23,7 @@ const durations = Object.fromEntries(
 /**
  * Show in a `<time>` how long ago a date was, e.g. “3 yr. ago”, or how long since, e.g. “35 days”, with the date itself in its tooltip.
  * @param {HTMLTimeElement} time
- * @param {Date | null} [date] - `null` shows “—”, e.g. a request to a team, and `undefined` nothing, e.g. while it loads
+ * @param {number | null} [date] - In epoch ms. `null` shows “—”, e.g. a request to a team, and `undefined` nothing, e.g. while it loads
  * @param {{ duration?: boolean }} [options] - Whether to show how long since
  */
 export function showTime (time, date, { duration } = {}) {
@@ -35,9 +35,10 @@ export function showTime (time, date, { duration } = {}) {
 	// Months and years round off days, so the tooltip adds them, e.g. “Jan 4, 2024, 11:05 AM · 1,036 days”
 	let rounded = Boolean(date) && length >= month;
 
-	time.dateTime = date?.toISOString() ?? "";
+	let at = date ? new Date(date) : undefined;
+	time.dateTime = at?.toISOString() ?? "";
 	// To the minute, as GitHub’s own tooltips
-	time.title = date?.toLocaleString("en", { dateStyle: "medium", timeStyle: "short" }) ?? "";
+	time.title = at?.toLocaleString("en", { dateStyle: "medium", timeStyle: "short" }) ?? "";
 	if (rounded) {
 		time.title += ` · ${durations.day.format(Math.round(elapsed / day))}`;
 	}
