@@ -1431,12 +1431,17 @@ progress {
 	}
 }
 
+/* The table’s card. Its frame draws the edge, not the table, so a fade over the cells as they scroll leaves the edge whole */
+.scroller {
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+}
+
 /* Too narrow for the table, so the table scrolls in its own frame, the width of the summary above it, instead of the page.
    Only then, since a scrolling frame would also pin the sticky header to itself rather than the window */
 @container (width < 48rem) {
 	.scroller {
 		overflow-x: auto;
-		border-radius: var(--radius);
 	}
 }
 
@@ -1444,24 +1449,28 @@ progress {
 @container (width < 56rem) {
 	.scroller:has(> #queue:not(.author)) {
 		overflow-x: auto;
-		border-radius: var(--radius);
 	}
 }
 
 /* Fades an edge while there is more to scroll to, e.g. a long repository name, or the table on a phone.
    Each fade grows with the distance from its edge, up to `--fade`, and stays off while nothing scrolls.
-   Without scroll timelines the animations would end at once, fading the start for good */
+   Without scroll timelines the animations would end at once, fading the start for good.
+   The last two layers keep the ring of a border out of the fade, e.g. the table card’s edge */
 @supports (animation-timeline: scroll()) {
 	#summary :is(dt, dd),
 	.scroller {
 		--fade: 2rem;
-		mask: linear-gradient(
-			to right,
-			transparent,
-			black var(--fade-start),
-			black calc(100% - var(--fade-end)),
-			transparent
-		);
+		mask:
+			linear-gradient(
+					to right,
+					transparent,
+					black var(--fade-start),
+					black calc(100% - var(--fade-end)),
+					transparent
+				)
+				padding-box,
+			linear-gradient(black 0 0) padding-box exclude,
+			linear-gradient(black 0 0);
 		animation:
 			fade-start linear both,
 			fade-end linear both;
@@ -1558,7 +1567,6 @@ table {
 	inline-size: 100%;
 	border-spacing: 0;
 	background: var(--surface);
-	border: 1px solid var(--border);
 	border-radius: var(--radius);
 	font-variant-numeric: tabular-nums;
 }
