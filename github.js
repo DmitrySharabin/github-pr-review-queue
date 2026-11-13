@@ -118,6 +118,8 @@ function inTime (signal) {
 export async function count (repo, diff, signal, ignore) {
 	let { ranges } = diff ?? {};
 	if (ranges) {
+		// Tried, so a later load of the unchanged PR needn’t compare again, e.g. 300 files GitHub would list again
+		delete diff.ranges;
 		try {
 			// NOTE: A failed comparison leaves the PR’s others running until they answer or time out
 			let comparisons = await Promise.all(
@@ -129,8 +131,6 @@ export async function count (repo, diff, signal, ignore) {
 						{ signal: inTime(signal) },
 					)),
 			);
-			// Compared, so a later load of the unchanged PR needn’t compare again, which would list the same files
-			delete diff.ranges;
 			// GitHub lists at most 300 files, so a comparison of 300 may leave some out
 			if (comparisons.every(({ files }) => files.length < 300)) {
 				let files = comparisons.flatMap(({ files }) => files);
@@ -147,6 +147,8 @@ export async function count (repo, diff, signal, ignore) {
 				`Couldn’t compare ${ranges.join(", ")}, adding up its commits instead.`,
 				error,
 			);
+			// The next load compares again, see incomplete()
+			diff.failed = true;
 		}
 	}
 

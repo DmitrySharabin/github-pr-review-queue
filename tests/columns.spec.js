@@ -234,6 +234,27 @@ test("A refresh doesn’t compare 300 files again, since GitHub would list as ma
 	expect(compared).toBe(1);
 });
 
+test("A failed comparison adds up the sizes of the commits, and a refresh compares again", async ({
+	page,
+	github,
+}) => {
+	detail(github, {
+		A: { commits: commits(["L", "N"]), reviews: { nodes: [review("L")] } },
+	});
+	github.compare = () => 500;
+	await page.goto("/?repo=foo/bar");
+	// N’s own size
+	await expect(row(page, "A").locator(".since-review")).toContainText("+780 −2");
+	await expect(page.locator("progress")).toBeHidden();
+
+	github.compare = answer => {
+		answer.files = [{ additions: 5, deletions: 1 }];
+	};
+	await page.getByRole("button", { name: "Refresh" }).click();
+
+	await expect(row(page, "A").locator(".since-review")).toContainText("+5 −1");
+});
+
 test("A PR asked only of the user’s team shows no count of rounds, since the team’s requests are unknown", async ({
 	page,
 	github,

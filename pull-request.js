@@ -6,6 +6,7 @@
  * @property {string[]} [ranges] - `base...head` comparisons that add up to a count closer to exact than the sum of commits.
  * One per run of the author’s commits between merges of the base branch, which bring in other PRs’ changes
  * @property {string[]} [commits] - The commits to add up for the estimate, with {@link sizes}, until then no `additions` and `deletions`
+ * @property {true} [failed] - A comparison of `ranges` failed, so the sizes of `commits` count the diff until the next load compares again
  * @property {"unreviewed" | "force-pushed" | "older"} [whole] - Why the diff is the whole PR
  * @property {Pick<Diff, "additions" | "deletions">} [ignored] - With a pattern of ignored files, their lines, which `additions` and `deletions` leave out
  * @property {"too-many-files" | "unlisted" | "commits"} [unsplit] - With a pattern of ignored files, why they can’t be told apart, so `additions` and `deletions` count every file
@@ -329,6 +330,14 @@ export function summarize (pr, user, role, ignore) {
 		reviewers: others,
 		...(role === "author" ? forAuthor(pr, user, others) : forReviewer(pr, user, ignore)),
 	};
+}
+
+/**
+ * Whether a summary’s sizes wait for another try, e.g. after a failed comparison, or a list of files GitHub didn’t send.
+ * @param {Summary} summary
+ */
+export function incomplete (summary) {
+	return Boolean(summary.diffSinceReview?.failed) || summary.diff?.unsplit === "unlisted";
 }
 
 /** Most comparisons a PR’s count since a review takes, one per run of the author’s commits. More add up the sizes of the commits instead */
