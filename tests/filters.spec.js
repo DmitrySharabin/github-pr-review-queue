@@ -10,26 +10,38 @@ function pattern (page) {
 	return page.getByRole("textbox", { name: "Exclude from counts" });
 }
 
-test("A queue a filter emptied links to GitHub’s search terms, when a wrong term is likely why", async ({
+test("The filter says which search terms it takes, under the field, from the first visit", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+
+	await expect(
+		page.getByRole("searchbox", { name: "Filter", exact: true }),
+	).toHaveAccessibleDescription(/Any GitHub search terms/);
+	await expect(page.getByRole("link", { name: "GitHub search terms" })).toBeVisible();
+});
+
+test("A long login shrinks the Author button, not the filter field, which keeps its note on one line", async ({
 	page,
 	github,
 }) => {
 	github.search = answer => {
-		answer.data.search.nodes = [];
+		for (let pr of answer.data.search.nodes) {
+			pr.author = { login: "a-very-long-login-name-that-goes-on-and-on", avatarUrl: "" };
+		}
 	};
-	await page.goto("/?repo=foo/bar&filter=lable:bug");
+	await page.setViewportSize({ width: 700, height: 600 });
+	await page.goto(
+		"/?repo=foo/bar&authors=a-very-long-login-name-that-goes-on-and-on&exclude=test",
+	);
+	await expect(page.locator("progress")).toBeHidden();
 
-	await expect(page.getByRole("link", { name: "See GitHub’s search terms" })).toBeVisible();
-});
-
-test("An empty queue with no filter has no link to the search terms", async ({ page, github }) => {
-	github.search = answer => {
-		answer.data.search.nodes = [];
-	};
-	await page.goto("/?repo=foo/bar");
-	await expect(page.locator("#empty")).toBeVisible();
-
-	await expect(page.getByRole("link", { name: "See GitHub’s search terms" })).toBeHidden();
+	let [field, note] = await Promise.all(
+		["#filter", "#filter-note"].map(selector => page.locator(selector).boundingBox()),
+	);
+	expect(note.height).toBeLessThan(25);
+	expect(field.width).toBeGreaterThanOrEqual(note.width);
 });
 
 test("A queue a filter emptied keeps the filter, to change or clear it", async ({

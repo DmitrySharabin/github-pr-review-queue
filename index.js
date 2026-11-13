@@ -822,8 +822,6 @@ function showEmpty ({ repo, user, role, filter }) {
 	without.delete("authors");
 	clear.href = `?${without}`;
 	clear.hidden = !picked;
-	// Help with the terms when they found nothing, rather than beside the field on every visit, as on GitHub’s own list
-	empty.querySelector(".terms").hidden = !filter || picked;
 	status.textContent = text;
 }
 

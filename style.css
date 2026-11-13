@@ -902,11 +902,12 @@ hgroup {
 	}
 }
 
-/* Which PRs show and how they count, on one line over the table. The filter takes the room the menus leave */
+/* Which PRs show and how they count, on one line over the table. The filter takes the room the menus leave.
+   The menus line up with the field, and its note runs under it alone */
 #filters {
 	display: flex;
 	gap: 0.5rem;
-	align-items: center;
+	align-items: start;
 	margin-block-end: 1rem;
 
 	&[hidden] {
@@ -921,17 +922,9 @@ hgroup {
 
 #narrow {
 	flex: 1 1 20rem;
-	display: flex;
-	gap: 0.75em;
-	align-items: center;
-
-	label {
-		color: var(--muted);
-	}
 
 	/* ✕ shares the field’s cell, as the chevron of a field with recent values does */
 	.box {
-		flex: 1;
 		display: grid;
 		align-items: center;
 
@@ -950,9 +943,26 @@ hgroup {
 		margin-inline-end: 0.5rem;
 	}
 
-	/* A phone’s first row, with the menus under it */
+	/* On one line, so the field is never narrower than its note, e.g. beside a long login, which shrinks instead */
+	small {
+		white-space: nowrap;
+	}
+
+	a {
+		color: inherit;
+
+		&:hover {
+			color: var(--text);
+		}
+	}
+
+	/* A phone’s first row, with the menus under it. Its note wraps */
 	@container (width < 36rem) {
 		flex-basis: 100%;
+
+		small {
+			white-space: normal;
+		}
 	}
 }
 
