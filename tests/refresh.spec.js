@@ -1,4 +1,4 @@
-import { test, expect, label } from "./github.js";
+import { test, expect, label, unfold } from "./github.js";
 
 test("A refresh asks for the details of only the PRs that changed since the last load", async ({
 	page,
@@ -102,6 +102,7 @@ test("A failed reload of a view whose first load didn’t finish shows the form,
 	github,
 }) => {
 	await page.goto("/?repo=foo/bar");
+	await unfold(page);
 	await expect(page.locator("progress")).toBeHidden();
 	// The author view’s search answers, but its details never come
 	github.details = () => new Promise(() => {});
@@ -513,6 +514,7 @@ test("A load with another filter marks nothing, as the PRs it finds aren’t new
 	github,
 }) => {
 	await page.goto("/?repo=foo/bar");
+	await unfold(page);
 	await expect(page.locator("progress")).toBeHidden();
 
 	github.search = answer => {

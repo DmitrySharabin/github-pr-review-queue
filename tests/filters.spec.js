@@ -1,4 +1,4 @@
-import { test, expect } from "./github.js";
+import { test, expect, unfold } from "./github.js";
 
 /** The Display button, whose name says how many of its settings are changed */
 function display (page) {
@@ -10,11 +10,65 @@ function pattern (page) {
 	return page.getByRole("textbox", { name: "Exclude from counts" });
 }
 
-test("The filter says which search terms it takes, under the field, from the first visit", async ({
+test("A view that applies nothing opens with the filters folded, so the rows come first", async ({
 	page,
 	github,
 }) => {
 	await page.goto("/?repo=foo/bar");
+
+	await expect(page.getByRole("button", { name: "Show filters" })).toBeVisible();
+	await expect(page.getByRole("searchbox", { name: "Filter", exact: true })).toBeHidden();
+});
+
+test("A view that hides rows opens with the filters unfolded, to change what hides them", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar&exclude=test");
+
+	await expect(page.getByRole("button", { name: /^Display/ })).toBeVisible();
+});
+
+test("Folded, the filters say what they apply, keyed as the Author button names its pick", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar&filter=label:bug&authors=qux&exclude=test");
+	await expect(page.locator("progress")).toBeHidden();
+	await page.getByRole("button", { name: "Hide filters" }).click();
+
+	await expect(page.locator("#filters .applied")).toHaveText(
+		"Filter label:bug Author qux Exclude test",
+	);
+});
+
+test("Folded, several authors read as the Author button’s count, with no key to repeat it", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar&authors=qux,quux");
+	await expect(page.locator("progress")).toBeHidden();
+	await page.getByRole("button", { name: "Hide filters" }).click();
+
+	await expect(page.locator("#filters .applied")).toHaveText("2 authors");
+});
+
+test("A click on a folded value unfolds the filters with the focus on its control", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar&filter=label:bug&authors=qux");
+	await expect(page.locator("progress")).toBeHidden();
+	await page.getByRole("button", { name: "Hide filters" }).click();
+
+	await page.locator("#filters .applied").getByText("qux").click();
+
+	await expect(page.locator("#author-button")).toBeFocused();
+});
+
+test("The filter says which search terms it takes, under the field", async ({ page, github }) => {
+	await page.goto("/?repo=foo/bar");
+	await unfold(page);
 
 	await expect(
 		page.getByRole("searchbox", { name: "Filter", exact: true }),
@@ -112,6 +166,7 @@ test("Display with every setting at its default shows no count, nor names one", 
 	github,
 }) => {
 	await page.goto("/?repo=foo/bar");
+	await unfold(page);
 
 	await expect(page.getByRole("button", { name: "Display", exact: true })).toBeVisible();
 	await expect(page.locator("#display-button .badge")).toBeHidden();
@@ -139,6 +194,7 @@ test("Display closed with no change loads nothing", async ({ page, github }) => 
 
 test("Enter in Display applies the pattern", async ({ page, github }) => {
 	await page.goto("/?repo=foo/bar");
+	await unfold(page);
 	await expect(page.locator("progress")).toBeHidden();
 
 	await display(page).click();
@@ -150,6 +206,7 @@ test("Enter in Display applies the pattern", async ({ page, github }) => {
 
 test("Display opens with the focus in its field, to type at once", async ({ page, github }) => {
 	await page.goto("/?repo=foo/bar");
+	await unfold(page);
 	await expect(page.locator("progress")).toBeHidden();
 
 	await display(page).click();
@@ -245,6 +302,7 @@ test("A click outside Display applies the pattern typed in it, as the author lis
 	github,
 }) => {
 	await page.goto("/?repo=foo/bar");
+	await unfold(page);
 	await expect(page.locator("progress")).toBeHidden();
 
 	await display(page).click();
@@ -285,6 +343,7 @@ test("A load that fails closes an open Display without applying it, so a click o
 	github,
 }) => {
 	await page.goto("/?repo=foo/bar");
+	await unfold(page);
 	await expect(page.locator("progress")).toBeHidden();
 	await display(page).click();
 	await pattern(page).fill("src");
@@ -306,6 +365,7 @@ test("The author list open while a refresh empties the queue stays by its button
 	github,
 }) => {
 	await page.goto("/?repo=foo/bar");
+	await unfold(page);
 	await expect(page.locator("progress")).toBeHidden();
 	await page.getByRole("button", { name: "Author" }).click();
 
@@ -337,6 +397,7 @@ test("A click outside Display drops a pattern that isn’t a regular expression,
 
 test("The author view has no Display, as it counts no lines", async ({ page, github }) => {
 	await page.goto("/?repo=foo/bar&role=author");
+	await unfold(page);
 	await expect(page.locator("progress")).toBeHidden();
 
 	await expect(page.locator("#display-button")).toBeHidden();

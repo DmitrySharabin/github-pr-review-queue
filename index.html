@@ -136,45 +136,50 @@
 			</div>
 		</dl>
 
-		<!-- Which PRs show, then how they count. Each Clear names what it clears, so a screen reader tells them apart -->
+		<!-- Which PRs show, then how they count, at the top of the table they act on. Each Clear names what it clears, so a screen reader tells them apart.
+		     Folded, one line says what they apply, and a click on a value unfolds them with the focus on its control -->
 		<search id="filters" hidden>
-			<form id="narrow" class="field">
-				<span class="box">
-					<input id="filter" name="filter" type="search" aria-label="Filter" placeholder="Filter pull requests" autocomplete="off" spellcheck="false" aria-describedby="filter-note">
-					<button type="button" class="cancel" aria-label="Clear filter" title="Clear filter" hidden></button>
-				</span>
-				<small id="filter-note">Any <a href="https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests" target="_blank">GitHub search terms</a>, such as <code>label:foo -label:bar</code>, or words in the title with <code>in:title</code></small>
-			</form>
+			<button type="button" class="applied" aria-controls="filter-controls" aria-expanded="false" hidden></button>
+			<div id="filter-controls" class="controls">
+				<form id="narrow" class="field">
+					<span class="box">
+						<input id="filter" name="filter" type="search" aria-label="Filter" placeholder="Filter pull requests" autocomplete="off" spellcheck="false" aria-describedby="filter-note">
+						<button type="button" class="cancel" aria-label="Clear filter" title="Clear filter" hidden></button>
+					</span>
+					<small id="filter-note">Any <a href="https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests" target="_blank">GitHub search terms</a>, such as <code>label:foo -label:bar</code>, or words in the title with <code>in:title</code></small>
+				</form>
 
-			<!-- GitHub’s search can’t tell the repo’s collaborators from other authors, so the list narrows the rows on screen -->
-			<button id="author-button" type="button" popovertarget="authors" hidden><span class="faces"></span><span class="text">Author</span></button>
-			<form id="authors" popover aria-label="Filter by author">
-				<input type="search" placeholder="Filter authors" aria-label="Filter authors" autocomplete="off" spellcheck="false">
-				<div class="list">
-					<label class="all"><input type="checkbox"> <span class="who"><b>All collaborators</b> <small></small></span></label>
-					<fieldset class="collaborators"><legend>Collaborators</legend></fieldset>
-					<fieldset class="others"><legend>Other authors</legend></fieldset>
-					<p class="none" hidden></p>
-				</div>
-				<footer>
-					<button type="button" class="clear" aria-label="Clear authors">Clear</button>
-					<button class="show"></button>
-				</footer>
-			</form>
+				<!-- GitHub’s search can’t tell the repo’s collaborators from other authors, so the list narrows the rows on screen -->
+				<button id="author-button" type="button" popovertarget="authors" hidden><span class="faces"></span><span class="text">Author</span></button>
+				<form id="authors" popover aria-label="Filter by author">
+					<input type="search" placeholder="Filter authors" aria-label="Filter authors" autocomplete="off" spellcheck="false">
+					<div class="list">
+						<label class="all"><input type="checkbox"> <span class="who"><b>All collaborators</b> <small></small></span></label>
+						<fieldset class="collaborators"><legend>Collaborators</legend></fieldset>
+						<fieldset class="others"><legend>Other authors</legend></fieldset>
+						<p class="none" hidden></p>
+					</div>
+					<footer>
+						<button type="button" class="clear" aria-label="Clear authors">Clear</button>
+						<button class="show"></button>
+					</footer>
+				</form>
 
-			<!-- How the rows show, rather than which -->
-			<button id="display-button" type="button" popovertarget="display" hidden><span class="text">Display</span><span class="badge" hidden>1</span></button>
-			<form id="display" popover aria-label="Display">
-				<div class="field">
-					<label for="exclude">Exclude from counts</label>
-					<input id="exclude" name="exclude" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-describedby="exclude-note">
-					<small id="exclude-note">A regular expression that matches any part of a file path, such as <code>test|\.lock$</code></small>
-				</div>
-				<footer>
-					<button type="button" class="clear" aria-label="Clear display settings">Clear</button>
-					<button class="show">Apply</button>
-				</footer>
-			</form>
+				<!-- How the rows show, rather than which -->
+				<button id="display-button" type="button" popovertarget="display" hidden><span class="text">Display</span><span class="badge" hidden>1</span></button>
+				<form id="display" popover aria-label="Display">
+					<div class="field">
+						<label for="exclude">Exclude from counts</label>
+						<input id="exclude" name="exclude" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-describedby="exclude-note">
+						<small id="exclude-note">A regular expression that matches any part of a file path, such as <code>test|\.lock$</code></small>
+					</div>
+					<footer>
+						<button type="button" class="clear" aria-label="Clear display settings">Clear</button>
+						<button class="show">Apply</button>
+					</footer>
+				</form>
+			</div>
+			<button type="button" class="fold" aria-controls="filter-controls" aria-expanded="true" aria-label="Hide filters" title="Hide filters"></button>
 		</search>
 
 		<section class="scroller" aria-labelledby="caption" hidden>

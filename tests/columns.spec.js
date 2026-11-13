@@ -1,4 +1,4 @@
-import { test, expect, commit, detail, row } from "./github.js";
+import { test, expect, commit, detail, row, unfold } from "./github.js";
 
 /** The last commits of a PR, of `totalCount` in all, e.g. `commits(["N"], 101)`. */
 function commits (ids, totalCount = ids.length) {
@@ -546,6 +546,7 @@ test.describe("Exclude from counts", () => {
 
 	test("A pattern that isn’t a regular expression stops Apply", async ({ page, github }) => {
 		await page.goto("/?repo=foo/bar");
+		await unfold(page);
 		await page.getByRole("button", { name: /^Display/ }).click();
 		let field = page.getByRole("textbox", { name: "Exclude from counts" });
 		await field.fill("test(");

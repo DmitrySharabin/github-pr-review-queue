@@ -1,4 +1,4 @@
-import { test, expect, commit, detail, label, row } from "./github.js";
+import { test, expect, commit, detail, label, row, unfold } from "./github.js";
 
 test("A failed search hides the bars that stood in for its rows, even of the view shown last", async ({
 	page,
@@ -581,6 +581,7 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 		github,
 	}) => {
 		await page.goto("/?repo=foo/bar&role=author");
+		await unfold(page);
 
 		await apply(page, "author:other-user label:bug");
 
@@ -592,6 +593,7 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 		github,
 	}) => {
 		await page.goto("/?repo=foo/bar");
+		await unfold(page);
 
 		await apply(page, "review-requested:other-user");
 
@@ -603,6 +605,7 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 		github,
 	}) => {
 		await page.goto("/?repo=foo/bar&role=author");
+		await unfold(page);
 
 		await apply(page, "author:third-user author:other-user");
 
@@ -611,6 +614,7 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 
 	test("`author:@me` opens the signed-in user’s queue", async ({ page, github }) => {
 		await page.goto("/?repo=foo/bar&user=other-user&role=author");
+		await unfold(page);
 
 		await apply(page, "author:@me");
 
@@ -620,6 +624,7 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 	// A negated author narrows the search, so it is a filter of its own
 	test("A negated author in the author view stays in the filter", async ({ page, github }) => {
 		await page.goto("/?repo=foo/bar&role=author");
+		await unfold(page);
 
 		await apply(page, "-author:other-user");
 
@@ -645,6 +650,7 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 		github,
 	}) => {
 		await page.goto("/?repo=foo/bar");
+		await unfold(page);
 
 		await apply(page, "-author:other-user");
 

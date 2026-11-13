@@ -11,6 +11,7 @@ import { dismissMenus } from "./menu.js";
 import { href, viewKey } from "./view.js";
 import { showDelta, showUpdated } from "./status.js";
 import { clearCounts, showCounts, showSummary } from "./strip.js";
+import { showApplied } from "./toolbar.js";
 
 let table = document.querySelector("#queue");
 let status = document.querySelector("#status");
@@ -85,6 +86,7 @@ export function showQueue (next = queue, { animate } = {}) {
 	showAuthors(rows, authors);
 	relink(rows);
 	authorButton.disabled = false;
+	showApplied();
 	// Open, a menu stays by its button, e.g. while a refresh that empties the queue ends
 	authorButton.hidden =
 		role === "author" ||
@@ -133,6 +135,7 @@ export function showSkeleton (view, user = view.user) {
 	authorButton.disabled = true;
 	filters.hidden = false;
 	displayButton.hidden = role === "author";
+	showApplied();
 }
 
 /** Hide the queue and what goes around it, e.g. for the sign-in card or the form after a failed load. */

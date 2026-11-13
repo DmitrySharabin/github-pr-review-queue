@@ -139,6 +139,11 @@ export function label (github, labels) {
 	};
 }
 
+/** Unfold the filter row, which opens folded on a view that applies nothing, e.g. `/?repo=foo/bar`. */
+export async function unfold (page) {
+	await page.getByRole("button", { name: "Show filters" }).click();
+}
+
 /** The row of a PR, e.g. of A, #65. */
 export function row (page, id) {
 	return page.locator("#queue tbody tr").filter({ hasText: `#${id.charCodeAt(0)}` });
