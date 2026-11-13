@@ -146,6 +146,22 @@ test("A new user’s avatar shows a disc, not the last user’s face, while it l
 	expect((await avatar.screenshot()).equals(face)).toBe(false);
 });
 
+test("Bars, not the last user’s rows, stand in for a new user’s queue while its search runs", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+	github.search = () => new Promise(() => {});
+
+	await page.getByRole("button", { name: "Change user" }).click();
+	await page.getByRole("textbox", { name: "User" }).fill("other-user");
+	await page.getByRole("textbox", { name: "User" }).press("Enter");
+
+	await expect(page.locator("#summary .user")).toHaveText("other-user");
+	await expect(page.locator("#queue tbody tr:not(.skeleton)")).toHaveCount(0);
+});
+
 test("A role switch hides the counter of the load it stops", async ({ page, github }) => {
 	github.details = () => new Promise(() => {});
 	await page.goto("/?repo=foo/bar");

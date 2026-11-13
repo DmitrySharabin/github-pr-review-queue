@@ -8,6 +8,7 @@ import {
 	details,
 	hasLabel,
 	incomplete,
+	isLogin,
 	outdated,
 	pattern,
 	query,
@@ -99,9 +100,9 @@ export async function load () {
 		let user = view.user || signedInUser();
 
 		// Bars stand in for the rows while nothing is on screen yet, e.g. after the sign-in card, or while bars wait for the user’s name.
-		// A queue without a `user` parameter is that of whoever was signed in then, e.g. a stored one. Bars replace it when that was someone else.
+		// Bars also replace a queue of another user, e.g. after a new name in the strip, or a stored one of whoever was signed in then.
 		// A failed search hides them
-		if (!queue || (onScreen(view) && queue.user !== user)) {
+		if (!queue || !isLogin(queue.user, user)) {
 			showSkeleton(view, user);
 		}
 
