@@ -969,7 +969,7 @@ hgroup {
 			}
 		}
 
-		/* The note’s color, so the example and the note under it read as one hint */
+		/* The note’s color, so it reads as a hint, not as a filter in use */
 		&::placeholder {
 			color: var(--muted);
 		}
@@ -984,6 +984,11 @@ hgroup {
 	small {
 		margin-inline-start: calc(var(--inset) + 1px);
 		text-wrap: balance;
+	}
+
+	/* A search term is one unit, e.g. `-label:bar` doesn’t break after its minus */
+	code {
+		white-space: nowrap;
 	}
 
 	/* Its line as quiet as the field’s edge until pointed at, so the note doesn’t outshine the field */

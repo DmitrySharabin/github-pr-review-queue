@@ -140,10 +140,10 @@
 		<search id="filters" hidden>
 			<form id="narrow" class="field">
 				<span class="box">
-					<input id="filter" name="filter" type="search" aria-label="Filter" placeholder="label:foo -label:bar" autocomplete="off" spellcheck="false" aria-describedby="filter-note">
+					<input id="filter" name="filter" type="search" aria-label="Filter" placeholder="Filter pull requests" autocomplete="off" spellcheck="false" aria-describedby="filter-note">
 					<button type="button" class="cancel" aria-label="Clear filter" title="Clear filter" hidden></button>
 				</span>
-				<small id="filter-note">Any <a href="https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests" target="_blank">GitHub search terms</a>, such as labels, or words in the title with <code>in:title</code></small>
+				<small id="filter-note">Any <a href="https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests" target="_blank">GitHub search terms</a>, such as <code>label:foo -label:bar</code>, or words in the title with <code>in:title</code></small>
 			</form>
 
 			<!-- GitHub’s search can’t tell the repo’s collaborators from other authors, so the list narrows the rows on screen -->
@@ -167,7 +167,7 @@
 			<form id="display" popover aria-label="Display">
 				<div class="field">
 					<label for="exclude">Exclude from counts</label>
-					<input id="exclude" name="exclude" placeholder="test|\.lock$" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-describedby="exclude-note">
+					<input id="exclude" name="exclude" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-describedby="exclude-note">
 					<small id="exclude-note">A regular expression that matches any part of a file path, such as <code>test|\.lock$</code></small>
 				</div>
 				<footer>
