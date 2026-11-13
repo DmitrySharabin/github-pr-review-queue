@@ -368,7 +368,7 @@ async function load () {
 
 	let view = viewOf();
 	let { repo, role, filter } = view;
-	let sameView = onScreen(view);
+	let refreshing = onScreen(view);
 
 	// Without the marks, a row with nothing new equals its next render, so it stays and keeps focus
 	for (let { tr } of queue?.rows ?? []) {
@@ -395,7 +395,7 @@ async function load () {
 	// Its rows then count as the last load’s, so the load marks what changed since
 	let stored;
 	try {
-		stored = sameView || label !== undefined ? undefined : restore(view);
+		stored = refreshing || label !== undefined ? undefined : restore(view);
 		if (stored) {
 			// A row on screen of the same PR stays while it shows the same, e.g. with focus on the label just clicked
 			let previous = new Map(queue?.rows.map(row => [row.pr.id, row]));
@@ -427,19 +427,17 @@ async function load () {
 		showQueue();
 	}
 
-	// A refresh keeps the last delta, dimmed, until it ends. Another view has another count, e.g. one narrowed by a label
-	if (!sameView) {
+	// A refresh keeps the last delta, dimmed, until it ends. Another view has another count, e.g. one narrowed by a label.
+	// A retry keeps the last failure in place until it ends, so the queue under it doesn’t move. Another view’s rows didn’t fail
+	if (!refreshing) {
 		showDelta();
+		header.classList.remove("failed");
 	}
 	// A screen reader hears that a refresh started and how it ended, e.g. “Updated at 5:44 PM, No changes”, even within one minute.
-	// A load of another view, e.g. a new filter, finds PRs that aren’t new, so it compares with nothing
+	// A load of another view, e.g. a new filter, finds PRs that aren’t new, so it compares with nothing.
+	// By now a narrowed or restored queue is of this view too
 	if (onScreen(view) && queue.seen) {
 		changes.textContent = "Refreshing…";
-	}
-
-	// A retry keeps the last failure in place until it ends, so the queue under it doesn’t move. Another view’s rows didn’t fail
-	if (!sameView) {
-		header.classList.remove("failed");
 	}
 	// aria-disabled, unlike disabled, keeps focus on the button while it waits
 	refresh.ariaDisabled = "true";
