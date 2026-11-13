@@ -219,6 +219,9 @@ caption,
 main:has(> :is(#repo-form, #sign-in, #summary):not([hidden])) > #status,
 main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #updated {
 	position: absolute;
+	/* At the start of the page, not where the text would be, e.g. in a column of a table scrolled past the window’s edge.
+	   The table’s frame doesn’t clip it, so there it would widen the page, and Safari would zoom out to fit */
+	inset-inline-start: 0;
 	/* One pixel wide, so a long text, e.g. an error, doesn’t widen the page */
 	inline-size: 1px;
 	overflow: hidden;

@@ -191,6 +191,18 @@ test("On a tablet, the table scrolls in its own frame, not the page sideways", a
 	expect(overflow).toBe(0);
 });
 
+test("On a phone, what a size says only to a screen reader doesn’t widen the page, so Safari doesn’t zoom out", async ({
+	page,
+	github,
+}) => {
+	await page.setViewportSize({ width: 375, height: 812 });
+	await page.goto("/?repo=foo/bar&exclude=test");
+	await expect(page.locator("#queue .spoken").first()).toBeAttached();
+
+	let overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+	expect(overflow).toBe(0);
+});
+
 test("On a tablet, the author view’s table fits, so its header stays at the top of the window", async ({
 	page,
 	github,
