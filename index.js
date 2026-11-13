@@ -35,7 +35,7 @@ import { offerRecent } from "./recent.js";
 import { plural } from "./plural.js";
 import { collaborators, matches, showAuthors } from "./authors.js";
 import { applyOnClose, dismissMenus } from "./menu.js";
-import { normalizeParams, viewNames, viewOf } from "./view.js";
+import { normalizeParams, viewKey, viewNames, viewOf } from "./view.js";
 
 let table = document.querySelector("#queue");
 let status = document.querySelector("#status");
@@ -268,7 +268,7 @@ window.navigation?.addEventListener("navigate", event => {
 
 	// The same view submitted again, e.g. Enter with the same terms, loads it again
 	let onlyAuthors =
-		viewNames.every(name => next.get(name) === current.get(name)) &&
+		viewKey(viewOf(next)) === viewKey(viewOf(current)) &&
 		next.get("authors") !== current.get("authors");
 	// The handler runs once the URL has changed. Focus and scroll stay where they were, e.g. in the filter field
 	event.intercept({
@@ -332,7 +332,7 @@ function showView ({ onlyAuthors } = {}) {
 		// Other authors of the view on screen show the same rows, so nothing loads, e.g. not the details of every PR.
 		// The last URL’s view may have failed instead, e.g. before a step back to other authors
 		let view = viewOf(params);
-		if (onlyAuthors && Object.entries(view).every(([name, value]) => value === shown?.[name])) {
+		if (onlyAuthors && shown && viewKey(view) === viewKey(shown)) {
 			return showQueue({ ...view, user: shownUser });
 		}
 		return load();
@@ -370,7 +370,8 @@ async function load () {
 	let view = viewOf(params);
 	let { repo, role, filter } = view;
 	// Another pattern counts every PR’s lines anew, so its rows are another queue’s
-	let sameQueue = ["repo", "user", "role", "exclude"].every(name => view[name] === shown?.[name]);
+	let sameQueue =
+		shown && viewKey({ ...view, filter: null }) === viewKey({ ...shown, filter: null });
 	let sameView = sameQueue && filter === shown.filter;
 
 	// Without the marks, a row with nothing new equals its next render, so it stays and keeps focus
