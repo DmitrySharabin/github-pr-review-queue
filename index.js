@@ -65,11 +65,11 @@ let forms = [repoForm, filterForm, authorForm, displayForm, ...strip.querySelect
 
 /**
  * @typedef {object} Queue - What the table shows
- * @property {View} view - The view whose load found the rows, e.g. `{ repo: "foo/bar", filter: "label:baz", exclude: "test" }`
+ * @property {View} view - The view the rows are of, e.g. `{ repo: "foo/bar", filter: "label:baz", exclude: "test" }`
  * @property {string} user - Whose queue it is, e.g. the signed-in user’s when the view names no `user`
  * @property {Row[]} rows
  * @property {number} [at] - When its rows last finished loading, in epoch ms
- * @property {Map<string, Summary>} [seen] - What they showed then, by PR id, for the next to mark what changed
+ * @property {Map<string, Summary>} [seen] - What they showed then, by PR id, for the next load to mark what changed
  */
 /** @type {Queue | undefined} None while nothing or bars are on screen */
 let queue;
@@ -78,7 +78,7 @@ let authors = [];
 /** @type {AbortController | undefined} Aborts the load in flight, if any */
 let loading;
 
-// No transition. Its capture holds the new order back up to 300 ms on 100 rows, and when every row moves, no one follows one.
+// Sorts without a view transition: its capture holds the new order back up to 300 ms on 100 rows, and when every row moves, no one follows one.
 // Bars wait for the search, which sorts what it finds
 table.addEventListener("command", event => {
 	sortBy(event.source.value);
@@ -295,9 +295,8 @@ showView();
  */
 function showView ({ onlyAuthors } = {}) {
 	let params = new URLSearchParams(location.search);
-	let role = params.get("role");
-	let filter = params.get("filter");
-	let exclude = params.get("exclude");
+	let view = viewOf(params);
+	let { role, filter, exclude } = view;
 	authors = role === "author" ? [] : (params.get("authors")?.split(",").filter(Boolean) ?? []);
 
 	// As defaults, so a reset, e.g. Esc in a summary form, goes back to what the URL says
@@ -328,14 +327,12 @@ function showView ({ onlyAuthors } = {}) {
 	displayButton.ariaLabel = exclude ? "Display, 1 setting changed" : null;
 	displayButton.classList.toggle("set", Boolean(exclude));
 
-	if (params.get("repo")) {
-		// Other authors of the view on screen show the same rows, so nothing loads, e.g. not the details of every PR.
-		// Nothing of this view may be on screen, e.g. after a failed load and a step back to other authors.
-		// A load of this view that still runs then shows the picked authors once its search ends, so no second search starts
-		let view = viewOf(params);
+	if (view.repo) {
+		// Other authors of the view on screen need no load: their rows are on screen already
 		if (onlyAuthors && onScreen(view)) {
 			return showQueue();
 		}
+		// The load of this view in flight shows the picked authors once its search ends
 		if (onlyAuthors && loading) {
 			return;
 		}
@@ -369,9 +366,7 @@ async function load () {
 	loading = new AbortController();
 	let { signal } = loading;
 
-	// A missing parameter means its default, e.g. no `user` is the signed-in user. A repeated one counts once, as in the forms
-	let params = new URLSearchParams(location.search);
-	let view = viewOf(params);
+	let view = viewOf();
 	let { repo, role, filter } = view;
 	let sameView = onScreen(view);
 
@@ -461,7 +456,7 @@ async function load () {
 	// so bars stand in for the rows during the sign-in. Without one, they would flash before the sign-in card
 	// NOTE: An expired token still shows them before the card
 	if (!queue && github.isAuthenticated()) {
-		showSkeleton(view, view.user);
+		showSkeleton(view);
 	}
 
 	try {
@@ -519,8 +514,8 @@ async function load () {
 			return row;
 		});
 		// What the last finished load showed, and when, holds only for its own view, e.g. not after a role switch
-		let shown = onScreen(view) ? queue : {};
-		queue = { view, user, rows, at: shown.at, seen: shown.seen };
+		let { at, seen } = onScreen(view) ? queue : {};
+		queue = { view, user, rows, at, seen };
 		showQueue();
 		if (stale.length > 0) {
 			showProgress(task, 0, stale.length);
@@ -565,9 +560,8 @@ async function load () {
 			return;
 		}
 
-		// Without a finished load of this view, the rows on screen go, e.g. those of another view after a failed role switch,
-		// which would sit under labels they don’t match, with the filter of that view and the time they were updated at.
-		// So do bars that stand in for rows, e.g. on a first visit. A step back then shows the stored queue, as a visit does
+		// Rows of another view, or of no finished load, go: they would sit under this view’s labels, filter and time.
+		// A step back then shows the stored queue, as a visit does
 		if (!onScreen(view) || !queue.at) {
 			queue = undefined;
 			hideQueue();
@@ -715,9 +709,9 @@ function showQueue () {
  * Stand in for a queue that nothing shows yet, e.g. on a first visit, while its search runs.
  * The strip shows what the view tells, and rows of bars stand for the PRs.
  * @param {View} view
- * @param {string | null} user - None until the sign-in ends when the view names none
+ * @param {string | null} [user] - None until the sign-in ends when the view names none
  */
-function showSkeleton (view, user) {
+function showSkeleton (view, user = view.user) {
 	let { role } = view;
 	showRole(role);
 	table.tBodies[0].replaceChildren(
