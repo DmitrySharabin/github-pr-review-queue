@@ -35,7 +35,7 @@ import { offerRecent } from "./recent.js";
 import { plural } from "./plural.js";
 import { collaborators, matches, showAuthors } from "./authors.js";
 import { applyOnClose, dismissMenus } from "./menu.js";
-import { normalizeParams, viewKey, viewNames, viewOf } from "./view.js";
+import { href, normalizeParams, viewKey, viewNames, viewOf } from "./view.js";
 
 let table = document.querySelector("#queue");
 let status = document.querySelector("#status");
@@ -307,18 +307,9 @@ function showView ({ onlyAuthors } = {}) {
 	checkPattern();
 
 	// Each role opens the same queue, filter and all, from the other side
+	// The other role’s qualifier in the filter, e.g. `author:foo`, names its user
 	for (let link of strip.querySelectorAll(".roles a")) {
-		let switched = new URLSearchParams(params);
-		if (link.dataset.role) {
-			switched.set("role", link.dataset.role);
-		}
-		else {
-			switched.delete("role");
-		}
-		// The other role’s qualifier in the filter, e.g. `author:foo`, names its user
-		normalizeParams(switched);
-
-		link.href = `?${switched}`;
+		link.href = href({ role: link.dataset.role });
 		link.ariaCurrent = (link.dataset.role === "author") === (role === "author") ? "page" : null;
 	}
 
@@ -788,9 +779,7 @@ function showEmpty ({ repo, user, role, filter }) {
 	empty.querySelector("p").textContent = text;
 	empty.querySelector(".github").href = `https://github.com/${repo}/pulls`;
 	let clear = empty.querySelector(".clear");
-	let without = new URLSearchParams(location.search);
-	without.delete("authors");
-	clear.href = `?${without}`;
+	clear.href = href({ authors: null });
 	clear.hidden = !picked;
 	status.textContent = text;
 }

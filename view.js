@@ -57,3 +57,21 @@ export function normalizeParams (params) {
 		}
 	}
 }
+
+/**
+ * The page’s URL with these parameters changed, and rewritten as {@link normalizeParams} does, e.g. `href({ role: "author" })`. An empty value removes one.
+ * @param {Record<string, string | null | undefined>} changes
+ */
+export function href (changes) {
+	let params = new URLSearchParams(location.search);
+	for (let [name, value] of Object.entries(changes)) {
+		if (value) {
+			params.set(name, value);
+		}
+		else {
+			params.delete(name);
+		}
+	}
+	normalizeParams(params);
+	return `?${params}`;
+}

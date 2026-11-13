@@ -8,6 +8,7 @@
  * @property {HTMLTableRowElement} tr
  */
 import { size, sum, withLabel } from "./pull-request.js";
+import { href, viewOf } from "./view.js";
 import { showTime } from "./time.js";
 import { plural } from "./plural.js";
 
@@ -269,9 +270,7 @@ function showLabels (headline, labels) {
 
 /** The URL’s view with the label `name` in its filter, e.g. `?repo=foo/bar&filter=label:"bug"`. */
 function labelLink (name) {
-	let params = new URLSearchParams(location.search);
-	params.set("filter", withLabel(params.get("filter"), name));
-	return `?${params}`;
+	return href({ filter: withLabel(viewOf().filter, name) });
 }
 
 function showAllLabels (element) {
