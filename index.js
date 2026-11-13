@@ -927,8 +927,9 @@ async function login (repo, signal) {
 	}
 
 	// No stored token. The sign-in popup needs a click, or the browser blocks it.
-	// Whoever signs in may be someone else, e.g. after a token expired, so the queues of the last one go
+	// Whoever signs in may be someone else, e.g. after a token expired, so the queues of the last one go, stored and on screen
 	forget();
+	queue = undefined;
 	hideQueue();
 	showDelta();
 	header.classList.remove("failed");

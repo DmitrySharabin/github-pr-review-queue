@@ -1,4 +1,4 @@
-import { test, expect, commit } from "./github.js";
+import { test, expect, commit, detail, row } from "./github.js";
 
 test("A failed search hides the bars that stood in for its rows, even of the view shown last", async ({
 	page,
@@ -72,6 +72,31 @@ test("A stored token that GitHub rejects, e.g. expired, shows the sign-in card",
 	await page.goto("/?repo=foo/bar");
 
 	await expect(page.locator("#sign-in")).toBeVisible();
+});
+
+test("Someone else who signs in gets their own details, not those of the rows the last user saw", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+	// GitHub fails to say whose the token is, so the stored queue stays with a failure beside Refresh
+	github.user = () => 500;
+	await page.reload();
+	await expect(page.locator("header")).toHaveClass(/failed/);
+	// Then it rejects the token, so the sign-in card shows, and someone else signs in
+	github.user = () => 401;
+	await page.getByRole("button", { name: "Refresh" }).click();
+	github.user = answer => {
+		answer.login = "other-user";
+	};
+	detail(github, { A: { additions: 1 } });
+	await page.getByLabel("Fine-grained token").fill("github_pat_foo");
+	await page.getByRole("button", { name: "Use token" }).click();
+	await expect(page.locator("#summary .user")).toHaveText("other-user");
+	await expect(page.locator("progress")).toBeHidden();
+
+	await expect(row(page, "A").locator(".diff")).toContainText("+1 −2");
 });
 
 test("Bars that stood in for the user during the sign-in give way to the user once it ends", async ({
