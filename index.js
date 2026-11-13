@@ -68,7 +68,8 @@ let forms = [repoForm, filterForm, authorForm, displayForm, ...strip.querySelect
  * @property {View} view - The view whose load found the rows, e.g. `{ repo: "foo/bar", filter: "label:baz", exclude: "test" }`
  * @property {string} user - Whose queue it is, e.g. the signed-in user’s when the view names no `user`
  * @property {Row[]} rows
- * @property {Map<string, Summary>} [seen] - What the last finished load of this view showed, by PR id, for the next to mark what changed
+ * @property {number} [at] - When the last load of this view finished, in epoch ms
+ * @property {Map<string, Summary>} [seen] - What that load showed, by PR id, for the next to mark what changed
  */
 /** @type {Queue | undefined} None before the first rows show */
 let queue;
@@ -408,13 +409,14 @@ async function load () {
 				fill(row, summary);
 				return row;
 			});
-			showUpdated(stored.at);
 			queue = {
 				view,
 				user: stored.user,
 				rows,
+				at: stored.at,
 				seen: new Map(rows.map(row => [row.pr.id, row.summary])),
 			};
+			showUpdated(queue.at);
 		}
 	}
 	catch (error) {
@@ -512,8 +514,15 @@ async function load () {
 			}
 			return row;
 		});
-		// What the last load showed counts only for the same view, see above
-		queue = { view, user, rows, seen: queue?.seen };
+		// What the last finished load showed, and when, holds only for its own view, e.g. not after a role switch
+		let same = queue && viewKey(queue.view) === viewKey(view);
+		queue = {
+			view,
+			user,
+			rows,
+			at: same ? queue.at : undefined,
+			seen: same ? queue.seen : undefined,
+		};
 		showQueue();
 		if (stale.length > 0) {
 			showProgress(task, 0, stale.length);
@@ -524,8 +533,8 @@ async function load () {
 		sort(rows, { animate: true, shows });
 		showCounts();
 
-		let now = Date.now();
-		showUpdated(now);
+		queue.at = Date.now();
+		showUpdated(queue.at);
 		// Rows whose details didn’t arrive, e.g. failed or of a deleted PR, show what they had, undimmed.
 		// The next load asks for them again
 		// Rows of other authors are off the page, so not in the table
@@ -549,7 +558,11 @@ async function load () {
 		}
 		else {
 			header.classList.remove("failed");
-			store(view, { user, at: now, rows: rows.map(({ pr, summary }) => ({ pr, summary })) });
+			store(view, {
+				user,
+				at: queue.at,
+				rows: rows.map(({ pr, summary }) => ({ pr, summary })),
+			});
 		}
 	}
 	catch (error) {
@@ -560,7 +573,9 @@ async function load () {
 
 		// Rows of another view would sit under labels they don’t match, e.g. after a failed role switch, so they go,
 		// with the filter of that view and the time they were updated at. So do bars that stand in for rows, e.g. on a first visit
-		if ((!sameView && queue?.view !== view) || table.tBodies[0].querySelector(".skeleton")) {
+		let hidden =
+			(!sameView && queue?.view !== view) || table.tBodies[0].querySelector(".skeleton");
+		if (hidden) {
 			hideQueue();
 			updated.textContent = "";
 		}
@@ -568,7 +583,7 @@ async function load () {
 		showDelta();
 		// A repo or user that GitHub can’t find needs the form to fix them.
 		// So does a failure with no finished load on screen, e.g. on a first visit, where most failures come from the repo or the user
-		if (updated.textContent && !notFound.test(error?.message)) {
+		if (!hidden && queue?.at && !notFound.test(error?.message)) {
 			showFailure(describe(error));
 		}
 		else {

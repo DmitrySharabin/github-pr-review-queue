@@ -97,6 +97,23 @@ test("A failed refresh calls the time the last update, so it doesn’t read as i
 	await expect(page.getByText("Last updated at")).toBeVisible();
 });
 
+test("A failed reload of a view whose first load didn’t finish shows the form, not the time of another view", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+	// The author view’s search answers, but its details never come
+	github.details = () => new Promise(() => {});
+	await page.getByRole("link", { name: "Author" }).click();
+	await expect(page.locator("#counter")).toBeVisible();
+
+	github.search = () => 502;
+	await page.getByRole("searchbox", { name: "Filter", exact: true }).press("Enter");
+
+	await expect(page.locator("#repo-form .notice")).toBeVisible();
+});
+
 test("A failed refresh after one that showed the form hides the form, whose reason no longer holds", async ({
 	page,
 	github,
