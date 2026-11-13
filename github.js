@@ -118,7 +118,7 @@ function inTime (signal) {
 export async function count (repo, diff, signal, ignore) {
 	let { ranges } = diff ?? {};
 	if (ranges) {
-		// Tried, so a later load of the unchanged PR needn’t compare again, e.g. 300 files GitHub would list again
+		// Compared either way. Only a failure compares again on the next load, see incomplete(), not e.g. 300 files GitHub would list again
 		delete diff.ranges;
 		try {
 			// NOTE: A failed comparison leaves the PR’s others running until they answer or time out
