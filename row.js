@@ -123,6 +123,15 @@ export function mark (rows, last) {
 }
 
 /**
+ * What the rows show, by PR id, for {@link mark} to compare with on the next load.
+ * @param {Row[]} rows
+ * @returns {Map<string, Summary>}
+ */
+export function summaries (rows) {
+	return new Map(rows.map(row => [row.pr.id, row.summary]));
+}
+
+/**
  * Point the label links of the rows at the URL’s view, e.g. after a pick of authors, which renders no row anew.
  * @param {Row[]} rows
  */

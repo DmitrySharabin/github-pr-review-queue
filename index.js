@@ -28,7 +28,7 @@ import {
 	signedInUser,
 } from "./github.js";
 import { forget, restore, store, storedQueues } from "./queues.js";
-import { fill, mark, relink, unmark } from "./row.js";
+import { fill, mark, relink, summaries, unmark } from "./row.js";
 import { chooseSort, showSort, sort } from "./sort.js";
 import { showTime } from "./time.js";
 import { offerRecent } from "./recent.js";
@@ -392,34 +392,12 @@ async function load () {
 		next = { ...queue, view, rows, seen };
 	}
 
-	// Another view shows at once what it showed last, e.g. on the last visit, while it loads again.
-	// Its rows then count as the last load’s, so the load marks what changed since
-	try {
-		let stored = refreshing || next ? undefined : restore(view);
-		if (stored) {
-			// A row on screen of the same PR stays while it shows the same, e.g. with focus on the label just clicked
-			let previous = new Map(queue?.rows.map(row => [row.pr.id, row]));
-			let rows = stored.rows.map(({ pr, summary }) => {
-				let row = previous.get(pr.id) ?? {};
-				row.pr = pr;
-				// A row stored without details, e.g. of a PR deleted during its load, asks for them again
-				row.detailed = summary.reviewers && pr;
-				fill(row, summary);
-				return row;
-			});
-			next = {
-				view,
-				user: stored.user,
-				rows,
-				at: stored.at,
-				seen: new Map(rows.map(row => [row.pr.id, row.summary])),
-			};
-			showUpdated(stored.at);
+	// Another view shows at once what it showed last, e.g. on the last visit, while it loads again
+	if (!next && !refreshing) {
+		next = restore(view, queue?.rows);
+		if (next) {
+			showUpdated(next.at);
 		}
-	}
-	catch (error) {
-		// A queue this version can’t show, e.g. stored by an older one with a step since renamed, waits for the load, which stores it anew
-		console.warn("Couldn’t show the stored queue.", error);
 	}
 
 	if (next) {
@@ -530,7 +508,7 @@ async function load () {
 
 		// The user has seen what the search found, even when details failed
 		let last = queue.seen;
-		queue.seen = new Map(rows.map(row => [row.pr.id, row.summary]));
+		queue.seen = summaries(rows);
 		if (last) {
 			// NOTE: Counts the PRs of authors not picked too, e.g. “+1” for a new PR that doesn’t show
 			showDelta(mark(rows, last));

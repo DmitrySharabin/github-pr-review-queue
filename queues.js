@@ -1,6 +1,8 @@
 /**
  * @import { Summary } from "./pull-request.js"
  * @import { View } from "./view.js"
+ * @import { Row } from "./row.js"
+ * @import { Queue } from "./index.js"
  *
  * @typedef {object} Stored - What a view showed after its last full load
  * @property {string} user - Whose queue it is
@@ -8,6 +10,7 @@
  * @property {{ pr: object, summary: Summary }[]} rows
  */
 import { viewKey, viewOf } from "./view.js";
+import { fill, summaries } from "./row.js";
 
 const prefix = "review-queue:queue:";
 /** The format of the stored queues. A new one, e.g. after a step is renamed, leaves the queues stored before unread */
@@ -30,12 +33,33 @@ function queueKey (view) {
 }
 
 /**
- * What a view showed after its last full load.
+ * The queue a view showed after its last full load, if any. Its rows count as the last load’s, so the next load marks what changed since.
  * @param {View} view
- * @returns {Stored | undefined}
+ * @param {Row[]} [rows] - The rows on screen. A row of the same PR stays while it shows the same, e.g. with focus on the label just clicked
+ * @returns {Queue | undefined}
  */
-export function restore (view) {
-	return JSON.parse(localStorage.getItem(queueKey(view))) ?? undefined;
+export function restore (view, rows = []) {
+	try {
+		let stored = JSON.parse(localStorage.getItem(queueKey(view)));
+		if (!stored) {
+			return;
+		}
+
+		let previous = new Map(rows.map(row => [row.pr.id, row]));
+		let restored = stored.rows.map(({ pr, summary }) => {
+			let row = previous.get(pr.id) ?? {};
+			row.pr = pr;
+			// A row stored without details, e.g. of a PR deleted during its load, asks for them again
+			row.detailed = summary.reviewers && pr;
+			fill(row, summary);
+			return row;
+		});
+		return { view, user: stored.user, rows: restored, at: stored.at, seen: summaries(restored) };
+	}
+	catch (error) {
+		// A queue this version can’t show, e.g. stored by an older one with a step since renamed, waits for the load, which stores it anew
+		console.warn("Couldn’t show the stored queue.", error);
+	}
 }
 
 /**
