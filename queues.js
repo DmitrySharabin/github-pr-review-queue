@@ -54,7 +54,13 @@ export function restore (view, rows = []) {
 			fill(row, summary);
 			return row;
 		});
-		return { view, user: stored.user, rows: restored, at: stored.at, seen: summaries(restored) };
+		return {
+			view,
+			user: stored.user,
+			rows: restored,
+			at: stored.at,
+			seen: summaries(restored),
+		};
 	}
 	catch (error) {
 		// A queue this version can’t show, e.g. stored by an older one with a step since renamed, waits for the load, which stores it anew
