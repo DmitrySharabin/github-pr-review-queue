@@ -11,7 +11,7 @@ import { dismissMenus } from "./menu.js";
 import { href, viewKey } from "./view.js";
 import { showDelta, showUpdated } from "./status.js";
 import { clearCounts, showCounts, showSummary } from "./strip.js";
-import { showApplied } from "./toolbar.js";
+import { showApplied } from "./filters.js";
 
 let table = document.querySelector("#queue");
 let status = document.querySelector("#status");
@@ -83,10 +83,9 @@ export function showQueue (next = queue, { animate } = {}) {
 	table.parentElement.hidden = shownRows.length === 0;
 	empty.hidden = shownRows.length > 0;
 	repoForm.hidden = true;
-	showAuthors(rows, authors);
+	let author = showAuthors(rows, authors);
 	relink(rows);
 	authorButton.disabled = false;
-	showApplied();
 	// Open, a menu stays by its button, e.g. while a refresh that empties the queue ends
 	authorButton.hidden =
 		role === "author" ||
@@ -106,6 +105,8 @@ export function showQueue (next = queue, { animate } = {}) {
 		showEmpty();
 	}
 	status.hidden = shownRows.length > 0;
+	// A value shows only while its control does, e.g. no Exclude in the author view
+	showApplied({ filter, author, exclude: !displayButton.hidden && queue.view.exclude });
 }
 
 /**
@@ -131,11 +132,13 @@ export function showSkeleton (view, user = view.user) {
 	empty.hidden = true;
 	repoForm.hidden = true;
 	authorButton.hidden = role === "author";
-	// No authors to list until the search ends
+	// No authors to list until the search ends, but the button names the picked ones, not those of the view before.
+	// NOTE: `@collaborators,foo` reads “foo” until the rows say who the collaborators are
+	let author = showAuthors([], authors);
 	authorButton.disabled = true;
 	filters.hidden = false;
 	displayButton.hidden = role === "author";
-	showApplied();
+	showApplied({ filter: view.filter, author, exclude: !displayButton.hidden && view.exclude });
 }
 
 /** Hide the queue and what goes around it, e.g. for the sign-in card or the form after a failed load. */
@@ -215,6 +218,15 @@ export function countsAs (view) {
 		Boolean(queue) &&
 		viewKey({ ...queue.view, filter: null }) === viewKey({ ...view, filter: null })
 	);
+}
+
+/**
+ * Whether the queue on screen is of this view’s repo, user and role, e.g. under another filter or pattern, so its rows are of the PRs this view searches.
+ * @param {View} view
+ */
+export function sameQueue (view) {
+	let of = ({ repo, user, role }) => viewKey({ repo, user, role });
+	return Boolean(queue) && of(queue.view) === of(view);
 }
 
 /**

@@ -927,23 +927,19 @@ hgroup {
 	border: 1px solid var(--border);
 	border-block-end-color: var(--rule);
 	border-radius: var(--radius) var(--radius) 0 0;
-	background: color-mix(in oklch, var(--ground) 50%, var(--surface));
+	/* What faces on it ring themselves with, as the menus set it too */
+	--fill: color-mix(in oklch, var(--ground) 50%, var(--surface));
+	background: var(--fill);
 
 	&[hidden] {
 		display: none;
 	}
 
 	/* The card below continues it */
-	& ~ :is(.scroller, #empty) {
+	&:not([hidden]) ~ :is(.scroller, #empty) {
 		border-block-start: none;
 		border-start-start-radius: 0;
 		border-start-end-radius: 0;
-	}
-
-	&[hidden] ~ :is(.scroller, #empty) {
-		border-block-start: 1px solid var(--border);
-		border-start-start-radius: var(--radius);
-		border-start-end-radius: var(--radius);
 	}
 
 	.controls {
@@ -981,6 +977,11 @@ hgroup {
 			grid-area: 2 / 1;
 		}
 
+		/* Alone, e.g. without Display in a queue a pick emptied, it takes the whole row */
+		&:has(#display-button[hidden]) #author-button {
+			grid-column: 1 / -1;
+		}
+
 		#display-button {
 			grid-area: 2 / 2;
 		}
@@ -997,31 +998,30 @@ hgroup {
 	padding: calc((var(--height) - 1cap) / 2) 0;
 	/* A wrapped value starts under the first one, not under the icon */
 	padding-inline-start: var(--icon);
-	border: none;
-	background: none;
-	color: var(--text);
 	font-size: 0.875em;
 	line-height: 1.75;
-	text-align: start;
 	text-box: trim-both cap alphabetic;
-	cursor: pointer;
 
 	&[hidden] {
 		display: none;
 	}
 
-	&:active {
-		scale: none;
-	}
-
-	> span {
+	/* Each value a button, laid out as a word on the line */
+	> button {
 		display: inline-flex;
 		gap: 0.35em;
 		align-items: baseline;
-		max-inline-size: 100%;
+		/* Its margin sits outside the 100%, so a long value would overflow the line by it */
+		max-inline-size: calc(100% - 1rem);
 		/* With the space between, about 1.25rem */
 		margin-inline-end: 1rem;
 		vertical-align: baseline;
+		line-height: inherit;
+		text-align: start;
+
+		&:active {
+			scale: none;
+		}
 	}
 
 	/* On the first value, so a wrap never leaves it alone on a line. The viewBox is cropped to the ink, so the box is the ink: on the baseline, as tall as the caps */
@@ -1036,8 +1036,7 @@ hgroup {
 			center / contain no-repeat;
 	}
 
-	.key,
-	.none {
+	.key {
 		color: var(--muted);
 	}
 
@@ -1058,27 +1057,12 @@ hgroup {
 		max-inline-size: 16rem;
 	}
 
-	/* The middle of a face on the middle of the caps. A face has no baseline, so its bottom sits on the text’s, then moves down half the difference */
+	/* Faces as small as the text. The middle of a face sits on the middle of the caps: a face has no baseline, so its bottom sits on the text’s, then moves down half the difference */
 	.faces {
-		display: flex;
-		flex: none;
+		--face: 1.25em;
+
 		align-self: baseline;
-		translate: 0 calc((1.25em - 1cap) / 2);
-
-		&:empty {
-			display: none;
-		}
-	}
-
-	img {
-		inline-size: 1.25em;
-		block-size: 1.25em;
-		border-radius: 50%;
-		box-shadow: 0 0 0 2px var(--surface);
-	}
-
-	img + img {
-		margin-inline-start: -0.4em;
+		translate: 0 calc((var(--face) - 1cap) / 2);
 	}
 }
 
@@ -1190,7 +1174,7 @@ hgroup {
 	display: none;
 }
 
-/* Menus at the end of the filter, as tall as its field. Each opens a list rather than acts, as a select does, so it looks like a field too */
+/* Menus at the end of the filter, as tall as its field. A transparent border, which forced colors draw as their edge */
 :is(#author-button, #display-button) {
 	display: flex;
 	gap: 0.4em;
@@ -1198,14 +1182,15 @@ hgroup {
 	max-inline-size: 16rem;
 	min-block-size: var(--height);
 	padding-inline: 0.75em;
-	border: none;
+	border: 1px solid transparent;
 	border-radius: var(--control-radius);
 	background: none;
 	color: var(--text);
 
 	/* Filled while set, so the row says which control hides rows, and on hover where a tap doesn’t leave the hover on, which would read as set */
 	&.set {
-		background: var(--rule);
+		--fill: var(--rule);
+		background: var(--fill);
 	}
 
 	@media (hover: hover) {
@@ -1240,9 +1225,8 @@ hgroup {
 		white-space: nowrap;
 	}
 
-	/* A phone’s row of their own, half each, under the field */
+	/* A phone’s half of a row, with the text in the middle */
 	@container (width < 36rem) {
-		flex: 1;
 		justify-content: center;
 		max-inline-size: none;
 	}
@@ -1257,23 +1241,23 @@ hgroup {
 		color: var(--muted);
 		cursor: progress;
 	}
+}
 
-	.faces {
-		display: flex;
-		flex: none;
+/* The fill under faces that overlap rings each of them, e.g. the set button’s or the band’s */
+:is(#author-button, #filters .applied) .faces {
+	display: flex;
+	flex: none;
 
-		&:empty {
-			display: none;
-		}
+	&:empty {
+		display: none;
+	}
 
-		/* The button’s fill between faces that overlap */
-		img {
-			box-shadow: 0 0 0 2px var(--surface);
-		}
+	img {
+		box-shadow: 0 0 0 2px var(--fill);
+	}
 
-		img + img {
-			margin-inline-start: -0.4em;
-		}
+	img + img {
+		margin-inline-start: -0.4em;
 	}
 }
 
@@ -1292,9 +1276,9 @@ hgroup {
 	text-box: trim-both cap alphabetic;
 }
 
-:is(#author-button, #authors) img {
+:is(#author-button, #authors, #filters .applied) img {
 	flex: none;
-	inline-size: 1.25rem;
+	inline-size: var(--face, 1.25rem);
 	block-size: auto;
 	aspect-ratio: 1;
 	border-radius: 50%;
@@ -1814,7 +1798,11 @@ td:not(.requested) {
 
 /* Forced colors paint backgrounds as the page, which would hide an icon drawn as a mask */
 @media (forced-colors: active) {
-	#queue.author .pull-request .kind {
+	#queue.author .pull-request .kind,
+	#filters .fold::before,
+	#filters .applied > :first-child::before,
+	#narrow .box::before,
+	:is(#author-button, #display-button)::after {
 		forced-color-adjust: none;
 		background-color: CanvasText;
 	}

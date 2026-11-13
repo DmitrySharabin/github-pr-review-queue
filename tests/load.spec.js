@@ -162,6 +162,61 @@ test("Bars, not the last user’s rows, stand in for a new user’s queue while 
 	await expect(page.locator("#queue tbody tr:not(.skeleton)")).toHaveCount(0);
 });
 
+test("Another repo’s view shows bars at once, not the last repo’s rows under its name", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+	github.search = () => new Promise(() => {});
+
+	await page.getByRole("button", { name: "Change repository" }).click();
+	await page.getByRole("textbox", { name: "Repository" }).fill("foo/baz");
+	await page.getByRole("textbox", { name: "Repository" }).press("Enter");
+
+	await expect(page.locator("#queue tbody tr:not(.skeleton)")).toHaveCount(0);
+});
+
+test("A role switch shows bars at once, not the other role’s rows", async ({ page, github }) => {
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+	github.search = () => new Promise(() => {});
+
+	await page.getByRole("link", { name: "Author" }).click();
+
+	await expect(page.locator("#queue tbody tr:not(.skeleton)")).toHaveCount(0);
+});
+
+test("A new filter keeps the rows on screen until its search ends, as they are the same queue’s", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+	github.search = () => new Promise(() => {});
+	await unfold(page);
+
+	let field = page.getByRole("searchbox", { name: "Filter", exact: true });
+	await field.fill("label:bug");
+	await field.press("Enter");
+
+	await expect(page.locator("#queue tbody tr:not(.skeleton)")).toHaveCount(6);
+});
+
+test("Bars name the picked authors of their own view, not those of the view before", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar&authors=qux");
+	await expect(page.locator("progress")).toBeHidden();
+	github.search = () => new Promise(() => {});
+
+	// A link to another view, e.g. typed or shared, opens in place
+	await page.evaluate(() => navigation.navigate("?repo=foo/bar&user=other-user"));
+
+	await expect(page.locator("#author-button .text")).toHaveText("Author");
+});
+
 test("A role switch hides the counter of the load it stops", async ({ page, github }) => {
 	github.details = () => new Promise(() => {});
 	await page.goto("/?repo=foo/bar");

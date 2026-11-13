@@ -7,6 +7,11 @@
  * @property {string} avatar
  * @property {string} [association] - GitHub’s `authorAssociation`, unknown for a picked author with no PRs left
  * @property {number} count - How many PRs in the queue are theirs
+ *
+ * @typedef {object} Pick - What the Author button says of the picked authors, e.g. `{ key: "Author", name: "foo" }`
+ * @property {string} key - What the name is, e.g. “Authors” before “Collaborators”, or none before “2 authors”, which names itself
+ * @property {string} name
+ * @property {Element} faces - The button’s faces of them
  */
 import { isLogin } from "./pull-request.js";
 import { plural } from "./plural.js";
@@ -60,6 +65,7 @@ export function matches (summary, authors) {
  * The button says who is picked, e.g. “2 authors” after their faces.
  * @param {Row[]} rows
  * @param {string[]} authors - The picked ones, see {@link matches}
+ * @returns {Pick | undefined} What the button says of the pick, or nothing when no one is picked
  */
 export function showAuthors (rows, authors) {
 	latest = { rows, authors };
@@ -86,16 +92,18 @@ export function showAuthors (rows, authors) {
 	// No authors match anyone, but pick no one
 	let picked =
 		authors.length > 0 ? [...found.values()].filter(person => matches(person, authors)) : [];
-	let text = button.querySelector(".text");
-	text.textContent =
+	// The key agrees with the name, e.g. “Authors Collaborators”. “2 authors” names itself
+	let [key, name] =
 		authors.length === 0
-			? "Author"
+			? []
 			: authors.length === 1 && authors[0] === collaborators
-				? "Collaborators"
+				? ["Authors", "Collaborators"]
 				: picked.length === 1
-					? picked[0].author
-					: `${picked.length} ${plural("author", picked.length)}`;
-	button.ariaLabel = authors.length === 0 ? null : `Author: ${text.textContent}`;
+					? ["Author", picked[0].author]
+					: ["", `${picked.length} ${plural("author", picked.length)}`];
+	let text = button.querySelector(".text");
+	text.textContent = name ?? "Author";
+	button.ariaLabel = name ? `Author: ${name}` : null;
 	button.classList.toggle("set", authors.length > 0);
 	// The same faces stay, so they don’t flash while new images load, e.g. each time the list closes
 	let faces = button.querySelector(".faces").cloneNode();
@@ -103,10 +111,11 @@ export function showAuthors (rows, authors) {
 	if (!faces.isEqualNode(button.querySelector(".faces"))) {
 		button.querySelector(".faces").replaceWith(faces);
 	}
+	let shown = name && { key, name, faces: button.querySelector(".faces") };
 
 	// Changes made in the open list stay, e.g. while a refresh ends, and so do the counts its checkboxes add up
 	if (form.matches(":popover-open")) {
-		return;
+		return shown;
 	}
 	people = found;
 	total = rows.length;
@@ -141,6 +150,7 @@ export function showAuthors (rows, authors) {
 			: "None in this queue";
 	narrow();
 	update();
+	return shown;
 }
 
 /** An author’s avatar, e.g. in the button. */

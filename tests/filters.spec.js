@@ -20,13 +20,78 @@ test("A view that applies nothing opens with the filters folded, so the rows com
 	await expect(page.getByRole("searchbox", { name: "Filter", exact: true })).toBeHidden();
 });
 
-test("A view that hides rows opens with the filters unfolded, to change what hides them", async ({
+test("A view with a filter opens with the filters unfolded, to change it", async ({
 	page,
 	github,
 }) => {
-	await page.goto("/?repo=foo/bar&exclude=test");
+	await page.goto("/?repo=foo/bar&filter=label:bug");
 
-	await expect(page.getByRole("button", { name: /^Display/ })).toBeVisible();
+	await expect(page.getByRole("searchbox", { name: "Filter", exact: true })).toBeVisible();
+});
+
+test("The author view folds a pattern away, as it counts no lines", async ({ page, github }) => {
+	await page.goto("/?repo=foo/bar&role=author&exclude=test");
+	await expect(page.locator("progress")).toBeHidden();
+
+	await expect(page.locator("#filters .applied")).toHaveText("Filter");
+});
+
+test("The fold button says whether the filters show, and names what a click does", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	let fold = page.locator("#filters .fold");
+	await expect(fold).toHaveAttribute("aria-expanded", "false");
+
+	await fold.click();
+
+	await expect(fold).toHaveAttribute("aria-expanded", "true");
+	await expect(fold).toHaveAccessibleName("Hide filters");
+});
+
+test("With nothing applied, the folded line offers the filter, and a click puts the focus in it", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+
+	await page.locator("#filters .applied").getByRole("button", { name: "Filter" }).click();
+
+	await expect(page.getByRole("searchbox", { name: "Filter", exact: true })).toBeFocused();
+});
+
+test("Folded, the line says what is applied, not what was typed and left", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar&filter=label:bug");
+	await expect(page.locator("progress")).toBeHidden();
+	await page.getByRole("searchbox", { name: "Filter", exact: true }).fill("label:wip");
+
+	await page.getByRole("button", { name: "Hide filters" }).click();
+
+	await expect(page.locator("#filters .applied")).toHaveText("Filter label:bug");
+});
+
+test("Folding from the keyboard closes an open menu unapplied, which would otherwise apply unseen on the next click", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+	await unfold(page);
+	await display(page).click();
+	await pattern(page).fill("src");
+
+	// A click outside would apply it, as it does with any menu, so the fold is reached by Tab
+	await page.getByRole("button", { name: "Hide filters" }).focus();
+	await page.keyboard.press("Enter");
+
+	expect(await page.locator("#display").evaluate(form => form.matches(":popover-open"))).toBe(
+		false,
+	);
 });
 
 test("Folded, the filters say what they apply, keyed as the Author button names its pick", async ({
@@ -40,6 +105,17 @@ test("Folded, the filters say what they apply, keyed as the Author button names 
 	await expect(page.locator("#filters .applied")).toHaveText(
 		"Filter label:bug Author qux Exclude test",
 	);
+});
+
+test("Folded, the repo’s collaborators read as “Authors Collaborators”, so the key agrees with them", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar&authors=@collaborators");
+	await expect(page.locator("progress")).toBeHidden();
+	await page.getByRole("button", { name: "Hide filters" }).click();
+
+	await expect(page.locator("#filters .applied")).toHaveText("Authors Collaborators");
 });
 
 test("Folded, several authors read as the Author button’s count, with no key to repeat it", async ({

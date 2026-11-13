@@ -38,7 +38,15 @@ import {
 	showNotice,
 	showProgress,
 } from "./status.js";
-import { countsAs, hideQueue, onScreen, queue, showQueue, showSkeleton } from "./screen.js";
+import {
+	countsAs,
+	hideQueue,
+	onScreen,
+	queue,
+	sameQueue,
+	showQueue,
+	showSkeleton,
+} from "./screen.js";
 
 let status = document.querySelector("#status");
 let progress = document.querySelector("progress");
@@ -51,8 +59,7 @@ export let loading;
 
 /**
  * Load the queue the URL asks for, and stop a load still in flight.
- * The rows on screen stay until the new ones arrive.
- * Rows of the same queue, e.g. on a refresh or a new filter, update in place.
+ * Rows of the same repo, user and role stay until the new ones arrive, e.g. on a refresh or a new filter, and those of the same counts update in place.
  */
 export async function load () {
 	loading?.abort();
@@ -85,10 +92,11 @@ export async function load () {
 	// By now a narrowed or restored queue is of this view too
 	showLoading({ comparing: onScreen(view) && Boolean(queue.seen) });
 
-	// Nothing on screen yet, e.g. on a first visit or after a failed load. A stored token signs in without a card,
-	// so bars stand in for the rows during the sign-in. Without one, they would flash before the sign-in card
+	// Bars stand in for rows that aren’t this queue’s, e.g. nothing yet on a first visit, or another repo’s, user’s or role’s PRs,
+	// which would sit under this view’s names. Rows under another filter stay until the search replaces them.
+	// A stored token signs in without a card, so bars show during the sign-in. Without one, they would flash before the sign-in card
 	// NOTE: An expired token still shows them before the card
-	if (!queue && github.isAuthenticated()) {
+	if (!sameQueue(view) && github.isAuthenticated()) {
 		showSkeleton(view);
 	}
 
