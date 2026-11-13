@@ -424,6 +424,7 @@ test.describe("Exclude from counts", () => {
 	test("Another pattern counts the files anew", async ({ page, github }) => {
 		detail(github, { A: files({ "src/a.js": 10, "test/a.test.js": 500 }) });
 		await page.goto("/?repo=foo/bar&exclude=test");
+		await unfold(page);
 		await expect(row(page, "A").locator(".diff a .added")).toHaveText("+10");
 
 		await page.getByRole("button", { name: /^Display/ }).click();
@@ -567,6 +568,7 @@ test.describe("Exclude from counts", () => {
 		github,
 	}) => {
 		await page.goto("/?repo=foo/bar&filter=label:bug&exclude=test");
+		await unfold(page);
 		await page.getByRole("button", { name: /^Display/ }).click();
 
 		await page.getByRole("button", { name: "Clear display settings" }).click();
@@ -583,6 +585,7 @@ test.describe("Exclude from counts", () => {
 		// NOTE: Playwright’s press() focuses the button by script, which Firefox doesn’t take as :focus-visible. A real Tab, then Enter, works
 		test.fail(browserName === "firefox");
 		await page.goto("/?repo=foo/bar&exclude=test");
+		await unfold(page);
 		await page.getByRole("button", { name: /^Display/ }).click();
 
 		await page.getByRole("button", { name: "Clear display settings" }).press("Enter");
@@ -592,6 +595,8 @@ test.describe("Exclude from counts", () => {
 
 	test("The filter’s ✕ leaves the focus in its emptied field", async ({ page, github }) => {
 		await page.goto("/?repo=foo/bar&filter=label:bug");
+		// From the keyboard, as Firefox shows no focus ring after a click, and ✕ then leaves the focus alone
+		await page.getByRole("button", { name: "Show filters" }).press("Enter");
 
 		await page.getByRole("button", { name: "Clear filter" }).press("Enter");
 
@@ -603,6 +608,7 @@ test.describe("Exclude from counts", () => {
 		github,
 	}) => {
 		await page.goto("/?repo=foo/bar&filter=label:bug");
+		await unfold(page);
 
 		await page.getByRole("button", { name: "Clear filter" }).click();
 		await expect(page).toHaveURL(/\?repo=foo%2Fbar$/);
@@ -649,6 +655,7 @@ test.describe("Exclude from counts", () => {
 
 	test("Applying a filter keeps the pattern", async ({ page, github }) => {
 		await page.goto("/?repo=foo/bar&exclude=test");
+		await unfold(page);
 		let field = page.getByRole("searchbox", { name: "Filter", exact: true });
 		await field.fill("label:bug");
 		await field.press("Enter");
@@ -658,6 +665,7 @@ test.describe("Exclude from counts", () => {
 
 	test("Applying a pattern keeps the filter", async ({ page, github }) => {
 		await page.goto("/?repo=foo/bar&filter=label:bug");
+		await unfold(page);
 		await expect(page.locator("progress")).toBeHidden();
 		await page.getByRole("button", { name: /^Display/ }).click();
 
@@ -672,6 +680,7 @@ test.describe("Exclude from counts", () => {
 		github,
 	}) => {
 		await page.goto("/?repo=foo/bar&exclude=test");
+		await unfold(page);
 		await page.getByRole("button", { name: /^Display/ }).click();
 		let field = page.getByRole("textbox", { name: "Exclude from counts" });
 		let valid = await field.evaluate(input => getComputedStyle(input).borderColor);

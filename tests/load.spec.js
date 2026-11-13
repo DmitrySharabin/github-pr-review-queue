@@ -1,4 +1,4 @@
-import { test, expect, commit, detail, label, row, unfold } from "./github.js";
+import { test, expect, commit, detail, fillStorage, label, row, unfold } from "./github.js";
 
 test("A failed search hides the bars that stood in for its rows, even of the view shown last", async ({
 	page,
@@ -708,6 +708,7 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 		github,
 	}) => {
 		await page.goto("/?repo=foo/bar&authors=qux");
+		await unfold(page);
 
 		await apply(page, "author:other-user author:app/foo label:bar");
 
@@ -808,19 +809,7 @@ test("A full storage drops the queue stored longest ago, and keeps the newer one
 		await expect(page.locator("progress")).toBeHidden();
 	}
 	// Other data fills the rest, so the next queue fits only once another goes
-	await page.evaluate(() => {
-		let [low, high] = [0, 2e7];
-		while (low < high) {
-			let size = Math.ceil((low + high) / 2);
-			try {
-				localStorage.setItem("filler", "x".repeat(size));
-				low = size;
-			}
-			catch {
-				high = size - 1;
-			}
-		}
-	});
+	await fillStorage(page);
 
 	await page.goto("/?repo=foo/qux");
 	await expect(page.locator("progress")).toBeHidden();

@@ -139,9 +139,26 @@ export function label (github, labels) {
 	};
 }
 
-/** Unfold the filter row, which opens folded on a view that applies nothing, e.g. `/?repo=foo/bar`. */
+/** Unfold the filter row, which opens folded on the first visit. */
 export async function unfold (page) {
 	await page.getByRole("button", { name: "Show filters" }).click();
+}
+
+/** Fill the storage with other data, so a write that needs more room throws, e.g. of a key not stored yet. */
+export async function fillStorage (page) {
+	await page.evaluate(() => {
+		let [low, high] = [0, 2e7];
+		while (low < high) {
+			let size = Math.ceil((low + high) / 2);
+			try {
+				localStorage.setItem("filler", "x".repeat(size));
+				low = size;
+			}
+			catch {
+				high = size - 1;
+			}
+		}
+	});
 }
 
 /** The row of a PR, e.g. of A, #65. */

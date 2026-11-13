@@ -117,6 +117,7 @@ test("Clear pressed from the keyboard leaves the focus in the listâ€™s search fi
 	test.fail(browserName === "firefox");
 	authored(github);
 	await page.goto("/?repo=foo/bar&authors=qux");
+	await unfold(page);
 	await expect(page.locator("progress")).toBeHidden();
 
 	await page.getByRole("button", { name: "Author: qux" }).click();
@@ -338,6 +339,7 @@ test("The button keeps its avatars when the list closes unchanged, so they donâ€
 }) => {
 	authored(github);
 	await page.goto("/?repo=foo/bar&authors=qux");
+	await unfold(page);
 	await expect(page.locator("progress")).toBeHidden();
 	let face = await page.locator("#author-button img").elementHandle();
 
@@ -361,6 +363,7 @@ test("The count says how many PRs of all the search found are by the picked auth
 test("The button names the one picked author", async ({ page, github }) => {
 	authored(github);
 	await page.goto("/?repo=foo/bar&authors=quux");
+	await unfold(page);
 
 	await expect(page.getByRole("button", { name: "Author: quux" })).toBeVisible();
 });
@@ -542,6 +545,7 @@ test("Picked authors with no PRs left, e.g. all merged, are named in the card, w
 test("A new filter keeps the picked authors", async ({ page, github }) => {
 	authored(github);
 	await page.goto("/?repo=foo/bar&authors=qux");
+	await unfold(page);
 	let field = page.getByRole("searchbox", { name: "Filter", exact: true });
 	await field.fill("label:baz");
 	await field.press("Enter");
@@ -561,6 +565,7 @@ test("The same filter applied again loads the queue again, as only other authors
 		answer(found);
 	};
 	await page.goto("/?repo=foo/bar&filter=label:baz");
+	await unfold(page);
 	await expect(page.locator("progress")).toBeHidden();
 
 	await page.getByRole("searchbox", { name: "Filter", exact: true }).press("Enter");
@@ -607,6 +612,7 @@ test("The form after a failed load keeps the picked authors", async ({ page, git
 test("Unchecking the only picked author shows every PR", async ({ page, github }) => {
 	authored(github);
 	await page.goto("/?repo=foo/bar&authors=qux");
+	await unfold(page);
 	await expect(page.locator("progress")).toBeHidden();
 
 	await page.getByRole("button", { name: "Author: qux" }).click();

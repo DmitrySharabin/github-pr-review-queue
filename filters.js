@@ -4,8 +4,10 @@ let applied = filters.querySelector(".applied");
 let controls = filters.querySelector(".controls");
 let fold = filters.querySelector(".fold");
 
-/** @type {boolean | undefined} Unknown until the first {@link showApplied}, which reads the first view */
-let folded;
+const foldKey = "review-queue:filters-folded";
+/** Folded on the first visit, then as the user left them */
+let folded = localStorage.getItem(foldKey) !== "false";
+setFolded(folded);
 
 // A value unfolds the controls with the focus on its own, e.g. on Author for “Author foo”. A tap beside the values opens the filter.
 // Bars disable Author until the search ends, and a disabled button takes no focus
@@ -22,7 +24,6 @@ fold.addEventListener("click", () => setFolded(!folded));
 
 /**
  * Say on the folded line what the controls apply, e.g. “Filter label:foo Author bar Exclude test”, or just “Filter”.
- * The first call folds the controls when they apply nothing, and unfolds them when something does, to change it
  * @param {{ filter?: string | null, author?: Picked, exclude?: string | null }} values - Only those whose control shows, e.g. no `exclude` in the author view
  */
 export function showApplied ({ filter, author, exclude }) {
@@ -33,23 +34,29 @@ export function showApplied ({ filter, author, exclude }) {
 		exclude && value("display-button", "Exclude", code(exclude)),
 	].filter(Boolean);
 
-	folded ??= values.length === 0;
 	// Nothing applied is the filter with nothing in it.
 	// Spaces between, so a screen reader reads “label:foo Author bar”, not “label:fooAuthor bar”
 	applied.replaceChildren(
 		...(values.length > 0 ? values : [value("filter", "Filter")]).flatMap((button, i) =>
 			i > 0 ? [" ", button] : [button]),
 	);
-	setFolded(folded);
 }
 
-/** Show the folded line or the controls, and name what the fold button does next. */
+/** Show the folded line or the controls, name what the fold button does next, and remember it for the next visit. */
 function setFolded (value) {
 	folded = value;
 	applied.hidden = !folded;
 	controls.hidden = folded;
 	fold.ariaExpanded = `${!folded}`;
 	fold.ariaLabel = fold.title = folded ? "Show filters" : "Hide filters";
+
+	try {
+		localStorage.setItem(foldKey, folded);
+	}
+	catch (error) {
+		// A full storage, e.g. of stored queues, loses only the fold on the next visit
+		console.warn("Couldn’t store the fold.", error);
+	}
 }
 
 /** An applied value, e.g. “Filter label:foo”, which unfolds to the control with this id. */
