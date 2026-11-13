@@ -173,10 +173,7 @@ test("An empty queue hides Display, as there is nothing to count", async ({ page
 test("The field focused after its ✕ stays, though the queue without the filter is empty too", async ({
 	page,
 	github,
-	browserName,
 }) => {
-	// NOTE: Firefox leaves the focus outside the field. Not yet known whether a user sees it or only Playwright’s press()
-	test.fail(browserName === "firefox");
 	github.search = answer => {
 		answer.data.search.nodes = [];
 	};
