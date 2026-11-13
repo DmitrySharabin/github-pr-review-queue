@@ -22,7 +22,7 @@ test("The filter says which search terms it takes, under the field, from the fir
 	await expect(page.getByRole("link", { name: "GitHub search terms" })).toBeVisible();
 });
 
-test("A long login shrinks the Author button, not the filter field, which keeps its note on one line", async ({
+test("A long login shrinks the Author button, rather than push Display onto a line of its own", async ({
 	page,
 	github,
 }) => {
@@ -31,17 +31,30 @@ test("A long login shrinks the Author button, not the filter field, which keeps 
 			pr.author = { login: "a-very-long-login-name-that-goes-on-and-on", avatarUrl: "" };
 		}
 	};
-	await page.setViewportSize({ width: 700, height: 600 });
+	await page.setViewportSize({ width: 375, height: 812 });
 	await page.goto(
 		"/?repo=foo/bar&authors=a-very-long-login-name-that-goes-on-and-on&exclude=test",
 	);
 	await expect(page.locator("progress")).toBeHidden();
 
-	let [field, note] = await Promise.all(
-		["#filter", "#filter-note"].map(selector => page.locator(selector).boundingBox()),
+	let [author, display] = await Promise.all(
+		["#author-button", "#display-button"].map(selector => page.locator(selector).boundingBox()),
 	);
-	expect(note.height).toBeLessThan(25);
-	expect(field.width).toBeGreaterThanOrEqual(note.width);
+	expect(display.y).toBe(author.y);
+});
+
+test("The filter’s note wraps rather than cut the label of the Author menu beside it", async ({
+	page,
+	github,
+}) => {
+	await page.setViewportSize({ width: 620, height: 600 });
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+
+	let cut = await page
+		.locator("#author-button .text")
+		.evaluate(text => text.scrollWidth > text.clientWidth);
+	expect(cut).toBe(false);
 });
 
 test("A queue a filter emptied keeps the filter, to change or clear it", async ({

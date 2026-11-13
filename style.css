@@ -972,10 +972,10 @@ hgroup {
 		margin-inline-end: 0.5rem;
 	}
 
-	/* On one line, so the field is never narrower than its note, e.g. beside a long login, which shrinks instead */
+	/* Balanced, so a wrap splits it at the comma rather than leave `in:title` alone on the second line */
 	small {
 		margin-inline-start: calc(var(--inset) + 1px);
-		white-space: nowrap;
+		text-wrap: balance;
 	}
 
 	/* Its line as quiet as the field’s edge until pointed at, so the note doesn’t outshine the field */
@@ -989,13 +989,9 @@ hgroup {
 		}
 	}
 
-	/* A phone’s first row, with the menus under it. Its note wraps */
+	/* A phone’s first row, with the menus under it */
 	@container (width < 36rem) {
 		flex-basis: 100%;
-
-		small {
-			white-space: normal;
-		}
 	}
 }
 
