@@ -32,15 +32,23 @@ import { fill, mark, relink, summaries, unmark } from "./row.js";
 import { chooseSort, showSort, sort } from "./sort.js";
 import { showTime } from "./time.js";
 import { offerRecent } from "./recent.js";
-import { plural } from "./plural.js";
 import { collaborators, matches, showAuthors } from "./authors.js";
 import { applyOnClose, dismissMenus } from "./menu.js";
 import { href, normalizeParams, paramNames, viewKey, viewOf } from "./view.js";
+import {
+	hideFailure,
+	showDelta,
+	showFailure,
+	showLoaded,
+	showLoading,
+	showNotice,
+	showProgress,
+	showUpdated,
+} from "./status.js";
 
 let table = document.querySelector("#queue");
 let status = document.querySelector("#status");
 let progress = document.querySelector("progress");
-let counter = document.querySelector("#counter");
 let signIn = document.querySelector("#sign-in");
 let refresh = document.querySelector("#refresh");
 let signOut = document.querySelector("#sign-out");
@@ -51,11 +59,6 @@ let repoForm = document.querySelector("#repo-form");
 let filters = document.querySelector("#filters");
 let empty = document.querySelector("#empty");
 let strip = document.querySelector("#summary");
-let header = document.querySelector("header");
-let failure = document.querySelector("#failure");
-let updated = document.querySelector("#updated time");
-let changes = document.querySelector("#updated .changes");
-let delta = strip.querySelector(".delta");
 let filterForm = document.querySelector("#narrow");
 let authorButton = document.querySelector("#author-button");
 let authorForm = document.querySelector("#authors");
@@ -94,14 +97,6 @@ for (let type of ["click", "auxclick"]) {
 		if (tr && event.button < 2) {
 			unmark(tr);
 		}
-	});
-}
-
-// A toggle, not a one-way reveal, so the focus stays on it
-for (let button of document.querySelectorAll(":is(.notice, #failure) > button")) {
-	button.addEventListener("click", () => {
-		let expanded = button.parentElement.classList.toggle("expanded");
-		button.textContent = expanded ? "Show less" : "Show all";
 	});
 }
 
@@ -408,24 +403,11 @@ async function load () {
 	// A retry keeps the last failure in place until it ends, so the queue under it doesn’t move. Another view’s rows didn’t fail
 	if (!refreshing) {
 		showDelta();
-		header.classList.remove("failed");
+		hideFailure();
 	}
-	// A screen reader hears that a refresh started and how it ended, e.g. “Updated at 5:44 PM, No changes”, even within one minute.
 	// A load of another view, e.g. a new filter, finds PRs that aren’t new, so it compares with nothing.
 	// By now a narrowed or restored queue is of this view too
-	if (onScreen(view) && queue.seen) {
-		changes.textContent = "Refreshing…";
-	}
-	// aria-disabled, unlike disabled, keeps focus on the button while it waits
-	refresh.ariaDisabled = "true";
-	delta.classList.add("stale");
-	failure.classList.add("stale");
-	status.textContent = "Loading pull requests…";
-	// Indeterminate until the search tells how many PRs need details
-	progress.removeAttribute("value");
-	progress.ariaValueText = null;
-	counter.hidden = true;
-	progress.hidden = false;
+	showLoading(onScreen(view) && Boolean(queue.seen));
 
 	// Nothing on screen yet, e.g. on a first visit or after a failed load. A stored token signs in without a card,
 	// so bars stand in for the rows during the sign-in. Without one, they would flash before the sign-in card
@@ -512,7 +494,7 @@ async function load () {
 			showFailure(describe(failed.reason));
 		}
 		else {
-			header.classList.remove("failed");
+			hideFailure();
 			store(queue);
 		}
 	}
@@ -535,7 +517,7 @@ async function load () {
 			showFailure(describe(error));
 		}
 		else {
-			header.classList.remove("failed");
+			hideFailure();
 			showNotice(
 				repoForm,
 				`Couldn’t load the pull requests in ${repo}`,
@@ -545,11 +527,7 @@ async function load () {
 	}
 
 	loading = undefined;
-	progress.hidden = true;
-	counter.hidden = true;
-	refresh.ariaDisabled = null;
-	delta.classList.remove("stale");
-	failure.classList.remove("stale");
+	showLoaded();
 }
 
 /**
@@ -730,18 +708,6 @@ function showRole (role) {
 	showSort(role);
 }
 
-/** Count the PRs whose details arrived, on the progress bar and next to the buttons, e.g. “3 of 7 pull requests rechecked” on a refresh. */
-function showProgress (task, done, total) {
-	progress.max = total;
-	progress.value = done;
-	progress.ariaValueText = `${done} of ${total}`;
-
-	let count = document.createElement("b");
-	count.textContent = done;
-	counter.replaceChildren(count, ` of ${total} ${plural("pull request", total)} ${task}`);
-	counter.hidden = false;
-}
-
 /** Say why the queue is empty, e.g. “Nothing to review”, in the card and in the status, which a screen reader hears. */
 function showEmpty () {
 	let {
@@ -781,29 +747,6 @@ function showEmpty () {
 	clear.href = href({ authors: null });
 	clear.hidden = !picked;
 	status.textContent = text;
-}
-
-/**
- * Say when the queue on screen was updated, or nothing without a time.
- * @param {number} [at] - In epoch ms
- */
-function showUpdated (at) {
-	if (!at) {
-		updated.dateTime = "";
-		updated.textContent = "";
-		return;
-	}
-
-	let date = new Date(at);
-	updated.dateTime = date.toISOString();
-	// A stored queue may be days old, e.g. “Nov 1, 6:05 PM”
-	let today = date.toDateString() === new Date().toDateString();
-	updated.textContent = date.toLocaleString(
-		"en",
-		today
-			? { timeStyle: "short" }
-			: { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" },
-	);
 }
 
 /**
@@ -894,30 +837,6 @@ function showCounts () {
 	}
 }
 
-/**
- * Show next to the count how many PRs the last load added and how many are gone, e.g. “+3” over “−2”.
- * Say it after the update time too.
- * Both or neither, so each keeps its place, e.g. “+3” over a gray “−0”. Without a delta, it clears both.
- * @param {{ added: number, left: number }} [delta]
- */
-function showDelta (delta) {
-	let { added = 0, left = 0 } = delta ?? {};
-	let changed = added + left > 0;
-	for (let [name, text, count] of [
-		["up", "+", added],
-		["down", "−", left],
-	]) {
-		let line = strip.querySelector(`.delta .${name}`);
-		line.textContent = changed ? text + count : "";
-		line.classList.toggle("zero", count === 0);
-	}
-
-	changes.textContent = delta
-		? [added && `${added} new`, left && `${left} gone`].filter(Boolean).join(", ") ||
-			"No changes"
-		: "";
-}
-
 async function login (repo, signal) {
 	if (await signedIn(signal)) {
 		return;
@@ -929,7 +848,7 @@ async function login (repo, signal) {
 	forget();
 	hideQueue();
 	showDelta();
-	header.classList.remove("failed");
+	hideFailure();
 	status.hidden = false;
 	status.textContent = `Sign in to see the pull requests in ${repo}.`;
 	signIn.querySelector(".repo").textContent = repo;
@@ -940,48 +859,4 @@ async function login (repo, signal) {
 	signIn.hidden = true;
 	progress.hidden = false;
 	status.textContent = "Loading pull requests…";
-}
-
-/**
- * Show a card that says what went wrong, e.g. the form after a failed load, with a bold line and then the reason.
- * Focus moves to it, so a screen reader reads it even when the card was hidden until now.
- * Focus then doesn’t drop to the page either, e.g. from Refresh, which hides.
- */
-function showNotice (card, title, reason) {
-	let notice = card.querySelector(".notice");
-	notice.querySelector("strong").textContent = title;
-	notice.hidden = false;
-	card.hidden = false;
-	showReason(notice, reason);
-	notice.focus();
-	// The card says it instead, and the status, hidden while a card shows, says nothing stale, e.g. “Loading”
-	status.textContent = "";
-}
-
-/**
- * Say next to Refresh that a load failed and why, e.g. “Couldn’t refresh · Last updated at 4:09 PM” over “You’re offline. …”.
- * The rows stay as the last finished load left them, and focus stays where it was, e.g. on Refresh to try again.
- * A screen reader hears the reason after the update time, e.g. “Couldn’t refresh, Last updated at 4:09 PM, You’re offline. …”
- */
-function showFailure (reason) {
-	header.classList.add("failed");
-	showReason(failure, reason);
-	// After what the search found, e.g. “1 new”, when the details of some PRs failed
-	changes.textContent = [changes.textContent, reason].filter(Boolean).join(". ");
-	// The header says it instead. The form of an earlier failure has nothing left to fix, and the status says nothing stale, e.g. “Loading”
-	repoForm.hidden = true;
-	status.textContent = "";
-}
-
-/**
- * Put why a load failed in an element on screen, e.g. a notice. A long reason, e.g. GitHub’s whole answer with a link in it,
- * shows its first lines and a button for the rest, so the page keeps its layout. Measured clamped: a reason that fits needs no button.
- */
-function showReason (element, reason) {
-	let text = element.querySelector("span");
-	text.textContent = reason;
-	let all = element.querySelector("button");
-	element.classList.remove("expanded");
-	all.textContent = "Show all";
-	all.hidden = text.scrollHeight <= text.clientHeight;
 }
