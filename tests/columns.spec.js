@@ -636,6 +636,7 @@ test.describe("Exclude from counts", () => {
 
 	test("Applying a pattern keeps the filter", async ({ page, github }) => {
 		await page.goto("/?repo=foo/bar&filter=label:bug");
+		await expect(page.locator("progress")).toBeHidden();
 		await page.getByRole("button", { name: /^Display/ }).click();
 
 		await page.getByRole("textbox", { name: "Exclude from counts" }).fill("test");
