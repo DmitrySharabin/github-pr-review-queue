@@ -330,8 +330,8 @@ function showView ({ onlyAuthors } = {}) {
 
 	if (params.get("repo")) {
 		// Other authors of the view on screen show the same rows, so nothing loads, e.g. not the details of every PR.
-		// The last URL’s view may have failed instead, e.g. before a step back to other authors.
-		// Its load may still run then, and it shows the authors the URL names once its search ends
+		// Nothing of this view may be on screen, e.g. after a failed load and a step back to other authors.
+		// A load of this view that still runs then shows the picked authors once its search ends, so no second search starts
 		let view = viewOf(params);
 		if (onlyAuthors && onScreen(view)) {
 			return showQueue();
@@ -475,6 +475,7 @@ async function load () {
 		// Bars stand in for the rows of the last user, and a failed search hides them
 		if (onScreen(view) && queue.user !== user) {
 			queue = undefined;
+			showUpdated();
 			showDelta();
 		}
 
