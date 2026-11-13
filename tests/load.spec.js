@@ -651,6 +651,43 @@ test("A queue stored for another user marks nothing new for the one signed in no
 	await expect(page.locator("#queue tbody mark:not([hidden])")).toHaveCount(0);
 });
 
+test("A full storage drops the queue stored longest ago, and keeps the newer ones", async ({
+	page,
+	github,
+}) => {
+	for (let repo of ["foo/bar", "foo/baz"]) {
+		await page.goto(`/?repo=${repo}`);
+		await expect(page.locator("progress")).toBeHidden();
+	}
+	// The older queue grows, and other data fills the rest, so the next queue fits only once the older one goes
+	await page.evaluate(() => {
+		let key = Object.keys(localStorage).find(key => key.includes("repo=foo%2Fbar"));
+		localStorage.setItem(
+			key,
+			localStorage.getItem(key).replace(/}$/, `,"pad":"${"x".repeat(1e6)}"}`),
+		);
+		let [low, high] = [0, 2e7];
+		while (low < high) {
+			let size = Math.ceil((low + high) / 2);
+			try {
+				localStorage.setItem("filler", "x".repeat(size));
+				low = size;
+			}
+			catch {
+				high = size - 1;
+			}
+		}
+		localStorage.setItem("filler", "x".repeat(low));
+	});
+
+	await page.goto("/?repo=foo/qux");
+	await expect(page.locator("progress")).toBeHidden();
+	await page.goto("/");
+	await page.getByRole("combobox", { name: "Repository" }).press("ArrowDown");
+
+	await expect(page.getByRole("option")).toHaveText(["foo/qux", "foo/baz"]);
+});
+
 test("A queue stored by another version, e.g. with a step this one doesn’t know, loads anew", async ({
 	page,
 	github,
