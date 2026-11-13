@@ -437,3 +437,40 @@ test("A label links to the queue with it in place of the filter’s other labels
 		`?${new URLSearchParams({ repo: "foo/bar", filter: '-label:wip label:"bug"' })}`,
 	);
 });
+
+test.describe("A failed refresh says why", () => {
+	test.beforeEach(async ({ page, github }) => {
+		await page.goto("/?repo=foo/bar");
+		await expect(page.locator("progress")).toBeHidden();
+	});
+
+	test("A rate limit says to wait", async ({ page }) => {
+		await page.route("https://api.github.com/graphql", route =>
+			route.fulfill({
+				status: 403,
+				json: { message: "API rate limit exceeded for user ID 1" },
+			}));
+		await page.getByRole("button", { name: "Refresh" }).click();
+
+		await expect(page.locator("#failure")).toContainText(
+			"GitHub is getting too many requests from this page. Wait a few minutes, then try again.",
+		);
+	});
+
+	test("A lost connection says the user is offline", async ({ page, context }) => {
+		// The faked GitHub still answers offline, so its request fails as a dropped connection does
+		await page.route("https://api.github.com/graphql", route =>
+			route.abort("internetdisconnected"));
+		await context.setOffline(true);
+		await page.getByRole("button", { name: "Refresh" }).click();
+
+		await expect(page.locator("#failure")).toContainText("You’re offline.");
+	});
+
+	test("A token GitHub no longer accepts says to sign in again", async ({ page, github }) => {
+		github.search = () => 401;
+		await page.getByRole("button", { name: "Refresh" }).click();
+
+		await expect(page.locator("#failure")).toContainText("Your GitHub session has expired.");
+	});
+});
