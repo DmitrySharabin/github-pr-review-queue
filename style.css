@@ -43,6 +43,9 @@ body {
 		0.875rem / 1.45 "Geist",
 		system-ui,
 		sans-serif;
+	/* A phone turned on its side enlarges some text and not the rest, e.g. the filter’s note but not its field */
+	-webkit-text-size-adjust: 100%;
+	text-size-adjust: 100%;
 }
 
 main,
