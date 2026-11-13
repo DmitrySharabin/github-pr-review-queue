@@ -449,9 +449,6 @@ async function load () {
 			showDelta();
 		}
 
-		// Unless values on screen are being checked, e.g. on a refresh
-		let task = "loaded";
-
 		// Rows of another queue, e.g. before a role switch, stay on screen until the search replaces them, but don’t update
 		let kept = countsAs(view) ? queue.rows : [];
 
@@ -478,7 +475,6 @@ async function load () {
 				stale.push(row);
 				if (row.detailed) {
 					row.tr.classList.add("stale");
-					task = "rechecked";
 				}
 			}
 			return row;
@@ -486,11 +482,8 @@ async function load () {
 		// What the last finished load showed, and when, holds only for its own view, e.g. not after a role switch
 		let { at, seen } = onScreen(view) ? queue : {};
 		showQueue({ view, user, rows, at, seen });
-		if (stale.length > 0) {
-			showProgress(task, 0, stale.length);
-		}
 
-		let failed = await fillDetails(stale, task, queue, signal);
+		let failed = await fillDetails(stale, queue, signal);
 		signal.throwIfAborted();
 		sort(rows, { animate: true, shows });
 		showCounts();
@@ -563,12 +556,17 @@ async function load () {
  * Fill in the slow fields of these rows, a few PRs per query, and count them on the progress bar.
  * A failed query leaves its rows as they were, and the others fill in still.
  * @param {Row[]} stale
- * @param {string} task - What the progress bar counts, e.g. “rechecked” on a refresh
  * @param {Queue} queue - The load’s
  * @param {AbortSignal} signal - The load’s
  * @returns {Promise<PromiseRejectedResult | undefined>} The first failure, if any
  */
-async function fillDetails (stale, task, { view: { repo, role, exclude }, user }, signal) {
+async function fillDetails (stale, { view: { repo, role, exclude }, user }, signal) {
+	// Rows with details on screen already are rechecked, e.g. on a refresh
+	let task = stale.some(row => row.detailed) ? "rechecked" : "loaded";
+	if (stale.length > 0) {
+		showProgress(task, 0, stale.length);
+	}
+
 	// An author’s view counts no lines.
 	// NOTE: A pattern that isn’t a regular expression, e.g. typed into the URL, ignores nothing.
 	// One that backtracks a lot, e.g. `(.+)+x$`, freezes the tab, as it runs on every path
