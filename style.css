@@ -905,6 +905,9 @@ hgroup {
 /* Which PRs show and how they count, on one line over the table. The filter takes the room the menus leave.
    The menus line up with the field, and its note runs under it alone */
 #filters {
+	/* As short as GitHub’s own filter, so the row sits back. A phone keeps the height a thumb needs */
+	--height: 2rem;
+
 	display: flex;
 	gap: 0.5rem;
 	align-items: start;
@@ -916,6 +919,8 @@ hgroup {
 
 	/* A phone’s field gets a row of its own */
 	@container (width < 36rem) {
+		--height: var(--control-size);
+
 		flex-wrap: wrap;
 	}
 }
@@ -933,9 +938,32 @@ hgroup {
 		}
 	}
 
+	/* Quiet on the ground until used, so it doesn’t compete with the queue. A value hides rows, so it shows as a field again.
+	   Its text, and the note under it, start where the text of the cards above and below does */
 	input {
 		min-inline-size: 0;
-		padding-inline-end: var(--control-size);
+		min-block-size: var(--height);
+		padding-inline: var(--inset) var(--control-size);
+		border-color: var(--border);
+		background: transparent;
+
+		&:is(:focus, :not(:placeholder-shown)) {
+			border-color: var(--control-border);
+			background: var(--surface);
+		}
+
+		/* Not on touch, where a tap leaves the hover on */
+		@media (hover: hover) {
+			&:hover {
+				border-color: var(--control-border);
+				background: var(--surface);
+			}
+		}
+
+		/* The note’s color, so the example and the note under it read as one hint */
+		&::placeholder {
+			color: var(--muted);
+		}
 	}
 
 	.cancel {
@@ -945,14 +973,18 @@ hgroup {
 
 	/* On one line, so the field is never narrower than its note, e.g. beside a long login, which shrinks instead */
 	small {
+		margin-inline-start: calc(var(--inset) + 1px);
 		white-space: nowrap;
 	}
 
+	/* Its line as quiet as the field’s edge until pointed at, so the note doesn’t outshine the field */
 	a {
 		color: inherit;
+		text-decoration-color: var(--control-border);
 
 		&:hover {
 			color: var(--text);
+			text-decoration-color: currentColor;
 		}
 	}
 
@@ -977,15 +1009,25 @@ hgroup {
 	gap: 0.4em;
 	align-items: center;
 	max-inline-size: 16rem;
-	min-block-size: var(--control-size);
+	min-block-size: var(--height);
 	padding-inline: 0.75em;
-	border: 1px solid var(--control-border);
+	border: 1px solid var(--border);
 	border-radius: var(--control-radius);
-	background: var(--surface);
-	font-weight: 500;
+	color: var(--muted);
 
-	&:enabled:hover {
-		background: var(--rule);
+	/* A field again, as the filter is: while set, and on hover where a tap doesn’t leave the hover on, which would read as set */
+	&.set {
+		border-color: var(--control-border);
+		background: var(--surface);
+		color: var(--text);
+	}
+
+	@media (hover: hover) {
+		&:enabled:hover {
+			border-color: var(--control-border);
+			background: var(--surface);
+			color: var(--text);
+		}
 	}
 
 	&[hidden] {

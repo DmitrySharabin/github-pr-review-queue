@@ -96,6 +96,7 @@ export function showAuthors (rows, authors) {
 					? picked[0].author
 					: `${picked.length} ${plural("author", picked.length)}`;
 	button.ariaLabel = authors.length === 0 ? null : `Author: ${text.textContent}`;
+	button.classList.toggle("set", authors.length > 0);
 	// The same faces stay, so they don’t flash while new images load, e.g. each time the list closes
 	let faces = button.querySelector(".faces").cloneNode();
 	faces.append(...picked.slice(0, limit).map(avatar));

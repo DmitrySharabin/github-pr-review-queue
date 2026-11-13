@@ -82,6 +82,18 @@ test("Display says how many of its settings differ from their defaults", async (
 	await expect(page.locator("#display-button .badge")).toBeVisible();
 });
 
+test("A menu that hides rows looks set, so the row says which control hides them", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar&authors=qux");
+	await expect(page.locator("progress")).toBeHidden();
+
+	let fill = button =>
+		page.locator(button).evaluate(element => getComputedStyle(element).backgroundColor);
+	expect(await fill("#author-button")).not.toBe(await fill("#display-button"));
+});
+
 test("Display with every setting at its default shows no count, nor names one", async ({
 	page,
 	github,

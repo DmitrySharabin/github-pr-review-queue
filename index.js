@@ -327,6 +327,7 @@ function showView ({ onlyAuthors } = {}) {
 	// Closed, the menu says that a setting in it differs from its default
 	displayButton.querySelector(".badge").hidden = !exclude;
 	displayButton.ariaLabel = exclude ? "Display, 1 setting changed" : null;
+	displayButton.classList.toggle("set", Boolean(exclude));
 
 	if (params.get("repo")) {
 		// Other authors of the view on screen show the same rows, so nothing loads, e.g. not the details of every PR.
