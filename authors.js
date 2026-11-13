@@ -34,7 +34,7 @@ let all = form.querySelector(".all input");
 let insiders = form.querySelector(".collaborators");
 let others = form.querySelector(".others");
 let none = form.querySelector(".none");
-let said = form.querySelector("output");
+let said = form.querySelector(".spoken");
 let template = document.querySelector("#author");
 
 /** @type {Map<string, Person>} By lowercase login */
@@ -212,9 +212,9 @@ function narrow () {
 	let first = listed()[0];
 	rove(first);
 	// What Enter in the field checks, marked as GitHub’s pickers mark it
-	form.querySelector(".next")?.classList.remove("next");
+	form.querySelector(".first")?.classList.remove("first");
 	if (typed) {
-		first?.closest("label").classList.add("next");
+		first?.closest("label").classList.add("first");
 	}
 }
 
@@ -225,6 +225,7 @@ function update () {
 	// With no collaborators to check, it shows the pick itself, e.g. `@collaborators` kept after theirs were merged
 	all.checked = inside.length > 0 ? on === inside.length : everyone;
 	all.indeterminate = on > 0 && on < inside.length;
+	// NOTE: Disabled while it holds the list’s Tab stop, e.g. by Space on it with no collaborators in the queue, it leaves the list with none. ↓ from the search field still reaches every author
 	all.disabled = inside.length === 0 && !everyone;
 
 	let picked = boxes().filter(box => box.checked);
@@ -253,7 +254,7 @@ search.addEventListener("input", narrow);
 
 // Enter with something typed checks or unchecks the first author that matches, as in GitHub’s pickers
 search.addEventListener("keydown", event => {
-	let first = event.key === "Enter" && search.value.trim() && listed()[0];
+	let first = event.key === "Enter" && form.querySelector(".first input");
 	if (first) {
 		event.preventDefault();
 		first.click();
@@ -325,6 +326,7 @@ applyOnClose(form, {
 	changed,
 	open () {
 		search.value = "";
+		said.textContent = "";
 		narrow();
 	},
 	discard: () => showAuthors(latest.rows, latest.authors),

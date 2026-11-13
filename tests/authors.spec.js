@@ -491,7 +491,7 @@ test("Enter in the list’s search field says which author it checked, as the fo
 	await field.fill("qu");
 	await field.press("Enter");
 
-	await expect(page.locator("#authors output")).toHaveText("qux checked");
+	await expect(page.locator("#authors .spoken")).toHaveText("qux checked");
 });
 
 test("While something is typed, the author that Enter checks is marked", async ({
@@ -506,7 +506,10 @@ test("While something is typed, the author that Enter checks is marked", async (
 	await openList(page);
 	await page.getByRole("searchbox", { name: "Filter authors" }).fill("qu");
 
-	await expect(page.locator("#authors label.next")).toHaveText(/qux/);
+	await expect(page.locator("#authors label", { hasText: "qux" })).toHaveCSS(
+		"outline-style",
+		"solid",
+	);
 });
 
 test("Typing in the list marks the typed part of each login, in any case", async ({

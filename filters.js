@@ -17,7 +17,7 @@ applied.addEventListener("click", event => {
 	(control.disabled ? fold : control).focus();
 });
 
-// No menu is open by then: a click on the fold button is a click outside it, and Tab to the button is focus out of it, which both apply it
+// No menu is open by then: a click on the fold button is a click outside it, and keyboard focus on the button is focus out of it, which both apply it
 fold.addEventListener("click", () => setFolded(!folded));
 
 /**

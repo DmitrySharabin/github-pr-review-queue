@@ -150,7 +150,7 @@ test("Folded, the line says what is applied, not what was typed and left", async
 	await expect(page.locator("#filters .applied")).toHaveText("Filter label:bug");
 });
 
-test("Tab from an open menu to the fold button applies the menu, so folding leaves no menu open unseen", async ({
+test("Tab out of an open menu applies it, as a click outside does", async ({
 	page,
 	github,
 	browserName,
@@ -165,7 +165,6 @@ test("Tab from an open menu to the fold button applies the menu, so folding leav
 	await page.getByRole("button", { name: "Apply" }).focus();
 	await page.keyboard.press("Tab");
 	await expect(page.getByRole("button", { name: "Hide filters" })).toBeFocused();
-	await page.keyboard.press("Enter");
 
 	await expect(page).toHaveURL(/exclude=src/);
 });
