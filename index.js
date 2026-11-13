@@ -75,11 +75,17 @@ let forms = [repoForm, filterForm, authorForm, displayForm, ...strip.querySelect
 let queue;
 /** Whose PRs show, e.g. `["@collaborators", "foo"]`, see {@link matches}. An author’s PRs are all theirs */
 let authors = [];
-/** @type {AbortController | undefined} Aborts the load in flight */
+/** @type {AbortController | undefined} Aborts the load in flight, if any */
 let loading;
 
-table.addEventListener("command", event =>
-	sortBy(queue?.rows ?? [], event.source.value, { shows }));
+// No transition. Its capture holds the new order back up to 300 ms on 100 rows, and when every row moves, no one follows one.
+// Bars wait for the search, which sorts what it finds
+table.addEventListener("command", event => {
+	sortBy(event.source.value);
+	if (queue) {
+		sort(queue.rows, { shows });
+	}
+});
 
 // Opening a link in a marked row, e.g. its PR, is seeing what changed in it. A middle click opens a link too. A right click opens a menu instead
 for (let type of ["click", "auxclick"]) {
@@ -232,7 +238,7 @@ applyOnClose(displayForm, {
 });
 
 refresh.addEventListener("click", () => {
-	if (refresh.ariaDisabled !== "true") {
+	if (!loading) {
 		load();
 	}
 });
@@ -456,7 +462,7 @@ async function load () {
 	// Nothing on screen yet, e.g. on a first visit or after a failed load. A stored token signs in without a card,
 	// so bars stand in for the rows during the sign-in. Without one, they would flash before the sign-in card
 	// NOTE: An expired token still shows them before the card
-	if (strip.hidden && github.isAuthenticated()) {
+	if (!queue && github.isAuthenticated()) {
 		showSkeleton(view, view.user);
 	}
 
@@ -470,13 +476,13 @@ async function load () {
 		// A queue stored without a `user` parameter is that of whoever was signed in then
 		if (stored && stored.user !== user) {
 			stored = undefined;
-			// The rows on screen then show no view, so a failed search hides them
+			// Bars stand in for the rows of the last user, and a failed search hides them
 			queue = undefined;
 			showDelta();
 		}
 
 		// Nothing on screen yet, e.g. after the sign-in card, or bars that wait for the user’s name
-		if (strip.hidden || table.tBodies[0].querySelector(".skeleton")) {
+		if (!queue) {
 			showSkeleton(view, user);
 		}
 
@@ -596,6 +602,7 @@ async function load () {
 		}
 	}
 
+	loading = undefined;
 	progress.hidden = true;
 	counter.hidden = true;
 	refresh.ariaDisabled = null;

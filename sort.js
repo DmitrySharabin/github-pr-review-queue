@@ -46,22 +46,15 @@ export function showSort (role) {
 }
 
 /**
- * Sort the rows by a column, or reverse them when they are sorted by it already, and save the choice for the next visit.
- * @param {Row[]} rows
+ * Sort by a column, or reverse the sort when it is by that column already, and save the choice for the next visit. {@link sort} then sorts the rows.
  * @param {string} column - A key of {@link sortKeys}, e.g. `diff`
- * @param {{ shows?: (row: Row) => boolean }} [options] - See {@link sort}
  */
-export function sortBy (rows, column, { shows } = {}) {
+export function sortBy (column) {
 	let th = table.tHead.querySelector(`[value="${column}"]`).closest("th");
 	let sorted = { column, direction: th.ariaSort === "descending" ? "ascending" : "descending" };
 	markSort(sorted);
 	shown.sort = sorted;
 	localStorage.setItem(shown.key, JSON.stringify(sorted));
-	// No transition. Its capture holds the new order back up to 300 ms on 100 rows, and when every row moves, no one follows one.
-	// Bars wait for the search, which sorts what it finds. Sorting now would put the rows of the last queue, or none, in their place
-	if (!table.tBodies[0].querySelector(".skeleton")) {
-		sort(rows, { shows });
-	}
 }
 
 /** Mark the column the table sorts by. */
