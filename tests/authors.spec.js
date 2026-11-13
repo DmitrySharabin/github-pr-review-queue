@@ -160,6 +160,7 @@ test("Esc that only clears the search field leaves the picks to show on a click 
 
 	await page.getByRole("button", { name: "Author" }).click();
 	let field = page.getByRole("searchbox", { name: "Filter authors" });
+	await expect(field).toBeFocused();
 	await field.fill("quux");
 	await pick(page, "quux").check();
 	await field.press("Escape");
@@ -332,9 +333,70 @@ test("Typing in the list narrows it to the logins that have what is typed", asyn
 	await expect(page.locator("progress")).toBeHidden();
 
 	await page.getByRole("button", { name: "Author" }).click();
+	await expect(page.getByRole("searchbox", { name: "Filter authors" })).toBeFocused();
 	await page.getByRole("searchbox", { name: "Filter authors" }).fill("qu");
 
 	await expect(page.locator("#authors fieldset label:visible")).toHaveText([/qux/, /quux/]);
+});
+
+test("Enter after typing in the list checks the first author that matches, and keeps the list open for more", async ({
+	page,
+	github,
+}) => {
+	authored(github);
+	await page.goto("/?repo=foo/bar");
+	await unfold(page);
+	await expect(page.locator("progress")).toBeHidden();
+
+	await page.getByRole("button", { name: "Author" }).click();
+	let field = page.getByRole("searchbox", { name: "Filter authors" });
+	await expect(field).toBeFocused();
+	await field.fill("qu");
+	await field.press("Enter");
+
+	await expect(pick(page, "qux")).toBeChecked();
+	await expect(pick(page, "quux")).not.toBeChecked();
+	await expect(page.locator("#authors")).toBeVisible();
+});
+
+test("↓ and ↑ move from the list’s search field through the authors it shows and back", async ({
+	page,
+	github,
+}) => {
+	authored(github);
+	await page.goto("/?repo=foo/bar");
+	await unfold(page);
+	await expect(page.locator("progress")).toBeHidden();
+
+	await page.getByRole("button", { name: "Author" }).click();
+	let field = page.getByRole("searchbox", { name: "Filter authors" });
+	await expect(field).toBeFocused();
+	await field.fill("qu");
+	await page.keyboard.press("ArrowDown");
+	await page.keyboard.press("ArrowDown");
+	await expect(pick(page, "quux")).toBeFocused();
+	await page.keyboard.press("ArrowUp");
+	await page.keyboard.press("ArrowUp");
+
+	await expect(field).toBeFocused();
+});
+
+test("Tab goes from the list to its buttons in one press, not through every author", async ({
+	page,
+	github,
+}) => {
+	authored(github);
+	await page.goto("/?repo=foo/bar");
+	await unfold(page);
+	await expect(page.locator("progress")).toBeHidden();
+
+	await page.getByRole("button", { name: "Author" }).click();
+	await expect(page.getByRole("searchbox", { name: "Filter authors" })).toBeFocused();
+	await page.keyboard.press("Tab");
+	await expect(page.getByRole("checkbox", { name: "All collaborators" })).toBeFocused();
+	await page.keyboard.press("Tab");
+
+	await expect(page.getByRole("button", { name: "Show 6 PRs" })).toBeFocused();
 });
 
 test("Typing in the list marks the typed part of each login, in any case", async ({
@@ -347,6 +409,7 @@ test("Typing in the list marks the typed part of each login, in any case", async
 	await expect(page.locator("progress")).toBeHidden();
 
 	await page.getByRole("button", { name: "Author" }).click();
+	await expect(page.getByRole("searchbox", { name: "Filter authors" })).toBeFocused();
 	await page.getByRole("searchbox", { name: "Filter authors" }).fill("QU");
 
 	await expect(page.locator("#authors fieldset label:visible mark")).toHaveText(["qu", "qu"]);

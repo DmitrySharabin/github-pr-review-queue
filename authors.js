@@ -148,8 +148,9 @@ export function showAuthors (rows, authors) {
 		members.length > 0
 			? `${members.length} ${plural("person", members.length)} · ${prs} ${plural("PR", prs)}`
 			: "None in this queue";
-	narrow();
+	// “All collaborators” is enabled first, so the list’s Tab stop can be on it
 	update();
+	narrow();
 	return shown;
 }
 
@@ -179,6 +180,18 @@ function boxes (group = form) {
 	return [...group.querySelectorAll("fieldset input")];
 }
 
+/** The checkboxes that show and take the focus, “All collaborators” first. */
+function listed () {
+	return [all, ...boxes()].filter(box => box.checkVisibility() && !box.disabled);
+}
+
+/** Make a checkbox the list’s one Tab stop, so Tab goes on to the buttons below. ↓ and ↑ move it, as in a group of radio buttons. */
+function rove (item) {
+	for (let box of [all, ...boxes()]) {
+		box.tabIndex = box === item ? 0 : -1;
+	}
+}
+
 /** Show the authors whose login has what is typed, with it in bold, e.g. **ba**z for `ba`. */
 function narrow () {
 	let typed = search.value.trim();
@@ -195,6 +208,7 @@ function narrow () {
 	form.querySelector(".all").hidden = Boolean(typed);
 	none.hidden = !insiders.hidden || !others.hidden;
 	none.textContent = `No authors match “${typed}”`;
+	rove(listed()[0]);
 }
 
 /** Check “All collaborators” when all are, and say how many PRs the picked authors have. */
@@ -229,6 +243,34 @@ form.addEventListener("change", event => {
 });
 
 search.addEventListener("input", narrow);
+
+// Enter with something typed checks or unchecks the first author that matches, as in GitHub’s pickers, rather than closes the list unchanged
+search.addEventListener("keydown", event => {
+	let first = listed()[0];
+	if (event.key === "Enter" && search.value.trim() && first) {
+		event.preventDefault();
+		first.click();
+	}
+});
+
+// ↓ and ↑ move from the search field through the authors it shows and back
+form.addEventListener("keydown", event => {
+	let step = { ArrowDown: 1, ArrowUp: -1 }[event.key];
+	let items = [search, ...listed()];
+	let index = items.indexOf(event.target);
+	let next = items[index + step];
+	if (step && index >= 0 && next) {
+		event.preventDefault();
+		next.focus();
+	}
+});
+
+// A checkbox clicked or moved to is where Tab comes back to
+form.addEventListener("focusin", event => {
+	if (event.target.matches(".list input")) {
+		rove(event.target);
+	}
+});
 
 form.querySelector(".clear").addEventListener("click", event => {
 	everyone = false;
