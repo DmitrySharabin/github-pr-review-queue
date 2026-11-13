@@ -54,7 +54,14 @@ export function chooseSort (column) {
 	let sorted = { column, direction: th.ariaSort === "descending" ? "ascending" : "descending" };
 	markSort(sorted);
 	shown.sort = sorted;
-	localStorage.setItem(shown.key, JSON.stringify(sorted));
+
+	try {
+		localStorage.setItem(shown.key, JSON.stringify(sorted));
+	}
+	catch (error) {
+		// A full storage, e.g. of stored queues, loses only the sort on the next visit
+		console.warn("Couldn’t store the sort.", error);
+	}
 }
 
 /** Mark the column the table sorts by. */

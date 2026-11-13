@@ -819,6 +819,27 @@ test("A full storage drops the queue stored longest ago, and keeps the newer one
 	await expect(page.getByRole("option")).toHaveText(["foo/qux", "foo/baz"]);
 });
 
+test("A full storage still sorts the rows, and only the next visit forgets the sort", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+	// Other data fills the rest, so the chosen sort doesn’t fit
+	await fillStorage(page);
+
+	await page.getByRole("button", { name: "Changes", exact: true }).click();
+
+	await expect(page.locator("#queue tbody .number")).toHaveText([
+		"#70",
+		"#69",
+		"#68",
+		"#67",
+		"#66",
+		"#65",
+	]);
+});
+
 test("A queue stored by another version, e.g. with a step this one doesn’t know, loads anew", async ({
 	page,
 	github,
