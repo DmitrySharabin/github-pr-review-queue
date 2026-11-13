@@ -221,7 +221,7 @@ function showView ({ onlyAuthors } = {}) {
 	displayButton.classList.toggle("set", Boolean(exclude));
 
 	if (view.repo) {
-		// Other authors of the view on screen need no load: their rows are on screen already
+		// Other authors of the view on screen need no load. Their rows are on screen already
 		if (onlyAuthors && onScreen(view)) {
 			return showQueue();
 		}

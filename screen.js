@@ -9,7 +9,7 @@ import { chooseSort, showSort, sort } from "./sort.js";
 import { collaborators, matches, showAuthors } from "./authors.js";
 import { dismissMenus } from "./menu.js";
 import { href, viewKey } from "./view.js";
-import { showUpdated } from "./status.js";
+import { showDelta, showUpdated } from "./status.js";
 import { clearCounts, showCounts, showSummary } from "./strip.js";
 
 let table = document.querySelector("#queue");
@@ -32,12 +32,12 @@ let displayForm = document.querySelector("#display");
  * @property {number} [at] - When its rows last finished loading, in epoch ms
  * @property {Map<string, Summary>} [seen] - What they showed then, by PR id, for the next load to mark what changed
  */
-/** @type {Queue | undefined} None while nothing or bars are on screen. Set by {@link showQueue}, cleared by {@link showSkeleton} and {@link hideQueue} */
+/** @type {Queue | undefined} None while nothing or bars are on screen. Only {@link showQueue} sets it, and {@link showSkeleton} and {@link hideQueue} clear it */
 export let queue;
 /** Whose PRs show, e.g. `["@collaborators", "foo"]`, see {@link matches}. An author’s PRs are all theirs */
-export let authors = [];
+let authors = [];
 
-// Sorts without a view transition: its capture holds the new order back up to 300 ms on 100 rows, and when every row moves, no one follows one.
+// Sorts without a view transition. Its capture holds the new order back up to 300 ms on 100 rows. When every row moves, no one follows one.
 // Bars wait for the search, which sorts what it finds
 table.addEventListener("command", event => {
 	chooseSort(event.source.value);
@@ -54,25 +54,28 @@ export function pickAuthors (names) {
 	authors = names;
 }
 
-/** Whether the table shows a row: whether its PR is by one of the picked authors. */
-export function shows (row) {
+/** Whether the table shows a row, that is, whether its PR is by one of the picked authors. */
+function shows (row) {
 	return matches(row.summary, authors);
 }
 
 /**
- * Show a queue’s rows, sorted, with what goes around them: the strip above them, or why there are none.
+ * Show a queue’s rows, sorted, with the strip above them and the update time, or why there are none.
  * @param {Queue} [next] - The queue to show, or the one on screen again, e.g. for other authors
+ * @param {{ animate?: boolean }} [options] - Whether rows move to their new places, e.g. when a load ends
  */
-export function showQueue (next = queue) {
+export function showQueue (next = queue, { animate } = {}) {
 	queue = next;
 	let {
 		view: { role, filter },
 		user,
 		rows,
+		at,
 	} = queue;
 	let shownRows = rows.filter(shows);
 	showRole(role);
-	sort(rows, { shows });
+	sort(rows, { animate, shows });
+	showUpdated(at);
 	showSummary(queue.view, user);
 	showCounts(queue, authors);
 
@@ -112,6 +115,7 @@ export function showQueue (next = queue) {
 export function showSkeleton (view, user = view.user) {
 	queue = undefined;
 	showUpdated();
+	showDelta();
 	let { role } = view;
 	showRole(role);
 	table.tBodies[0].replaceChildren(
@@ -135,6 +139,7 @@ export function showSkeleton (view, user = view.user) {
 export function hideQueue () {
 	queue = undefined;
 	showUpdated();
+	showDelta();
 	strip.hidden = true;
 	table.parentElement.hidden = true;
 	empty.hidden = true;
@@ -191,7 +196,10 @@ function showEmpty () {
 	let clear = empty.querySelector(".clear");
 	clear.href = href({ authors: null });
 	clear.hidden = !picked;
-	status.textContent = text;
+	// The same text written again makes a screen reader say it again, e.g. when the load that found nothing ends
+	if (status.textContent !== text) {
+		status.textContent = text;
+	}
 }
 
 /**

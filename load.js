@@ -27,8 +27,6 @@ import {
 } from "./github.js";
 import { forget, restore, store } from "./queues.js";
 import { fill, mark, summaries, unmark } from "./row.js";
-import { sort } from "./sort.js";
-import { showCounts } from "./strip.js";
 import { viewOf } from "./view.js";
 import {
 	hideFailure,
@@ -38,18 +36,8 @@ import {
 	showLoading,
 	showNotice,
 	showProgress,
-	showUpdated,
 } from "./status.js";
-import {
-	authors,
-	countsAs,
-	hideQueue,
-	onScreen,
-	queue,
-	shows,
-	showQueue,
-	showSkeleton,
-} from "./screen.js";
+import { countsAs, hideQueue, onScreen, queue, showQueue, showSkeleton } from "./screen.js";
 
 let status = document.querySelector("#status");
 let progress = document.querySelector("progress");
@@ -78,17 +66,12 @@ export async function load () {
 		unmark(tr);
 	}
 
-	let next = narrowed(view);
-	// Another view shows at once what it showed last, e.g. on the last visit, while it loads again
-	if (!next && !refreshing) {
-		next = restore(view, queue?.rows);
+	// Another view shows at once what it can, e.g. the rows with a label just added, or what it showed on the last visit
+	if (!refreshing) {
+		let next = narrowed(view) ?? restore(view, queue?.rows);
 		if (next) {
-			showUpdated(next.at);
+			showQueue(next);
 		}
-	}
-
-	if (next) {
-		showQueue(next);
 	}
 
 	// A refresh keeps the last delta, dimmed, until it ends. Another view has another count, e.g. one narrowed by a label.
@@ -99,7 +82,7 @@ export async function load () {
 	}
 	// A load of another view, e.g. a new filter, finds PRs that aren’t new, so it compares with nothing.
 	// By now a narrowed or restored queue is of this view too
-	showLoading(onScreen(view) && Boolean(queue.seen));
+	showLoading({ comparing: onScreen(view) && Boolean(queue.seen) });
 
 	// Nothing on screen yet, e.g. on a first visit or after a failed load. A stored token signs in without a card,
 	// so bars stand in for the rows during the sign-in. Without one, they would flash before the sign-in card
@@ -120,7 +103,6 @@ export async function load () {
 		// A failed search hides them
 		if (!queue || (onScreen(view) && queue.user !== user)) {
 			showSkeleton(view, user);
-			showDelta();
 		}
 
 		let stale = await find(view, user, signal);
@@ -218,24 +200,18 @@ async function find (view, user, signal) {
  * @param {PromiseRejectedResult} [failed] - The first failure of {@link fillDetails}, if any
  */
 function finish (failed) {
-	let { rows } = queue;
-	sort(rows, { animate: true, shows });
-	showCounts(queue, authors);
+	let { rows, seen: last } = queue;
+	// The user has seen what the search found, even when details failed
+	showQueue({ ...queue, at: Date.now(), seen: summaries(rows) }, { animate: true });
 
-	queue.at = Date.now();
-	showUpdated(queue.at);
 	// Rows whose details didn’t arrive, e.g. failed or of a deleted PR, show what they had, undimmed.
-	// The next load asks for them again
-	// Rows of other authors are off the page, so not in the table
+	// The next load asks for them again. The loop goes over `rows`, not the table, since rows of authors not picked are off the page
 	for (let { tr } of rows) {
 		if (tr.classList.contains("stale")) {
 			unmark(tr);
 		}
 	}
 
-	// The user has seen what the search found, even when details failed
-	let last = queue.seen;
-	queue.seen = summaries(rows);
 	if (last) {
 		// NOTE: Counts the PRs of authors not picked too, e.g. “+1” for a new PR that doesn’t show
 		showDelta(mark(rows, last));
@@ -257,7 +233,7 @@ function finish (failed) {
  * @param {unknown} error - What the load threw
  */
 function fail (view, error) {
-	// Rows of another view, or of no finished load, go: they would sit under this view’s labels, filter and time.
+	// Rows of another view, or of no finished load, go. They would sit under this view’s labels, filter and time.
 	// A step back then shows the stored queue, as a visit does
 	if (!onScreen(view) || !queue.at) {
 		hideQueue();
@@ -363,7 +339,6 @@ async function login (repo, signal) {
 	// NOTE: The same user signed in again loses the marks of the next load, and its details load anew
 	forget();
 	hideQueue();
-	showDelta();
 	hideFailure();
 	status.hidden = false;
 	status.textContent = `Sign in to see the pull requests in ${repo}.`;
@@ -373,6 +348,5 @@ async function login (repo, signal) {
 	// Waits for the sign-in, not the click. Madata’s login() never settles if the popup is closed, so the button stays for another try
 	await new Promise(resolve => github.addEventListener("mv-login", resolve, { once: true }));
 	signIn.hidden = true;
-	progress.hidden = false;
-	status.textContent = "Loading pull requests…";
+	showLoading();
 }

@@ -24,7 +24,7 @@ export function signedInUser () {
 
 /**
  * Whether a user is the signed-in one, so the page says “you” to them.
- * No user is the signed-in one, who may be unknown yet, e.g. during the sign-in
+ * A missing user is the signed-in one, who may be unknown yet, e.g. during the sign-in
  * @param {string | null} user
  */
 export function isYou (user) {

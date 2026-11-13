@@ -114,6 +114,21 @@ test("A failed reload of a view whose first load didn’t finish shows the form,
 	await expect(page.locator("#repo-form .notice")).toBeVisible();
 });
 
+test("Rows of another view don’t show the time of the view before while their details load", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+	await expect(page.locator("#updated time")).not.toBeEmpty();
+	// The author view’s search answers, but its details never come
+	github.details = () => new Promise(() => {});
+	await page.getByRole("link", { name: "Author" }).click();
+	await expect(page.locator("#counter")).toBeVisible();
+
+	await expect(page.locator("#updated time")).toBeEmpty();
+});
+
 test("A failed refresh after one that showed the form hides the form, whose reason no longer holds", async ({
 	page,
 	github,

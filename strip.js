@@ -47,7 +47,7 @@ for (let form of strip.querySelectorAll("form")) {
 }
 
 /**
- * Fill the strip above the table with what a view tells: where, for whom, and what its counts mean. {@link showCounts} fills them in.
+ * Fill the strip above the table with where, for whom, and what its counts mean. {@link showCounts} fills them in.
  * @param {View} view
  * @param {string | null} user - Whose queue it is, or none until the sign-in ends
  */
@@ -91,27 +91,27 @@ export function showSummary (view, user) {
 }
 
 /**
- * Fill in the counts of the strip from a queue’s rows: how many, and since when or whose turn.
+ * Fill in how many PRs the strip counts, and since when or whose turn.
  * @param {Queue} queue
  * @param {string[]} authors - Whose PRs show, see {@link matches}
  */
 export function showCounts ({ view, rows }, authors) {
-	let shows = row => matches(row.summary, authors);
+	let shown = rows.filter(row => matches(row.summary, authors));
 	// Of all the search found, e.g. “3 of 12” for the picked authors
 	strip.querySelector(".count").textContent =
-		authors.length > 0 ? `${rows.filter(shows).length} of ${rows.length}` : rows.length;
+		authors.length > 0 ? `${shown.length} of ${rows.length}` : rows.length;
 
 	// Unknown until every row has its details, e.g. of a queue stored before PRs had steps
 	if (view.role === "author") {
 		let turns = strip.querySelector(".turns");
-		let steps = rows.filter(shows).map(row => row.summary.step);
+		let steps = shown.map(row => row.summary.step);
 		turns.textContent = steps.includes(undefined)
 			? ""
 			: steps.filter(step => step.whose === "author").length;
 	}
 	else {
 		// Requests to a team have no date for the user
-		let dates = rows.filter(shows).map(row => row.summary.waitingSince);
+		let dates = shown.map(row => row.summary.waitingSince);
 		let known = dates.filter(Boolean);
 		let latest = known.length > 0 ? Math.max(...known) : null;
 		showTime(strip.querySelector(".latest"), dates.includes(undefined) ? undefined : latest);

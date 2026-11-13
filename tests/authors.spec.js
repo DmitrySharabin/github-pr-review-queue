@@ -59,6 +59,27 @@ test("Picked authors show only their PRs, without a new search", async ({ page, 
 	expect(searches).toBe(1);
 });
 
+test("A pick of authors doesn’t write the update time again, which a screen reader would read as a refresh", async ({
+	page,
+	github,
+}) => {
+	authored(github);
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+	await page.evaluate(() => {
+		window.writes = 0;
+		new MutationObserver(() => window.writes++).observe(document.querySelector("#updated"), {
+			subtree: true,
+			childList: true,
+			characterData: true,
+		});
+	});
+
+	await pickQux(page);
+
+	expect(await page.evaluate(() => window.writes)).toBe(0);
+});
+
 test("“All collaborators” keeps the PRs of owners, members and collaborators, and the new ones of each later", async ({
 	page,
 	github,

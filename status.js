@@ -22,10 +22,10 @@ for (let button of document.querySelectorAll(":is(.notice, #failure) > button"))
 
 /**
  * Say that a load runs. Refresh waits, the last delta and failure dim, and the progress bar shows.
- * @param {boolean} comparing - Whether the load compares with the rows on screen.
+ * @param {{ comparing?: boolean }} [options] - Whether the load compares with the rows on screen.
  * A screen reader then hears that a refresh started and how it ended, e.g. “Updated at 5:44 PM, No changes”, even within one minute
  */
-export function showLoading (comparing) {
+export function showLoading ({ comparing } = {}) {
 	if (comparing) {
 		changes.textContent = "Refreshing…";
 	}
@@ -77,12 +77,16 @@ export function showUpdated (at) {
 	updated.dateTime = date.toISOString();
 	// A stored queue may be days old, e.g. “Nov 1, 6:05 PM”
 	let today = date.toDateString() === new Date().toDateString();
-	updated.textContent = date.toLocaleString(
+	let text = date.toLocaleString(
 		"en",
 		today
 			? { timeStyle: "short" }
 			: { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" },
 	);
+	// The same time written again makes a screen reader say it again, as if a refresh ended, e.g. after a pick of authors
+	if (updated.textContent !== text) {
+		updated.textContent = text;
+	}
 }
 
 /**
@@ -147,7 +151,7 @@ export function hideFailure () {
 
 /**
  * Put why a load failed in an element on screen, e.g. a notice. A long reason, e.g. GitHub’s whole answer with a link in it,
- * shows its first lines and a button for the rest, so the page keeps its layout. Measured clamped: a reason that fits needs no button.
+ * shows its first lines and a button for the rest, so the page keeps its layout. Measured clamped. A reason that fits needs no button.
  */
 function showReason (element, reason) {
 	let text = element.querySelector("span");
