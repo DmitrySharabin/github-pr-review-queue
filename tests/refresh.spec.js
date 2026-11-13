@@ -195,6 +195,23 @@ test("A refresh marks the PRs it finds that the last load didn’t, and the rows
 	await expect(page.locator("#updated .changes")).toContainText("1 new");
 });
 
+test("A step back to the view on screen before another view’s search answers still marks what changed", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+	github.search = () => new Promise(() => {});
+	await page.getByRole("link", { name: "Author" }).click();
+
+	github.search = answer => {
+		answer.data.search.nodes.pop();
+	};
+	await page.goBack();
+
+	await expect(page.locator("#summary .delta .down")).toHaveText("−1");
+});
+
 test("A refresh that finds nothing new marks nothing, even after one that marked rows", async ({
 	page,
 	github,

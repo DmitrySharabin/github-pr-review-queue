@@ -68,8 +68,8 @@ let forms = [repoForm, filterForm, authorForm, displayForm, ...strip.querySelect
  * @property {View} view - The view whose load found the rows, e.g. `{ repo: "foo/bar", filter: "label:baz", exclude: "test" }`
  * @property {string} user - Whose queue it is, e.g. the signed-in user’s when the view names no `user`
  * @property {Row[]} rows
- * @property {number} [at] - When the last load of this view finished, in epoch ms
- * @property {Map<string, Summary>} [seen] - What that load showed, by PR id, for the next to mark what changed
+ * @property {number} [at] - When its rows last finished loading, in epoch ms
+ * @property {Map<string, Summary>} [seen] - What they showed then, by PR id, for the next to mark what changed
  */
 /** @type {Queue | undefined} None while nothing or bars are on screen */
 let queue;
@@ -332,7 +332,7 @@ function showView ({ onlyAuthors } = {}) {
 		// Other authors of the view on screen show the same rows, so nothing loads, e.g. not the details of every PR.
 		// The last URL’s view may have failed instead, e.g. before a step back to other authors
 		let view = viewOf(params);
-		if (onlyAuthors && queue && viewKey(view) === viewKey(queue.view)) {
+		if (onlyAuthors && onScreen(view)) {
 			return showQueue();
 		}
 		return load();
@@ -369,10 +369,7 @@ async function load () {
 	let params = new URLSearchParams(location.search);
 	let view = viewOf(params);
 	let { repo, role, filter } = view;
-	// Another pattern counts every PR’s lines anew, so its rows are another queue’s
-	let sameCounts =
-		queue && viewKey({ ...view, filter: null }) === viewKey({ ...queue.view, filter: null });
-	let sameView = sameCounts && viewKey(view) === viewKey(queue.view);
+	let sameView = onScreen(view);
 
 	// Without the marks, a row with nothing new equals its next render, so it stays and keeps focus
 	for (let { tr } of queue?.rows ?? []) {
@@ -382,7 +379,7 @@ async function load () {
 	// A label added to the filter, e.g. by a click on it, keeps the rows on screen that have it. The search would find just those.
 	// A search that found its maximum of 100 PRs may have missed others with the label, so then the rows wait for the search
 	let label =
-		sameCounts && queue.rows.length < searchLimit
+		countsAs(view) && queue.rows.length < searchLimit
 			? addedLabel(queue.view.filter, filter)
 			: undefined;
 	if (label !== undefined) {
@@ -393,10 +390,6 @@ async function load () {
 			queue.seen &&
 			new Map([...queue.seen].filter(([id]) => rows.some(row => row.pr.id === id)));
 		queue = { ...queue, view, rows, seen };
-	}
-	// A load of another view, e.g. a new filter, finds PRs that aren’t new, so it compares with nothing
-	else if (queue && !sameView) {
-		queue.seen = undefined;
 	}
 
 	// Another view shows at once what it showed last, e.g. on the last visit, while it loads again.
@@ -422,7 +415,7 @@ async function load () {
 				at: stored.at,
 				seen: new Map(rows.map(row => [row.pr.id, row.summary])),
 			};
-			showUpdated(queue.at);
+			showUpdated();
 		}
 	}
 	catch (error) {
@@ -439,8 +432,9 @@ async function load () {
 	if (!sameView) {
 		showDelta();
 	}
-	// A screen reader hears that a refresh started and how it ended, e.g. “Updated at 5:44 PM, No changes”, even within one minute
-	if (queue?.seen) {
+	// A screen reader hears that a refresh started and how it ended, e.g. “Updated at 5:44 PM, No changes”, even within one minute.
+	// A load of another view, e.g. a new filter, finds PRs that aren’t new, so it compares with nothing
+	if (onScreen(view) && queue.seen) {
 		changes.textContent = "Refreshing…";
 	}
 
@@ -473,10 +467,9 @@ async function load () {
 
 		let user = view.user || signedInUser();
 
-		// A queue stored without a `user` parameter is that of whoever was signed in then
-		if (stored && stored.user !== user) {
-			stored = undefined;
-			// Bars stand in for the rows of the last user, and a failed search hides them
+		// A queue without a `user` parameter is that of whoever was signed in then, e.g. a stored one.
+		// Bars stand in for the rows of the last user, and a failed search hides them
+		if (onScreen(view) && queue.user !== user) {
 			queue = undefined;
 			showDelta();
 		}
@@ -490,7 +483,7 @@ async function load () {
 		let task = "loaded";
 
 		// Rows of another queue, e.g. before a role switch, stay on screen until the search replaces them, but don’t update
-		let kept = sameCounts || stored ? (queue?.rows ?? []) : [];
+		let kept = countsAs(view) ? queue.rows : [];
 
 		let { repository, search: found } = await graphql(query({ ...view, user }), signal);
 		signal.throwIfAborted();
@@ -521,14 +514,8 @@ async function load () {
 			return row;
 		});
 		// What the last finished load showed, and when, holds only for its own view, e.g. not after a role switch
-		let same = queue && viewKey(queue.view) === viewKey(view);
-		queue = {
-			view,
-			user,
-			rows,
-			at: same ? queue.at : undefined,
-			seen: same ? queue.seen : undefined,
-		};
+		let shown = onScreen(view) ? queue : {};
+		queue = { view, user, rows, at: shown.at, seen: shown.seen };
 		showQueue();
 		if (stale.length > 0) {
 			showProgress(task, 0, stale.length);
@@ -540,7 +527,7 @@ async function load () {
 		showCounts();
 
 		queue.at = Date.now();
-		showUpdated(queue.at);
+		showUpdated();
 		// Rows whose details didn’t arrive, e.g. failed or of a deleted PR, show what they had, undimmed.
 		// The next load asks for them again
 		// Rows of other authors are off the page, so not in the table
@@ -564,11 +551,7 @@ async function load () {
 		}
 		else {
 			header.classList.remove("failed");
-			store(view, {
-				user,
-				at: queue.at,
-				rows: rows.map(({ pr, summary }) => ({ pr, summary })),
-			});
+			store(queue);
 		}
 	}
 	catch (error) {
@@ -580,10 +563,9 @@ async function load () {
 		// Without a finished load of this view, the rows on screen go, e.g. those of another view after a failed role switch,
 		// which would sit under labels they don’t match, with the filter of that view and the time they were updated at.
 		// So do bars that stand in for rows, e.g. on a first visit. A step back then shows the stored queue, as a visit does
-		if (!queue?.at || viewKey(queue.view) !== viewKey(view)) {
+		if (!onScreen(view) || !queue.at) {
 			queue = undefined;
 			hideQueue();
-			updated.textContent = "";
 		}
 
 		showDelta();
@@ -757,6 +739,7 @@ function showSkeleton (view, user) {
 
 /** Hide the queue and what goes around it, e.g. for the sign-in card or the form after a failed load. */
 function hideQueue () {
+	showUpdated();
 	strip.hidden = true;
 	table.parentElement.hidden = true;
 	empty.hidden = true;
@@ -828,9 +811,15 @@ function showEmpty () {
 	status.textContent = text;
 }
 
-/** Say when the queue on screen was updated, from epoch ms. */
-function showUpdated (at) {
-	let date = new Date(at);
+/** Say when the queue on screen was updated, or nothing without one. */
+function showUpdated () {
+	if (!queue?.at) {
+		updated.dateTime = "";
+		updated.textContent = "";
+		return;
+	}
+
+	let date = new Date(queue.at);
 	updated.dateTime = date.toISOString();
 	// A stored queue may be days old, e.g. “Nov 1, 6:05 PM”
 	let today = date.toDateString() === new Date().toDateString();
@@ -840,6 +829,26 @@ function showUpdated (at) {
 			? { timeStyle: "short" }
 			: { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" },
 	);
+}
+
+/**
+ * Whether the queue on screen counts its rows as this view does, so they can stay, e.g. those of another filter.
+ * Another pattern counts every PR’s lines anew, so its rows are another queue’s
+ * @param {View} view
+ */
+function countsAs (view) {
+	return (
+		Boolean(queue) &&
+		viewKey({ ...queue.view, filter: null }) === viewKey({ ...view, filter: null })
+	);
+}
+
+/**
+ * Whether the queue on screen is of this view, e.g. not of the one before a role switch.
+ * @param {View} view
+ */
+function onScreen (view) {
+	return Boolean(queue) && viewKey(queue.view) === viewKey(view);
 }
 
 /**
