@@ -3,7 +3,7 @@
  *
  * @typedef {object} View - The URL parameters that decide which PRs a load finds and how it counts them, e.g. not `authors`, which only hides rows
  * @property {string} repo
- * @property {string} user
+ * @property {string | null} user - None for the signed-in user
  * @property {Role | null} [role]
  * @property {string | null} [filter] - Narrows the search further, e.g. `label:foo -label:bar`
  * @property {string | null} [exclude] - A regular expression for the paths of files whose lines count apart, e.g. `test|\.lock$`
@@ -27,7 +27,7 @@ export function viewOf (params = new URLSearchParams(location.search)) {
  * @param {View} view
  */
 export function viewKey (view) {
-	return `${new URLSearchParams(Object.entries(view).filter(([, value]) => value))}`;
+	return `${new URLSearchParams(viewNames.filter(name => view[name]).map(name => [name, view[name]]))}`;
 }
 
 /**
@@ -60,7 +60,7 @@ export function normalizeParams (params) {
 
 /**
  * The page’s URL with these parameters changed, and rewritten as {@link normalizeParams} does, e.g. `href({ role: "author" })`. An empty value removes one.
- * @param {Record<string, string | null | undefined>} changes
+ * @param {Partial<Record<keyof View | "authors", string | null>>} changes
  */
 export function href (changes) {
 	let params = new URLSearchParams(location.search);
