@@ -4,6 +4,7 @@
  * @import { Row } from "./row.js"
  */
 import { isYou } from "./github.js";
+import { isLogin } from "./pull-request.js";
 import { relink } from "./row.js";
 import { chooseSort, showSort, sort } from "./sort.js";
 import { collaborators, matches, showAuthors } from "./authors.js";
@@ -106,7 +107,7 @@ export function showQueue (next = queue, { animate } = {}) {
 	}
 	status.hidden = shownRows.length > 0;
 	// A value shows only while its control does, e.g. no Exclude in the author view
-	showApplied({ filter, author, exclude: !displayButton.hidden && queue.view.exclude });
+	showApplied({ filter, author, exclude: displayButton.hidden ? null : queue.view.exclude });
 }
 
 /**
@@ -138,7 +139,11 @@ export function showSkeleton (view, user = view.user) {
 	authorButton.disabled = true;
 	filters.hidden = false;
 	displayButton.hidden = role === "author";
-	showApplied({ filter: view.filter, author, exclude: !displayButton.hidden && view.exclude });
+	showApplied({
+		filter: view.filter,
+		author,
+		exclude: displayButton.hidden ? null : view.exclude,
+	});
 }
 
 /** Hide the queue and what goes around it, e.g. for the sign-in card or the form after a failed load. */
@@ -210,7 +215,7 @@ function showEmpty () {
 
 /**
  * Whether the queue on screen counts its rows as this view does, so they can stay, e.g. those of another filter.
- * Another pattern counts every PR’s lines anew, so its rows are another queue’s
+ * Another pattern counts every PR’s lines anew, so its rows count as another view’s
  * @param {View} view
  */
 export function countsAs (view) {
@@ -222,11 +227,21 @@ export function countsAs (view) {
 
 /**
  * Whether the queue on screen is of this view’s repo, user and role, e.g. under another filter or pattern, so its rows are of the PRs this view searches.
+ * Logins and repos match in any case, as on GitHub. A view that names no user is the signed-in one’s, e.g. `?user=foo` for foo signed in.
+ * A queue shown before the sign-in ends, e.g. a stored one, counts as the signed-in user’s until the load checks whose it is
  * @param {View} view
  */
 export function sameQueue (view) {
-	let of = ({ repo, user, role }) => viewKey({ repo, user, role });
-	return Boolean(queue) && of(queue.view) === of(view);
+	if (!queue) {
+		return false;
+	}
+
+	let { repo, role } = queue.view;
+	return (
+		repo.toLowerCase() === view.repo.toLowerCase() &&
+		role === view.role &&
+		(view.user ? isLogin(view.user, queue.user) : !queue.view.user || isYou(queue.user))
+	);
 }
 
 /**

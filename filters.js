@@ -1,4 +1,4 @@
-/** @import { Pick } from "./authors.js" */
+/** @import { Picked } from "./authors.js" */
 import { dismissMenus } from "./menu.js";
 
 let filters = document.querySelector("#filters");
@@ -9,19 +9,18 @@ let fold = filters.querySelector(".fold");
 /** @type {boolean | undefined} Unknown until the first {@link showApplied}, which reads the first view */
 let folded;
 
-// A value unfolds the controls with the focus on its own, e.g. on Author for “Author foo”.
+// A value unfolds the controls with the focus on its own, e.g. on Author for “Author foo”. A tap beside the values opens the filter.
 // Bars disable Author until the search ends, and a disabled button takes no focus
 applied.addEventListener("click", event => {
-	let control = document.getElementById(event.target.closest("[data-for]")?.dataset.for);
-	if (!control) {
-		return;
-	}
-
+	let control = document.getElementById(
+		event.target.closest("[data-for]")?.dataset.for ?? "filter",
+	);
 	setFolded(false);
 	(control.disabled ? fold : control).focus();
 });
 
-// An open menu closes unapplied, as on Esc. Folded away, it would stay open unseen, and the next click would apply it
+// A menu open while the fold button is pressed from the keyboard closes unapplied, as on Esc. Folded away, it would stay open unseen, and the next click would apply it.
+// A click on the fold button is a click outside the menu, which applies it first
 fold.addEventListener("click", () => {
 	dismissMenus();
 	setFolded(!folded);
@@ -30,7 +29,7 @@ fold.addEventListener("click", () => {
 /**
  * Say on the folded line what the controls apply, e.g. “Filter label:foo Author bar Exclude test”, or just “Filter”.
  * The first call folds the controls when they apply nothing, and unfolds them when something does, to change it
- * @param {{ filter?: string | null, author?: Pick, exclude?: string | null }} values - Only those whose control shows, e.g. no `exclude` in the author view
+ * @param {{ filter?: string | null, author?: Picked, exclude?: string | null }} values - Only those whose control shows, e.g. no `exclude` in the author view
  */
 export function showApplied ({ filter, author, exclude }) {
 	let values = [
@@ -63,6 +62,8 @@ function setFolded (value) {
 function value (id, key, ...content) {
 	let button = Object.assign(document.createElement("button"), { type: "button" });
 	button.dataset.for = id;
+	// Its name is what is applied, e.g. “Filter label:foo”, so a screen reader also hears what a press does, rather than guess it removes the value
+	button.setAttribute("aria-description", "Edit");
 	if (key) {
 		button.append(
 			Object.assign(document.createElement("span"), { className: "key", textContent: key }),

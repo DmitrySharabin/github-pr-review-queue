@@ -177,6 +177,22 @@ test("Another repo’s view shows bars at once, not the last repo’s rows under
 	await expect(page.locator("#queue tbody tr:not(.skeleton)")).toHaveCount(0);
 });
 
+test("The signed-in user’s own login, in any case, keeps the rows, as they are the same queue’s", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+	github.search = () => new Promise(() => {});
+
+	await page.getByRole("button", { name: "Change user" }).click();
+	await page.getByRole("textbox", { name: "User" }).fill("dmitrysharabin");
+	await page.getByRole("textbox", { name: "User" }).press("Enter");
+
+	await expect(page).toHaveURL(/user=dmitrysharabin/);
+	await expect(page.locator("#queue tbody tr:not(.skeleton)")).toHaveCount(6);
+});
+
 test("A role switch shows bars at once, not the other role’s rows", async ({ page, github }) => {
 	await page.goto("/?repo=foo/bar");
 	await expect(page.locator("progress")).toBeHidden();

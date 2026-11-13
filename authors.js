@@ -8,7 +8,7 @@
  * @property {string} [association] - GitHub’s `authorAssociation`, unknown for a picked author with no PRs left
  * @property {number} count - How many PRs in the queue are theirs
  *
- * @typedef {object} Pick - What the Author button says of the picked authors, e.g. `{ key: "Author", name: "foo" }`
+ * @typedef {object} Picked - What the Author button says of the picked authors, e.g. `{ key: "Author", name: "foo" }`
  * @property {string} key - What the name is, e.g. “Authors” before “Collaborators”, or none before “2 authors”, which names itself
  * @property {string} name
  * @property {Element} faces - The button’s faces of them
@@ -65,7 +65,7 @@ export function matches (summary, authors) {
  * The button says who is picked, e.g. “2 authors” after their faces.
  * @param {Row[]} rows
  * @param {string[]} authors - The picked ones, see {@link matches}
- * @returns {Pick | undefined} What the button says of the pick, or nothing when no one is picked
+ * @returns {Picked | undefined} What the button says of the pick, or nothing when no one is picked
  */
 export function showAuthors (rows, authors) {
 	latest = { rows, authors };
