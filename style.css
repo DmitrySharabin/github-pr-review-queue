@@ -1432,6 +1432,14 @@ progress {
 	}
 }
 
+/* A reviewer’s table has more columns and needs 56rem, so it scrolls on a tablet held upright too */
+@container (width < 56rem) {
+	.scroller:has(> #queue:not(.author)) {
+		overflow-x: auto;
+		border-radius: var(--radius);
+	}
+}
+
 /* Fades an edge while there is more to scroll to, e.g. a long repository name, or the table on a phone.
    Each fade grows with the distance from its edge, up to `--fade`, and stays off while nothing scrolls.
    Without scroll timelines the animations would end at once, fading the start for good */

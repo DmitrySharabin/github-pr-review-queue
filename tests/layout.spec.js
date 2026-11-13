@@ -179,6 +179,32 @@ test("On a phone, the ring of a focused name too long for its cell stays inside 
 	expect(ring).toBeLessThanOrEqual(edge);
 });
 
+test("On a tablet, the table scrolls in its own frame, not the page sideways", async ({
+	page,
+	github,
+}) => {
+	await page.setViewportSize({ width: 820, height: 1180 });
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+
+	let overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+	expect(overflow).toBe(0);
+});
+
+test("On a tablet, the author view’s table fits, so its header stays at the top of the window", async ({
+	page,
+	github,
+}) => {
+	await page.setViewportSize({ width: 900, height: 400 });
+	await page.goto("/?repo=foo/bar&role=author");
+	await expect(page.locator("progress")).toBeHidden();
+
+	await page.mouse.wheel(0, 400);
+	await expect
+		.poll(() => page.locator("#queue thead").evaluate(head => head.getBoundingClientRect().top))
+		.toBe(0);
+});
+
 test("The field that edits the user is as tall as the name it replaces, so the strip doesn’t move", async ({
 	page,
 	github,
