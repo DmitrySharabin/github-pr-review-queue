@@ -147,6 +147,41 @@ test("A click outside the list shows the authors checked in it", async ({ page, 
 	await expect(page.locator("#queue tbody tr")).toHaveCount(1);
 });
 
+test("Tab past the list’s last button closes it and shows the authors checked in it, as a click outside does", async ({
+	page,
+	github,
+}) => {
+	authored(github);
+	await page.goto("/?repo=foo/bar");
+	await unfold(page);
+	await expect(page.locator("progress")).toBeHidden();
+
+	await page.getByRole("button", { name: "Author" }).click();
+	await pick(page, "quux").check();
+	await page.getByRole("button", { name: "Show 1 PR" }).focus();
+	await page.keyboard.press("Tab");
+
+	await expect(page.locator("#authors")).toBeHidden();
+	await expect(page.locator("#queue tbody tr")).toHaveCount(1);
+});
+
+test("A click on the Author button closes the open list rather than opens it again", async ({
+	page,
+	github,
+}) => {
+	authored(github);
+	await page.goto("/?repo=foo/bar");
+	await unfold(page);
+	await expect(page.locator("progress")).toBeHidden();
+
+	let button = page.getByRole("button", { name: "Author" });
+	await button.click();
+	await expect(page.locator("#authors")).toBeVisible();
+	await button.click();
+
+	await expect(page.locator("#authors")).toBeHidden();
+});
+
 test("Esc that only clears the search field leaves the picks to show on a click outside", async ({
 	page,
 	github,

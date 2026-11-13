@@ -38,6 +38,18 @@ export function applyOnClose (form, { changed, open, discard }) {
 		discard();
 	});
 
+	// Focus moved out from the keyboard, e.g. by Tab past the last button, closes the menu as a click outside does, which applies it.
+	// A click needs no check: outside it is light dismiss, and on the menu’s own button it toggles the menu
+	document.addEventListener("focusin", event => {
+		if (
+			form.matches(":popover-open") &&
+			!form.contains(event.target) &&
+			event.target.matches(":focus-visible")
+		) {
+			form.hidePopover();
+		}
+	});
+
 	form.addEventListener("submit", event => {
 		if (!changed()) {
 			event.preventDefault();
