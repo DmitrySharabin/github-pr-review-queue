@@ -29,7 +29,7 @@ import {
 } from "./github.js";
 import { forget, restore, store, storedQueues } from "./queues.js";
 import { fill, mark, relink, unmark } from "./row.js";
-import { showSort, sort, sortBy } from "./sort.js";
+import { chooseSort, showSort, sort } from "./sort.js";
 import { showTime } from "./time.js";
 import { offerRecent } from "./recent.js";
 import { plural } from "./plural.js";
@@ -81,7 +81,7 @@ let loading;
 // Sorts without a view transition: its capture holds the new order back up to 300 ms on 100 rows, and when every row moves, no one follows one.
 // Bars wait for the search, which sorts what it finds
 table.addEventListener("command", event => {
-	sortBy(event.source.value);
+	chooseSort(event.source.value);
 	if (queue) {
 		sort(queue.rows, { shows });
 	}

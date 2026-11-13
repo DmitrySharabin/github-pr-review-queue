@@ -46,10 +46,10 @@ export function showSort (role) {
 }
 
 /**
- * Sort by a column, or reverse the sort when it is by that column already, and save the choice for the next visit. {@link sort} then sorts the rows.
+ * Choose the column to sort by, or reverse it when the sort is by that column already, and save the choice for the next visit. {@link sort} applies it.
  * @param {string} column - A key of {@link sortKeys}, e.g. `diff`
  */
-export function sortBy (column) {
+export function chooseSort (column) {
 	let th = table.tHead.querySelector(`[value="${column}"]`).closest("th");
 	let sorted = { column, direction: th.ariaSort === "descending" ? "ascending" : "descending" };
 	markSort(sorted);
