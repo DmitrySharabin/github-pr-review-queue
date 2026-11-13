@@ -561,7 +561,6 @@ async function load () {
 		// Rows of another view, or of no finished load, go: they would sit under this view’s labels, filter and time.
 		// A step back then shows the stored queue, as a visit does
 		if (!onScreen(view) || !queue.at) {
-			queue = undefined;
 			hideQueue();
 		}
 
@@ -736,6 +735,7 @@ function showSkeleton (view, user = view.user) {
 
 /** Hide the queue and what goes around it, e.g. for the sign-in card or the form after a failed load. */
 function hideQueue () {
+	queue = undefined;
 	showUpdated();
 	strip.hidden = true;
 	table.parentElement.hidden = true;
@@ -958,7 +958,6 @@ async function login (repo, signal) {
 	// Whoever signs in may be someone else, e.g. after a token expired, so the queues of the last one go, stored and on screen
 	// NOTE: The same user signed in again loses the marks of the next load, and its details load anew
 	forget();
-	queue = undefined;
 	hideQueue();
 	showDelta();
 	header.classList.remove("failed");
