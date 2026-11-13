@@ -35,7 +35,7 @@ import { offerRecent } from "./recent.js";
 import { plural } from "./plural.js";
 import { collaborators, matches, showAuthors } from "./authors.js";
 import { applyOnClose, dismissMenus } from "./menu.js";
-import { href, normalizeParams, viewKey, viewNames, viewOf } from "./view.js";
+import { href, normalizeParams, paramNames, viewKey, viewOf } from "./view.js";
 
 let table = document.querySelector("#queue");
 let status = document.querySelector("#status");
@@ -135,7 +135,7 @@ for (let form of forms) {
 		"formdata",
 		({ formData }) => {
 			let params = new URLSearchParams(location.search);
-			for (let name of [...viewNames, "authors"]) {
+			for (let name of paramNames) {
 				if (!formData.has(name) && params.has(name)) {
 					formData.set(name, params.get(name));
 				}

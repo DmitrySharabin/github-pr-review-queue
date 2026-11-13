@@ -7,7 +7,7 @@
  * @property {number} at - When the load finished, in epoch ms
  * @property {{ pr: object, summary: Summary }[]} rows
  */
-import { parseKey, viewKey } from "./view.js";
+import { viewKey, viewOf } from "./view.js";
 
 const prefix = "review-queue:queue:";
 /** The format of the stored queues. A new one, e.g. after a step is renamed, leaves the queues stored before unread */
@@ -45,7 +45,7 @@ export function restore (view) {
 function storedViews () {
 	return Object.keys(localStorage)
 		.filter(key => key.startsWith(queuePrefix))
-		.map(key => ({ key, view: parseKey(key.slice(queuePrefix.length)) }));
+		.map(key => ({ key, view: viewOf(key.slice(queuePrefix.length)) }));
 }
 
 /**
@@ -54,7 +54,7 @@ function storedViews () {
  */
 export function storedQueues () {
 	return storedViews()
-		.map(queue => ({ ...queue, at: JSON.parse(localStorage.getItem(queue.key)).at }))
+		.map(({ key, view }) => ({ key, view, at: JSON.parse(localStorage.getItem(key)).at }))
 		.sort((a, b) => b.at - a.at);
 }
 

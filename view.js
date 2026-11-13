@@ -13,12 +13,16 @@ import { normalize } from "./pull-request.js";
 /** The URL parameters of a view, see {@link viewOf} */
 export const viewNames = ["repo", "user", "role", "filter", "exclude"];
 
+/** The URL parameters the page reads, those of a view and the picked `authors` */
+export const paramNames = [...viewNames, "authors"];
+
 /**
- * The view of these URL parameters. A missing one means its default, e.g. no `user` is the signed-in user.
- * @param {URLSearchParams} [params]
+ * The view of these URL parameters, e.g. of a key from {@link viewKey}. A missing one means its default, e.g. no `user` is the signed-in user.
+ * @param {URLSearchParams | string} [input]
  * @returns {View}
  */
-export function viewOf (params = new URLSearchParams(location.search)) {
+export function viewOf (input = location.search) {
+	let params = new URLSearchParams(input);
 	return Object.fromEntries(viewNames.map(name => [name, params.get(name)]));
 }
 
@@ -31,31 +35,14 @@ export function viewKey (view) {
 }
 
 /**
- * The view of a key from {@link viewKey}.
- * @param {string} key
- */
-export function parseKey (key) {
-	return viewOf(new URLSearchParams(key));
-}
-
-/**
  * Rewrite URL parameters as GitHub’s pulls page rewrites its query, see {@link normalize}, e.g. `?role=author&user=foo` for `?role=author&filter=author:foo`.
  * @param {URLSearchParams | FormData} params
  */
 export function normalizeParams (params) {
 	let { user, filter, authors } = normalize(
-		Object.fromEntries(
-			["user", "role", "filter", "authors"].map(name => [name, params.get(name)]),
-		),
+		Object.fromEntries(paramNames.map(name => [name, params.get(name)])),
 	);
-	for (let [name, value] of Object.entries({ user, filter, authors })) {
-		if (value) {
-			params.set(name, value);
-		}
-		else {
-			params.delete(name);
-		}
-	}
+	assign(params, { user, filter, authors });
 }
 
 /**
@@ -64,6 +51,17 @@ export function normalizeParams (params) {
  */
 export function href (changes) {
 	let params = new URLSearchParams(location.search);
+	assign(params, changes);
+	normalizeParams(params);
+	return `?${params}`;
+}
+
+/**
+ * Set each of these parameters, or delete it when its value is empty.
+ * @param {URLSearchParams | FormData} params
+ * @param {Record<string, string | null | undefined>} changes
+ */
+function assign (params, changes) {
 	for (let [name, value] of Object.entries(changes)) {
 		if (value) {
 			params.set(name, value);
@@ -72,6 +70,4 @@ export function href (changes) {
 			params.delete(name);
 		}
 	}
-	normalizeParams(params);
-	return `?${params}`;
 }
