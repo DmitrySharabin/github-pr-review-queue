@@ -470,6 +470,11 @@ main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #upd
 	color: inherit;
 }
 
+/* A quick second tap on a control, e.g. Refresh, doesn’t zoom the page on a phone. Pinch zoom still works */
+:is(button, a) {
+	touch-action: manipulation;
+}
+
 /* Every button, text or icon, with the page’s font and no browser chrome. Each kind adds its own size and fill */
 button {
 	padding: 0;
