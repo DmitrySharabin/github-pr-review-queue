@@ -1,4 +1,5 @@
 /**
+ * @import { View } from "./view.js"
  * @import { Row } from "./row.js"
  * @import { Queue } from "./screen.js"
  */
@@ -70,7 +71,6 @@ export async function load () {
 	let { signal } = loading;
 
 	let view = viewOf();
-	let { repo, role, filter } = view;
 	let refreshing = onScreen(view);
 
 	// Without the marks, a row with nothing new equals its next render, so it stays and keeps focus
@@ -78,23 +78,7 @@ export async function load () {
 		unmark(tr);
 	}
 
-	// A label added to the filter, e.g. by a click on it, keeps the rows on screen that have it. The search would find just those.
-	// A search that found its maximum of 100 PRs may have missed others with the label, so then the rows wait for the search
-	let label =
-		countsAs(view) && queue.rows.length < searchLimit
-			? addedLabel(queue.view.filter, filter)
-			: undefined;
-	let next;
-	if (label !== undefined) {
-		let rows = queue.rows.filter(({ pr }) => hasLabel(pr, label));
-		// The load marks what changed against the last finished load’s rows that stay on screen. Before the first load finishes there are none
-		// NOTE: A PR that a refresh in flight already dropped isn’t among them, so it doesn’t count as left
-		let seen =
-			queue.seen &&
-			new Map([...queue.seen].filter(([id]) => rows.some(row => row.pr.id === id)));
-		next = { ...queue, view, rows, seen };
-	}
-
+	let next = narrowed(view);
 	// Another view shows at once what it showed last, e.g. on the last visit, while it loads again
 	if (!next && !refreshing) {
 		next = restore(view, queue?.rows);
@@ -125,7 +109,7 @@ export async function load () {
 	}
 
 	try {
-		await login(repo, signal);
+		await login(view.repo, signal);
 		signal.throwIfAborted();
 		controls.inert = false;
 
@@ -139,72 +123,10 @@ export async function load () {
 			showDelta();
 		}
 
-		// Rows of another queue, e.g. before a role switch, stay on screen until the search replaces them, but don’t update
-		let kept = countsAs(view) ? queue.rows : [];
-
-		let { repository, search: found } = await graphql(query({ ...view, user }), signal);
-		signal.throwIfAborted();
-
-		let previous = new Map(kept.map(row => [row.pr.id, row]));
-		let stale = [];
-		let rows = found.nodes.map(pr => {
-			let row = previous.get(pr.id) ?? {};
-			// The search asks for the repository once. turn() reads it on each PR, as `pr.repository` in GitHub’s model
-			row.pr = { ...pr, repository };
-			// Without details the summary has no slow fields, so a refreshed row keeps its old ones, dimmed, until they arrive
-			fill(row, { ...row.summary, ...summarize(pr, user, role) });
-
-			// The details are checked against their own copy. A load stopped before they came, e.g. by a label click, already replaced `pr`.
-			// An author’s details are checked on every load, since a finished check run changes neither `updatedAt` nor the head commit
-			if (
-				!row.detailed ||
-				role === "author" ||
-				incomplete(row.summary) ||
-				outdated(row.detailed, pr)
-			) {
-				stale.push(row);
-				if (row.detailed) {
-					row.tr.classList.add("stale");
-				}
-			}
-			return row;
-		});
-		// What the last finished load showed, and when, holds only for its own view, e.g. not after a role switch
-		let { at, seen } = onScreen(view) ? queue : {};
-		showQueue({ view, user, rows, at, seen });
-
+		let stale = await find(view, user, signal);
 		let failed = await fillDetails(stale, queue, signal);
 		signal.throwIfAborted();
-		sort(rows, { animate: true, shows });
-		showCounts(queue, authors);
-
-		queue.at = Date.now();
-		showUpdated(queue.at);
-		// Rows whose details didn’t arrive, e.g. failed or of a deleted PR, show what they had, undimmed.
-		// The next load asks for them again
-		// Rows of other authors are off the page, so not in the table
-		for (let { tr } of rows) {
-			if (tr.classList.contains("stale")) {
-				unmark(tr);
-			}
-		}
-
-		// The user has seen what the search found, even when details failed
-		let last = queue.seen;
-		queue.seen = summaries(rows);
-		if (last) {
-			// NOTE: Counts the PRs of authors not picked too, e.g. “+1” for a new PR that doesn’t show
-			showDelta(mark(rows, last));
-		}
-
-		// The search did refresh the queue, so a failure shows beside Refresh, never with the form
-		if (failed) {
-			showFailure(describe(failed.reason));
-		}
-		else {
-			hideFailure();
-			store(queue);
-		}
+		finish(failed);
 	}
 	catch (error) {
 		// The newer load shows its own outcome
@@ -212,30 +134,149 @@ export async function load () {
 			return;
 		}
 
-		// Rows of another view, or of no finished load, go: they would sit under this view’s labels, filter and time.
-		// A step back then shows the stored queue, as a visit does
-		if (!onScreen(view) || !queue.at) {
-			hideQueue();
-		}
-
-		showDelta();
-		// A repo or user that GitHub can’t find needs the form to fix them.
-		// So does a failure with no finished load on screen, e.g. on a first visit, where most failures come from the repo or the user
-		if (queue && !notFound.test(error?.message)) {
-			showFailure(describe(error));
-		}
-		else {
-			hideFailure();
-			showNotice(
-				repoForm,
-				`Couldn’t load the pull requests in ${repo}`,
-				describe(error, "Check the repository and the user, then try again."),
-			);
-		}
+		fail(view, error);
 	}
 
 	loading = undefined;
 	showLoaded();
+}
+
+/**
+ * The queue on screen narrowed to a label added to the filter, e.g. by a click on it, if any.
+ * The rows on screen that have the label stay, since the search would find just those.
+ * @param {View} view
+ * @returns {Queue | undefined}
+ */
+function narrowed (view) {
+	// A search that found its maximum of 100 PRs may have missed others with the label, so then the rows wait for the search
+	let label =
+		countsAs(view) && queue.rows.length < searchLimit
+			? addedLabel(queue.view.filter, view.filter)
+			: undefined;
+	if (label === undefined) {
+		return;
+	}
+
+	let rows = queue.rows.filter(({ pr }) => hasLabel(pr, label));
+	// The load marks what changed against the last finished load’s rows that stay on screen. Before the first load finishes there are none
+	// NOTE: A PR that a refresh in flight already dropped isn’t among them, so it doesn’t count as left
+	let seen =
+		queue.seen &&
+		new Map([...queue.seen].filter(([id]) => rows.some(row => row.pr.id === id)));
+	return { ...queue, view, rows, seen };
+}
+
+/**
+ * Search for the PRs of a view, and show them with the fields the search returns.
+ * Their slow fields wait for {@link fillDetails}.
+ * @param {View} view
+ * @param {string} user - The view’s, or the signed-in user when it names none
+ * @param {AbortSignal} signal - The load’s
+ * @returns {Promise<Row[]>} The rows whose details to load
+ */
+async function find (view, user, signal) {
+	let { role } = view;
+	// Rows of another queue, e.g. before a role switch, stay on screen until the search replaces them, but don’t update
+	let kept = countsAs(view) ? queue.rows : [];
+
+	let { repository, search: found } = await graphql(query({ ...view, user }), signal);
+	signal.throwIfAborted();
+
+	let previous = new Map(kept.map(row => [row.pr.id, row]));
+	let stale = [];
+	let rows = found.nodes.map(pr => {
+		let row = previous.get(pr.id) ?? {};
+		// The search asks for the repository once. turn() reads it on each PR, as `pr.repository` in GitHub’s model
+		row.pr = { ...pr, repository };
+		// Without details the summary has no slow fields, so a refreshed row keeps its old ones, dimmed, until they arrive
+		fill(row, { ...row.summary, ...summarize(pr, user, role) });
+
+		// The details are checked against their own copy. A load stopped before they came, e.g. by a label click, already replaced `pr`.
+		// An author’s details are checked on every load, since a finished check run changes neither `updatedAt` nor the head commit
+		if (
+			!row.detailed ||
+			role === "author" ||
+			incomplete(row.summary) ||
+			outdated(row.detailed, pr)
+		) {
+			stale.push(row);
+			if (row.detailed) {
+				row.tr.classList.add("stale");
+			}
+		}
+		return row;
+	});
+	// What the last finished load showed, and when, holds only for its own view, e.g. not after a role switch
+	let { at, seen } = onScreen(view) ? queue : {};
+	showQueue({ view, user, rows, at, seen });
+	return stale;
+}
+
+/**
+ * Show the queue on screen as the load leaves it, with what changed since the last one, and store it.
+ * A queue with failed details shows the failure beside Refresh instead, and isn’t stored
+ * @param {PromiseRejectedResult} [failed] - The first failure of {@link fillDetails}, if any
+ */
+function finish (failed) {
+	let { rows } = queue;
+	sort(rows, { animate: true, shows });
+	showCounts(queue, authors);
+
+	queue.at = Date.now();
+	showUpdated(queue.at);
+	// Rows whose details didn’t arrive, e.g. failed or of a deleted PR, show what they had, undimmed.
+	// The next load asks for them again
+	// Rows of other authors are off the page, so not in the table
+	for (let { tr } of rows) {
+		if (tr.classList.contains("stale")) {
+			unmark(tr);
+		}
+	}
+
+	// The user has seen what the search found, even when details failed
+	let last = queue.seen;
+	queue.seen = summaries(rows);
+	if (last) {
+		// NOTE: Counts the PRs of authors not picked too, e.g. “+1” for a new PR that doesn’t show
+		showDelta(mark(rows, last));
+	}
+
+	// The search did refresh the queue, so a failure shows beside Refresh, never with the form
+	if (failed) {
+		showFailure(describe(failed.reason));
+	}
+	else {
+		hideFailure();
+		store(queue);
+	}
+}
+
+/**
+ * Say why a load failed, beside Refresh or with the form.
+ * @param {View} view
+ * @param {unknown} error - What the load threw
+ */
+function fail (view, error) {
+	// Rows of another view, or of no finished load, go: they would sit under this view’s labels, filter and time.
+	// A step back then shows the stored queue, as a visit does
+	if (!onScreen(view) || !queue.at) {
+		hideQueue();
+	}
+
+	showDelta();
+	// A repo or user that GitHub can’t find needs the form to fix them.
+	// So does a failure with no finished load on screen, e.g. on a first visit, where most failures come from the repo or the user
+	if (queue && !notFound.test(error?.message)) {
+		showFailure(describe(error));
+	}
+	else {
+		hideFailure();
+		showNotice(
+			repoForm,
+			`Couldn’t load the pull requests in ${view.repo}`,
+			describe(error, "Check the repository and the user, then try again."),
+		);
+	}
 }
 
 /**
