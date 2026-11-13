@@ -201,32 +201,26 @@ for (let form of strip.querySelectorAll("form")) {
 // A pattern that isn’t a regular expression, e.g. `test(`, stops Apply with the browser’s message
 displayForm.elements.exclude.addEventListener("input", checkPattern);
 
-displayForm.querySelector(".clear").addEventListener("click", event => {
-	let field = displayForm.elements.exclude;
-	field.value = "";
-	// Clear pressed from the keyboard hides itself and would drop the focus to the page, so the emptied field takes it.
-	// Not after a tap, since a focused field opens the on-screen keyboard
-	if (event.currentTarget.matches(":focus-visible")) {
-		field.focus();
-	}
-	checkPattern();
-});
+for (let [clear, field] of [
+	[filterForm.querySelector(".cancel"), filterForm.elements.filter],
+	[displayForm.querySelector(".clear"), displayForm.elements.exclude],
+]) {
+	clear.addEventListener("click", () => {
+		field.value = "";
+		// Pressed from the keyboard, it hides itself and would drop the focus to the page, so the emptied field takes it.
+		// Not after a tap, since a focused field opens the on-screen keyboard
+		if (clear.matches(":focus-visible")) {
+			field.focus();
+		}
+	});
+}
 
 // An empty field submits no `filter`
-filterForm.querySelector(".cancel").addEventListener("click", event => {
-	let field = filterForm.elements.filter;
-	field.value = "";
-	// ✕ pressed from the keyboard hides itself and would drop the focus to the page, so the emptied field takes it.
-	// Not after a tap, since a focused field opens the on-screen keyboard
-	if (event.currentTarget.matches(":focus-visible")) {
-		field.focus();
-	}
-	filterForm.requestSubmit();
-});
+filterForm.querySelector(".cancel").addEventListener("click", () => filterForm.requestSubmit());
+displayForm.querySelector(".clear").addEventListener("click", checkPattern);
 
 applyOnClose(displayForm, {
-	changed: () =>
-		[...displayForm.elements].some(field => field.name && field.value !== field.defaultValue),
+	changed: () => displayForm.elements.exclude.value !== displayForm.elements.exclude.defaultValue,
 	discard () {
 		displayForm.reset();
 		checkPattern();
@@ -255,7 +249,7 @@ if (`${normalized}` !== `${current}`) {
 	history.replaceState(null, "", `?${normalized}${location.hash}`);
 }
 
-// A filter, a role switch or another repo loads in place, so what it doesn’t change stays put, e.g. the open filter form.
+// A filter, a role switch or another repo loads in place, so what it doesn’t change stays put, e.g. the focus in the filter field.
 // Without the Navigation API, or to or from the page that asks for a repo, the page reloads:
 // going back to that page shows it, not just its URL, and leaving it brings back the controls it hides
 window.navigation?.addEventListener("navigate", event => {
@@ -271,11 +265,11 @@ window.navigation?.addEventListener("navigate", event => {
 		return;
 	}
 
-	// The same view submitted again, e.g. Apply with the same terms, loads it again
+	// The same view submitted again, e.g. Enter with the same terms, loads it again
 	let onlyAuthors =
 		viewNames.every(name => next.get(name) === current.get(name)) &&
 		next.get("authors") !== current.get("authors");
-	// The handler runs once the URL has changed. Focus and scroll stay where they were, e.g. on the Apply button
+	// The handler runs once the URL has changed. Focus and scroll stay where they were, e.g. in the filter field
 	event.intercept({
 		focusReset: "manual",
 		scroll: "manual",
@@ -303,7 +297,7 @@ function showView ({ onlyAuthors } = {}) {
 				field.defaultValue = params.get(field.name) ?? "";
 			}
 		}
-		// The open author list keeps what is checked in it, e.g. on a step back, as it does while a refresh ends
+		// An open menu keeps what is changed in it, e.g. on a step back, as it does while a refresh ends
 		if (!form.matches(":popover-open")) {
 			form.reset();
 		}
@@ -329,9 +323,7 @@ function showView ({ onlyAuthors } = {}) {
 
 	filterForm.querySelector(".cancel").hidden = !filter;
 	// Closed, the menu says that a setting in it differs from its default
-	let count = displayButton.querySelector(".count");
-	count.textContent = exclude ? 1 : "";
-	count.hidden = !exclude;
+	displayButton.querySelector(".badge").hidden = !exclude;
 	displayButton.ariaLabel = exclude ? "Display, 1 setting changed" : null;
 
 	if (params.get("repo")) {
@@ -712,7 +704,11 @@ function showQueue ({ repo, user, role, filter }) {
 	showAuthors(rows, authors);
 	relink(rows);
 	authorButton.disabled = false;
-	authorButton.hidden = role === "author" || (rows.length === 0 && authors.length === 0);
+	displayButton.disabled = false;
+	// Open, a menu stays by its button, e.g. while a refresh that empties the queue ends
+	authorButton.hidden =
+		role === "author" ||
+		(rows.length === 0 && authors.length === 0 && !authorForm.matches(":popover-open"));
 	// Nothing to narrow down, unless a filter or picked authors are why nothing is left.
 	// In use, the row stays, e.g. a field focused after its terms were cleared, or a menu open while a refresh ends
 	filters.hidden =
@@ -752,10 +748,11 @@ function showSkeleton ({ repo, user, role, filter }) {
 	empty.hidden = true;
 	repoForm.hidden = true;
 	authorButton.hidden = role === "author";
-	// No authors to list until the search ends
-	authorButton.disabled = true;
-	filters.hidden = false;
 	displayButton.hidden = role === "author";
+	// No authors to list, nor counts to change, until the search ends. A menu left open would stay over a failed load’s form
+	authorButton.disabled = true;
+	displayButton.disabled = true;
+	filters.hidden = false;
 }
 
 /** Hide the queue and what goes around it, e.g. for the sign-in card or the form after a failed load. */

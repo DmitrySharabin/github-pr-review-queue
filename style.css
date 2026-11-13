@@ -905,13 +905,17 @@ hgroup {
 /* Which PRs show and how they count, on one line over the table. The filter takes the room the menus leave */
 #filters {
 	display: flex;
-	flex-wrap: wrap;
 	gap: 0.5rem;
 	align-items: center;
 	margin-block-end: 1rem;
 
 	&[hidden] {
 		display: none;
+	}
+
+	/* A phone’s field gets a row of its own */
+	@container (width < 36rem) {
+		flex-wrap: wrap;
 	}
 }
 
@@ -944,10 +948,6 @@ hgroup {
 	.cancel {
 		justify-self: end;
 		margin-inline-end: 0.5rem;
-
-		&[hidden] {
-			display: none;
-		}
 	}
 
 	/* A phone’s first row, with the menus under it */
@@ -956,15 +956,15 @@ hgroup {
 	}
 }
 
-/* ✕ in the filter field, or Clear under the pattern, clears more than the text */
-:is(#narrow, #display) input::-webkit-search-cancel-button {
+/* ✕ after the field clears the filter, not just the text */
+#narrow input::-webkit-search-cancel-button {
 	display: none;
 }
 
 /* Menus at the end of the filter, as tall as its field. Each opens a list rather than acts, as a select does, so it looks like a field too */
 :is(#author-button, #display-button) {
 	display: flex;
-	flex: none;
+	flex: 0 1 auto;
 	gap: 0.4em;
 	align-items: center;
 	max-inline-size: 16rem;
@@ -977,6 +977,12 @@ hgroup {
 
 	&:enabled:hover {
 		background: var(--rule);
+	}
+
+	/* While bars stand in for the rows, there are no authors to list, nor counts to change */
+	&:disabled {
+		color: var(--muted);
+		cursor: progress;
 	}
 
 	&[hidden] {
@@ -1013,14 +1019,9 @@ hgroup {
 	}
 }
 
+/* A long login shrinks it, rather than push Display onto a line of its own */
 #author-button {
 	min-inline-size: 0;
-
-	/* While bars stand in for the rows, there are no authors to list */
-	&:disabled {
-		color: var(--muted);
-		cursor: progress;
-	}
 
 	.faces {
 		display: flex;
@@ -1042,7 +1043,7 @@ hgroup {
 }
 
 /* How many settings differ from their defaults, as a pill */
-#display-button .count {
+#display-button .badge {
 	min-inline-size: 1lh;
 	/* Trimmed to the digit’s cap height, then padded back to a line, so the digit sits in the middle of the pill */
 	padding: calc((1lh - 1cap) / 2) 0.4em;
@@ -1054,10 +1055,6 @@ hgroup {
 	font-variant-numeric: tabular-nums;
 	text-align: center;
 	text-box: trim-both cap alphabetic;
-
-	&[hidden] {
-		display: none;
-	}
 }
 
 :is(#author-button, #authors) img {

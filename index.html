@@ -163,11 +163,11 @@
 			</form>
 
 			<!-- How the rows show, rather than which -->
-			<button id="display-button" type="button" popovertarget="display" hidden><span class="text">Display</span><span class="count" hidden></span></button>
+			<button id="display-button" type="button" popovertarget="display" hidden><span class="text">Display</span><span class="badge" hidden>1</span></button>
 			<form id="display" popover aria-label="Display">
 				<div class="field">
 					<label for="exclude">Exclude from counts</label>
-					<input id="exclude" name="exclude" type="search" placeholder="test|\.lock$" autocomplete="off" spellcheck="false" aria-describedby="exclude-note">
+					<input id="exclude" name="exclude" placeholder="test|\.lock$" autocomplete="off" spellcheck="false" aria-describedby="exclude-note">
 					<small id="exclude-note">A regular expression that matches any part of a file path, such as <code>test|\.lock$</code></small>
 				</div>
 				<footer>

@@ -7,7 +7,7 @@ function display (page) {
 
 /** The pattern field in the Display menu */
 function pattern (page) {
-	return page.getByRole("searchbox", { name: "Exclude from counts" });
+	return page.getByRole("textbox", { name: "Exclude from counts" });
 }
 
 test("A queue a filter emptied links to GitHub’s search terms, when a wrong term is likely why", async ({
@@ -67,7 +67,7 @@ test("Display says how many of its settings differ from their defaults", async (
 	await page.goto("/?repo=foo/bar&exclude=test");
 
 	await expect(page.getByRole("button", { name: "Display, 1 setting changed" })).toBeVisible();
-	await expect(page.locator("#display-button .count")).toHaveText("1");
+	await expect(page.locator("#display-button .badge")).toBeVisible();
 });
 
 test("Display with every setting at its default shows no count, nor names one", async ({
@@ -77,7 +77,7 @@ test("Display with every setting at its default shows no count, nor names one", 
 	await page.goto("/?repo=foo/bar");
 
 	await expect(page.getByRole("button", { name: "Display", exact: true })).toBeVisible();
-	await expect(page.locator("#display-button .count")).toBeHidden();
+	await expect(page.locator("#display-button .badge")).toBeHidden();
 });
 
 test("Display closed with no change loads nothing", async ({ page, github }) => {
@@ -93,10 +93,11 @@ test("Display closed with no change loads nothing", async ({ page, github }) => 
 	await display(page).click();
 	await page.locator("h1").click();
 	await expect(page.locator("#display")).toBeHidden();
-	// A search would start at once
-	await page.waitForTimeout(500);
+	// A search that the close started would come before the refresh’s
+	await page.getByRole("button", { name: "Refresh" }).click();
+	await expect(page.locator("progress")).toBeHidden();
 
-	expect(searches).toBe(1);
+	expect(searches).toBe(2);
 });
 
 test("Enter in Display applies the pattern", async ({ page, github }) => {
@@ -225,14 +226,56 @@ test("Esc drops the pattern typed in Display", async ({ page, github }) => {
 
 	await display(page).click();
 	await pattern(page).fill("src");
-	// The first Esc in a filled search field only clears it
-	await page.keyboard.press("Escape");
 	await page.keyboard.press("Escape");
 	await expect(page.locator("#display")).toBeHidden();
 	await display(page).click();
 
 	await expect(pattern(page)).toHaveValue("test");
 	await expect(page).toHaveURL(/[?&]exclude=test(&|$)/);
+});
+
+test("Esc in Display that leaves a click outside nothing to apply keeps the pattern applied", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar&exclude=test");
+	await expect(page.locator("progress")).toBeHidden();
+
+	await display(page).click();
+	await page.keyboard.press("Escape");
+	await page.locator("h1").click();
+	await expect(page.locator("#display")).toBeHidden();
+
+	await expect(page).toHaveURL(/[?&]exclude=test(&|$)/);
+});
+
+test("Display waits for the search, as Author does, so no menu stays open over a failed load’s form", async ({
+	page,
+	github,
+}) => {
+	github.search = () => new Promise(() => {});
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("#queue .skeleton").first()).toBeVisible();
+
+	await expect(display(page)).toBeDisabled();
+});
+
+test("The author list open while a refresh empties the queue stays by its button", async ({
+	page,
+	github,
+}) => {
+	await page.goto("/?repo=foo/bar");
+	await expect(page.locator("progress")).toBeHidden();
+	await page.getByRole("button", { name: "Author" }).click();
+
+	github.search = answer => {
+		answer.data.search.nodes = [];
+	};
+	// A click on Refresh would close the list first
+	await page.locator("#refresh").evaluate(button => button.click());
+	await expect(page.locator("#empty")).toBeVisible();
+
+	await expect(page.locator("#author-button")).toBeVisible();
 });
 
 test("A click outside Display drops a pattern that isn’t a regular expression, rather than keep it unapplied", async ({
