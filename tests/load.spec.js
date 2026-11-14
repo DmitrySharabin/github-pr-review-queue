@@ -604,56 +604,58 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 		return { user: params.get("user"), filter: params.get("filter") };
 	}
 
-	// The search would join the two authors with an OR, while the summary names one of them
-	test("Another author in the author view’s filter opens their queue, as on GitHub’s pulls page", async ({
-		page,
-	}) => {
-		await page.goto("/?repo=foo/bar&role=author");
-		await unfold(page);
+	// Each case opens a view and applies a filter in it, and names the view that the URL then asks for
+	let cases = [
+		{
+			// The search would join the two authors with an OR, while the summary names one of them
+			title: "Another author in the author view’s filter opens their queue, as on GitHub’s pulls page",
+			url: "/?repo=foo/bar&role=author",
+			terms: "author:other-user label:bug",
+			opens: { user: "other-user", filter: "label:bug" },
+		},
+		{
+			title: "Another reviewer in the reviewer view’s filter opens their queue",
+			url: "/?repo=foo/bar",
+			terms: "review-requested:other-user",
+			opens: { user: "other-user", filter: null },
+		},
+		{
+			title: "Of two authors in the filter, the last one wins, as on GitHub’s pulls page",
+			url: "/?repo=foo/bar&role=author",
+			terms: "author:third-user author:other-user",
+			opens: { user: "other-user", filter: null },
+		},
+		{
+			title: "`author:@me` opens the signed-in user’s queue",
+			url: "/?repo=foo/bar&user=other-user&role=author",
+			terms: "author:@me",
+			opens: { user: null, filter: null },
+		},
+		{
+			// A negated author narrows the search, so it is a filter of its own
+			title: "A negated author in the author view stays in the filter",
+			url: "/?repo=foo/bar&role=author",
+			terms: "-author:other-user",
+			opens: { user: null, filter: "-author:other-user" },
+		},
+		{
+			title: "A negated author in the reviewer view stays in the filter, as the Author button can’t exclude",
+			url: "/?repo=foo/bar",
+			terms: "-author:other-user",
+			opens: { user: null, filter: "-author:other-user" },
+		},
+	];
 
-		await filterBy(page, "author:other-user label:bug");
+	for (let { title, url, terms, opens } of cases) {
+		test(title, async ({ page }) => {
+			await page.goto(url);
+			await unfold(page);
 
-		await expect.poll(() => view(page)).toEqual({ user: "other-user", filter: "label:bug" });
-	});
+			await filterBy(page, terms);
 
-	test("Another reviewer in the reviewer view’s filter opens their queue", async ({ page }) => {
-		await page.goto("/?repo=foo/bar");
-		await unfold(page);
-
-		await filterBy(page, "review-requested:other-user");
-
-		await expect.poll(() => view(page)).toEqual({ user: "other-user", filter: null });
-	});
-
-	test("Of two authors in the filter, the last one wins, as on GitHub’s pulls page", async ({
-		page,
-	}) => {
-		await page.goto("/?repo=foo/bar&role=author");
-		await unfold(page);
-
-		await filterBy(page, "author:third-user author:other-user");
-
-		await expect.poll(() => view(page)).toEqual({ user: "other-user", filter: null });
-	});
-
-	test("`author:@me` opens the signed-in user’s queue", async ({ page }) => {
-		await page.goto("/?repo=foo/bar&user=other-user&role=author");
-		await unfold(page);
-
-		await filterBy(page, "author:@me");
-
-		await expect.poll(() => view(page)).toEqual({ user: null, filter: null });
-	});
-
-	// A negated author narrows the search, so it is a filter of its own
-	test("A negated author in the author view stays in the filter", async ({ page }) => {
-		await page.goto("/?repo=foo/bar&role=author");
-		await unfold(page);
-
-		await filterBy(page, "-author:other-user");
-
-		await expect.poll(() => view(page)).toEqual({ user: null, filter: "-author:other-user" });
-	});
+			await expect.poll(() => view(page)).toEqual(opens);
+		});
+	}
 
 	// Two places would pick authors apart, e.g. `author:foo` with `foo` unpicked in the list, and show nothing
 	test("Authors in the reviewer view’s filter become the Author button’s picks, in place of the ones before", async ({
@@ -667,17 +669,6 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 		await expect
 			.poll(() => Object.fromEntries(new URL(page.url()).searchParams))
 			.toEqual({ repo: "foo/bar", filter: "label:bar", authors: "other-user,foo" });
-	});
-
-	test("A negated author in the reviewer view stays in the filter, as the Author button can’t exclude", async ({
-		page,
-	}) => {
-		await page.goto("/?repo=foo/bar");
-		await unfold(page);
-
-		await filterBy(page, "-author:other-user");
-
-		await expect.poll(() => view(page)).toEqual({ user: null, filter: "-author:other-user" });
 	});
 
 	test("A link to the view with other repos in the filter searches only its own repo", async ({
