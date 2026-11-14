@@ -185,6 +185,8 @@
 		</search>
 
 		<section class="scroller" aria-labelledby="caption" hidden>
+			<!-- Says the new order after a click on a header, since not every screen reader says a changed aria-sort -->
+			<p id="sorted" class="spoken" role="status"></p>
 			<table id="queue">
 				<caption id="caption" data-author="Open pull requests" data-reviewer="Pull requests awaiting review"></caption>
 				<thead>

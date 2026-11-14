@@ -5,6 +5,7 @@
 import { size } from "./pull-request.js";
 
 let table = document.querySelector("#queue");
+let said = document.querySelector("#sorted");
 
 /** The author’s turn sorts first, then the others’, then no one’s, e.g. a draft’s */
 const turns = { author: 2, others: 1, nobody: 0 };
@@ -50,10 +51,12 @@ export function showSort (role) {
  * @param {string} column - A key of {@link sortKeys}, e.g. `diff`
  */
 export function chooseSort (column) {
-	let th = table.tHead.querySelector(`[value="${column}"]`).closest("th");
+	let button = table.tHead.querySelector(`[value="${column}"]`);
+	let th = button.closest("th");
 	let sorted = { column, direction: th.ariaSort === "descending" ? "ascending" : "descending" };
 	markSort(sorted);
 	shown.sort = sorted;
+	said.textContent = `Sorted by ${button.textContent}, ${sorted.direction}`;
 
 	try {
 		localStorage.setItem(shown.key, JSON.stringify(sorted));
