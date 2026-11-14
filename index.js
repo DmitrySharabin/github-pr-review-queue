@@ -1,9 +1,8 @@
-import { pattern } from "./pull-request.js";
 import { describe, github } from "./github.js";
 import { forget, storedQueues } from "./queues.js";
 import { unmark } from "./row.js";
 import { offerRecent } from "./recent.js";
-import { applyOnClose } from "./menu.js";
+import { showDisplay } from "./display.js";
 import { href, normalizeParams, paramNames, viewKey, viewOf } from "./view.js";
 import { showNotice } from "./status.js";
 import { onScreen, pickAuthors, showQueue } from "./screen.js";
@@ -21,7 +20,6 @@ let repoForm = document.querySelector("#repo-form");
 let strip = document.querySelector("#summary");
 let filterForm = document.querySelector("#narrow");
 let authorForm = document.querySelector("#authors");
-let displayButton = document.querySelector("#display-button");
 let displayForm = document.querySelector("#display");
 let forms = [repoForm, filterForm, authorForm, displayForm, ...strip.querySelectorAll("form")];
 
@@ -99,35 +97,15 @@ for (let name of ["repo", "user"]) {
 	});
 }
 
-// A pattern that isn’t a regular expression, e.g. `test(`, stops Apply with the browser’s message
-displayForm.elements.exclude.addEventListener("input", checkPattern);
-
-// An empty filter field submits no `filter`. An empty pattern waits for Apply, as the author list’s Clear does
-for (let [clear, field, then] of [
-	[
-		filterForm.querySelector(".cancel"),
-		filterForm.elements.filter,
-		() => filterForm.requestSubmit(),
-	],
-	[displayForm.querySelector(".clear"), displayForm.elements.exclude, checkPattern],
-]) {
-	clear.addEventListener("click", () => {
-		field.value = "";
-		// Pressed from the keyboard, it hides itself and would drop the focus to the page, so the emptied field takes it.
-		// Not after a tap, since a focused field opens the on-screen keyboard
-		if (clear.matches(":focus-visible")) {
-			field.focus();
-		}
-		then();
-	});
-}
-
-applyOnClose(displayForm, {
-	changed: () => displayForm.elements.exclude.value !== displayForm.elements.exclude.defaultValue,
-	discard () {
-		displayForm.reset();
-		checkPattern();
-	},
+// An empty filter field submits no `filter`
+filterForm.querySelector(".cancel").addEventListener("click", event => {
+	filterForm.elements.filter.value = "";
+	// Pressed from the keyboard, it hides itself and would drop the focus to the page, so the emptied field takes it.
+	// Not after a tap, since a focused field opens the on-screen keyboard
+	if (event.currentTarget.matches(":focus-visible")) {
+		filterForm.elements.filter.focus();
+	}
+	filterForm.requestSubmit();
 });
 
 refresh.addEventListener("click", () => {
@@ -204,8 +182,6 @@ function showView ({ onlyAuthors } = {}) {
 			form.reset();
 		}
 	}
-	// A reset fires no input event, e.g. after Clear, so the last message would stay
-	checkPattern();
 
 	// Each role opens the same queue, filter and all, from the other side
 	// The other role’s qualifier in the filter, e.g. `author:foo`, names its user
@@ -215,10 +191,7 @@ function showView ({ onlyAuthors } = {}) {
 	}
 
 	filterForm.querySelector(".cancel").hidden = !filter;
-	// Closed, the menu says that a setting in it differs from its default
-	displayButton.querySelector(".badge").hidden = !exclude;
-	displayButton.ariaLabel = exclude ? "Display, 1 setting changed" : null;
-	displayButton.classList.toggle("set", Boolean(exclude));
+	showDisplay(exclude);
 
 	if (view.repo) {
 		// Other authors of the view on screen need no load. Their rows are on screen already
@@ -238,13 +211,4 @@ function showView ({ onlyAuthors } = {}) {
 	status.hidden = true;
 	progress.hidden = true;
 	repoForm.hidden = false;
-}
-
-/** Mark the pattern field invalid while it holds no regular expression, and offer Clear while it holds anything. */
-function checkPattern () {
-	let field = displayForm.elements.exclude;
-	field.setCustomValidity(
-		field.value && !pattern(field.value) ? "Enter a valid regular expression." : "",
-	);
-	displayForm.querySelector(".clear").hidden = !field.value;
 }
