@@ -454,6 +454,16 @@ test.describe("A failed refresh says why", () => {
 		);
 	});
 
+	test("A defect in the page’s own code says that the page failed, not GitHub", async ({
+		page,
+	}) => {
+		// As in a browser older than the README names, which lacks the method
+		await page.evaluate(() => delete Map.prototype.getOrInsert);
+		await refresh(page);
+
+		await expect(page.locator("#failure")).toContainText("This page ran into a problem.");
+	});
+
 	test("A lost connection says the user is offline", async ({ page, context }) => {
 		// The faked GitHub still answers offline, so its request fails as a dropped connection does
 		await page.route("https://api.github.com/graphql", route =>
@@ -501,4 +511,14 @@ test("A load with another filter marks nothing, as the PRs it finds aren’t new
 	await loaded(page);
 
 	await expect(page.locator("#summary .delta .down")).toHaveText("");
+});
+
+test("A click on a header says the new order, which a screen reader hears", async ({ page }) => {
+	await open(page);
+
+	await page.getByRole("button", { name: "Changes", exact: true }).click();
+
+	await expect(page.getByRole("status").filter({ hasText: "Sorted" })).toHaveText(
+		"Sorted by Changes, descending",
+	);
 });

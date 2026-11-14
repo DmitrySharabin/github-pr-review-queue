@@ -520,3 +520,21 @@ test("The author view has no Display, as it counts no lines", async ({ page }) =
 	await expect(page.locator("#display-button")).toBeHidden();
 	await expect(filter(page)).toBeVisible();
 });
+
+test("On a phone, a long login ends in an ellipsis inside the Author button, not past its edge", async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 390, height: 844 });
+	await open(page, `/?repo=foo/bar&authors=${"a".repeat(39)}`);
+	await unfold(page);
+
+	// How far the login reaches past the button, or the button past the filters
+	let spill = await page.locator("#author-button").evaluate(button => {
+		let end = element => element.getBoundingClientRect().right;
+		return Math.max(
+			end(button.querySelector(".text")) - end(button),
+			end(button) - end(button.closest("#filters")),
+		);
+	});
+	expect(spill).toBeLessThanOrEqual(0);
+});
