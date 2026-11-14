@@ -457,6 +457,16 @@ test("A sort chosen before the rows slide into place puts them in its order", as
 	await expect(numbers(page)).toHaveText(["#65", "#66", "#67", "#68", "#69", "#70"]);
 });
 
+test("A click on a header says the new order, which a screen reader hears", async ({ page }) => {
+	await open(page);
+
+	await page.getByRole("button", { name: "Changes", exact: true }).click();
+
+	await expect(page.getByRole("status").filter({ hasText: "Sorted" })).toHaveText(
+		"Sorted by Changes, descending",
+	);
+});
+
 test("A PR deleted between the search and its details counts as loaded, and leaves the others to load", async ({
 	page,
 	github,
@@ -921,9 +931,7 @@ test.describe("After a first load that failed, the form is all there is to act o
 	});
 });
 
-test("The update time fades in when a load ends, so a refresh in the same minute shows that it finished", async ({
-	page,
-}) => {
+test("The update time fades in once a load ends, so the end of a load shows", async ({ page }) => {
 	await open(page);
 
 	await expect(page.locator("#updated time")).toHaveCSS("animation-name", "appear");

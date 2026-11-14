@@ -39,6 +39,8 @@ let listed = [];
  */
 export function showSort (role) {
 	shown = role === "author" ? roles.author : roles.reviewer;
+	// The order a click said may be of another role’s column by now
+	said.textContent = "";
 	shown.sort ??= JSON.parse(localStorage.getItem(shown.key)) ?? {
 		column: shown.column,
 		direction: "descending",
@@ -47,7 +49,7 @@ export function showSort (role) {
 }
 
 /**
- * Choose the column to sort by, or reverse it when the sort is by that column already, and save the choice for the next visit. {@link sort} applies it.
+ * Choose the column to sort by, or reverse it when the sort is by that column already, and save the choice for the next visit. A screen reader hears it. {@link sort} applies it.
  * @param {string} column - A key of {@link sortKeys}, e.g. `diff`
  */
 export function chooseSort (column) {

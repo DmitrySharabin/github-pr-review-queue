@@ -521,7 +521,7 @@ test("The author view has no Display, as it counts no lines", async ({ page }) =
 	await expect(filter(page)).toBeVisible();
 });
 
-test("On a phone, a long login ends in an ellipsis inside the Author button, not past its edge", async ({
+test("On a phone, a long login stays inside the Author button, and the button inside the filters", async ({
 	page,
 }) => {
 	await page.setViewportSize({ width: 390, height: 844 });
