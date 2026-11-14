@@ -250,6 +250,7 @@ test("The filter’s note wraps rather than cut the label of the Author menu bes
 }) => {
 	await page.setViewportSize({ width: 620, height: 600 });
 	await open(page);
+	await unfold(page);
 
 	let cut = await page
 		.locator("#author-button .text")
