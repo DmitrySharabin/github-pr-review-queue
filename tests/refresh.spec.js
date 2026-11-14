@@ -11,6 +11,17 @@ import {
 	unfold,
 } from "./github.js";
 
+/** A search that also finds a PR the last load didn’t: G, #71. */
+function addG (answer) {
+	let { nodes } = answer.data.search;
+	nodes.push({ ...nodes[0], id: "G", number: 71, title: "A pull request titled G" });
+}
+
+/** A search that finds A changed since the last load, so a refresh asks for its details again. */
+function changeA (answer) {
+	answer.data.search.nodes[0].updatedAt = "2026-11-05T12:00:00Z";
+}
+
 test("A refresh asks for the details of only the PRs that changed since the last load", async ({
 	page,
 	github,
@@ -21,9 +32,7 @@ test("A refresh asks for the details of only the PRs that changed since the last
 	github.details = answer => {
 		asked.push(...answer.data.nodes.map(pr => pr.id));
 	};
-	github.search = answer => {
-		answer.data.search.nodes[0].updatedAt = "2026-11-05T12:00:00Z";
-	};
+	github.search = changeA;
 	await refresh(page);
 	await loaded(page);
 
@@ -194,9 +203,8 @@ test("A refresh marks the PRs it finds that the last load didn’t, and the rows
 	await open(page);
 
 	github.search = answer => {
-		let { nodes } = answer.data.search;
-		nodes[1].title = "A pull request retitled B";
-		nodes.push({ ...nodes[0], id: "G", number: 71 });
+		answer.data.search.nodes[1].title = "A pull request retitled B";
+		addG(answer);
 	};
 	await refresh(page);
 	await loaded(page);
@@ -231,9 +239,8 @@ test("A refresh that finds nothing new marks nothing, even after one that marked
 }) => {
 	await open(page);
 	github.search = answer => {
-		let { nodes } = answer.data.search;
-		nodes[1].title = "A pull request retitled B";
-		nodes.push({ ...nodes[0], id: "G", number: 71 });
+		answer.data.search.nodes[1].title = "A pull request retitled B";
+		addG(answer);
 	};
 	await refresh(page);
 	await loaded(page);
@@ -261,10 +268,7 @@ test("A click on a link in a marked row removes its mark, since the user has see
 	github,
 }) => {
 	await open(page);
-	github.search = answer => {
-		let { nodes } = answer.data.search;
-		nodes.push({ ...nodes[0], id: "G", number: 71, title: "A pull request titled G" });
-	};
+	github.search = addG;
 	await refresh(page);
 	await expect(page.locator("#queue tbody mark:not([hidden])")).toHaveText(["new"]);
 
@@ -281,10 +285,7 @@ test("A refresh whose details fail still marks the PRs its search found", async 
 }) => {
 	await open(page);
 
-	github.search = answer => {
-		let { nodes } = answer.data.search;
-		nodes.push({ ...nodes[0], id: "G", number: 71 });
-	};
+	github.search = addG;
 	github.details = () => 502;
 	await refresh(page);
 	await expect(page.getByText("Couldn’t refresh")).toBeVisible();
@@ -302,10 +303,7 @@ test("A refresh after one whose details failed doesn’t mark the PRs that one s
 	github,
 }) => {
 	await open(page);
-	github.search = answer => {
-		let { nodes } = answer.data.search;
-		nodes.push({ ...nodes[0], id: "G", number: 71 });
-	};
+	github.search = addG;
 	github.details = () => 502;
 	await refresh(page);
 	await expect(page.getByText("Couldn’t refresh")).toBeVisible();
@@ -324,9 +322,7 @@ test("A refresh whose details fail shows the rows it rechecked as they were, not
 }) => {
 	await open(page);
 
-	github.search = answer => {
-		answer.data.search.nodes[0].updatedAt = "2026-11-05T12:00:00Z";
-	};
+	github.search = changeA;
 	github.details = () => 502;
 	await refresh(page);
 	await expect(page.getByText("Couldn’t refresh")).toBeVisible();
@@ -347,9 +343,7 @@ test("A refresh marks a row whose other reviewer approved, though avatars are al
 	};
 	await open(page);
 
-	github.search = answer => {
-		answer.data.search.nodes[0].updatedAt = "2026-11-05T12:00:00Z";
-	};
+	github.search = changeA;
 	github.details = answer => {
 		let pr = answer.data.nodes.find(node => node?.id === "A");
 		if (pr) {
