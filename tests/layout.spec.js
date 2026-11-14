@@ -1,4 +1,4 @@
-import { test, expect, commit, filter, loaded, open } from "./github.js";
+import { test, expect, commit, detail, filter, loaded, open, row } from "./github.js";
 
 /**
  * Where each of these cells starts while bars stand in for the rows, then once the rows replace them, e.g. `[[65, 518, …], [65, 518, …]]`.
@@ -297,4 +297,24 @@ test("A sorted header’s label ends where its column’s values end, with the a
 		.evaluate(time => Math.round(time.getBoundingClientRect().right));
 
 	expect(label).toBe(value);
+});
+
+test("“No changes” ends where the sizes of the other rows end, before the push icon’s slot", async ({
+	page,
+	github,
+}) => {
+	detail(github, { C: { additions: 0, deletions: 0 } });
+	await open(page);
+
+	let text = await row(page, "C")
+		.locator(".since-review")
+		.evaluate(cell => {
+			let range = document.createRange();
+			range.selectNodeContents(cell);
+			return range.getBoundingClientRect().right;
+		});
+	let size = await row(page, "A")
+		.locator(".since-review .diffstat")
+		.evaluate(diffstat => diffstat.getBoundingClientRect().right);
+	expect(text).toBeCloseTo(size, 0);
 });

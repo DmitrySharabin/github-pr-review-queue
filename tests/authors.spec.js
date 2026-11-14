@@ -64,6 +64,22 @@ test.describe("The Author list", () => {
 		await unfold(page);
 	});
 
+	test("A checked author’s row is filled, so the picks stand out in a long list", async ({
+		page,
+	}) => {
+		await openList(page);
+		await pick(page, "qux").check();
+		// Off the row, which the pointer fills too
+		await page.mouse.move(0, 0);
+
+		let fill = login =>
+			page
+				.locator("#authors label")
+				.filter({ has: page.getByRole("checkbox", { name: login }) })
+				.evaluate(label => getComputedStyle(label).backgroundColor);
+		expect(await fill("qux")).not.toBe(await fill("quux"));
+	});
+
 	test("Picked authors show only their PRs, without a new search", async ({ page, github }) => {
 		await page.getByRole("button", { name: "Author" }).click();
 		await pick(page, "qux").check();
@@ -410,6 +426,7 @@ test("A queue without collaborators keeps “All collaborators” in the list, g
 
 	let all = page.getByRole("checkbox", { name: /All collaborators/ });
 	await expect(all).toBeDisabled();
+	await expect(page.locator("#authors .all")).toHaveCSS("cursor", "default");
 	await expect(page.locator("#authors .all")).toContainText("None in this queue");
 });
 

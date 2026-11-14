@@ -467,6 +467,18 @@ test("A click on a header says the new order, which a screen reader hears", asyn
 	);
 });
 
+test("A switch of role empties the said order, which may name a column the new role lacks", async ({
+	page,
+}) => {
+	await open(page);
+	await page.getByRole("button", { name: "Changes", exact: true }).click();
+
+	await page.getByRole("link", { name: "Author" }).click();
+	await loaded(page);
+
+	await expect(page.locator("#sorted")).toBeEmpty();
+});
+
 test("A PR deleted between the search and its details counts as loaded, and leaves the others to load", async ({
 	page,
 	github,
@@ -931,8 +943,18 @@ test.describe("After a first load that failed, the form is all there is to act o
 	});
 });
 
-test("The update time fades in once a load ends, so the end of a load shows", async ({ page }) => {
+test("The update time fades in each time a load ends, so a refresh in the same minute shows that it finished", async ({
+	page,
+	github,
+}) => {
 	await open(page);
+	let time = page.locator("#updated time");
 
-	await expect(page.locator("#updated time")).toHaveCSS("animation-name", "appear");
+	let { promise, resolve } = Promise.withResolvers();
+	github.search = () => promise;
+	await refresh(page);
+	await expect(time).toHaveCSS("animation-name", "none");
+	resolve();
+
+	await expect(time).toHaveCSS("animation-name", "appear");
 });

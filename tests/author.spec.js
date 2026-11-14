@@ -18,7 +18,7 @@ function ago (days) {
 	return new Date(Date.now() - days * day).toISOString();
 }
 
-/** Someone on GitHub, e.g. a reviewer, or `Copilot` as a `Bot`. */
+/** Someone on GitHub, e.g. a reviewer, or `review-bot` as a `Bot`. */
 function person (login, type = "User") {
 	return { __typename: type, login, avatarUrl: `https://github.com/${login}.png` };
 }
@@ -98,13 +98,15 @@ test.describe("Next step", () => {
 		},
 		{
 			title: "A bot’s review leaves a PR without reviewers, since bots don’t take turns",
-			details: { A: reviewed([review("Copilot", "COMMENTED", { type: "Bot" })]) },
+			details: { A: reviewed([review("review-bot", "COMMENTED", { type: "Bot" })]) },
 			steps: { A: "Request a review" },
 		},
 		{
 			title: "A review asked of a bot waits for no one, since bots don’t take turns",
 			details: {
-				A: { reviewRequests: { nodes: [{ requestedReviewer: person("Copilot", "Bot") }] } },
+				A: {
+					reviewRequests: { nodes: [{ requestedReviewer: person("review-bot", "Bot") }] },
+				},
 			},
 			steps: { A: "Request a review" },
 		},
@@ -225,7 +227,7 @@ test.describe("Next step", () => {
 							thread("reviewer", { isResolved: true }),
 							thread("DmitrySharabin"),
 							thread("other-user"),
-							thread("Copilot", { type: "Bot" }),
+							thread("review-bot", { type: "Bot" }),
 						],
 					},
 				},
@@ -411,7 +413,7 @@ test.describe("Next step", () => {
 		await expect(step(page, "B").getByRole("link")).toHaveCount(0);
 	});
 
-	test("Failing checks link to the PR’s checks, where the author sees which fail", async ({
+	test("Failing checks come before waiting for reviewers, and link to the PR’s checks, where the author sees which fail", async ({
 		page,
 		github,
 	}) => {
