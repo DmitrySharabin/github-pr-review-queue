@@ -949,7 +949,7 @@ progress {
 		margin-inline-end: 0.4em;
 	}
 
-	/* No user yet, so no link and no image. Chrome and Firefox frame an image without a source, so a disc stands in for it, as in the bars of a load */
+	/* No user yet, so no link and no image. Browsers frame an image without a source, so a disc stands in for it, as in the bars of a load */
 	.user:not([href]) {
 		img {
 			display: none;
