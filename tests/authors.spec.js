@@ -1,4 +1,15 @@
-import { test, expect, label, row, unfold } from "./github.js";
+import {
+	test,
+	expect,
+	filter,
+	filterBy,
+	label,
+	loaded,
+	open,
+	refresh,
+	row,
+	unfold,
+} from "./github.js";
 
 /** Who wrote PRs A–F, and how each relates to the repo, as GitHub’s `authorAssociation` */
 const authors = {
@@ -54,9 +65,8 @@ test("Picked authors show only their PRs, without a new search", async ({ page, 
 		searches++;
 		answer(found);
 	};
-	await page.goto("/?repo=foo/bar");
+	await open(page);
 	await unfold(page);
-	await expect(page.locator("progress")).toBeHidden();
 
 	await page.getByRole("button", { name: "Author" }).click();
 	await pick(page, "qux").check();
@@ -71,9 +81,8 @@ test("A pick of authors doesn’t write the update time again, which a screen re
 	github,
 }) => {
 	authored(github);
-	await page.goto("/?repo=foo/bar");
+	await open(page);
 	await unfold(page);
-	await expect(page.locator("progress")).toBeHidden();
 	await page.evaluate(() => {
 		window.writes = 0;
 		new MutationObserver(() => window.writes++).observe(document.querySelector("#updated"), {
@@ -93,9 +102,8 @@ test("“All collaborators” keeps the PRs of owners, members and collaborators
 	github,
 }) => {
 	authored(github);
-	await page.goto("/?repo=foo/bar");
+	await open(page);
 	await unfold(page);
-	await expect(page.locator("progress")).toBeHidden();
 
 	await page.getByRole("button", { name: "Author" }).click();
 	await page.getByRole("checkbox", { name: "All collaborators" }).check();
@@ -116,9 +124,8 @@ test("Clear pressed from the keyboard leaves the focus in the list’s search fi
 	// NOTE: Playwright’s press() focuses the button by script, which Firefox doesn’t take as :focus-visible. A real Tab, then Enter, works
 	test.fail(browserName === "firefox");
 	authored(github);
-	await page.goto("/?repo=foo/bar&authors=qux");
+	await open(page, "/?repo=foo/bar&authors=qux");
 	await unfold(page);
-	await expect(page.locator("progress")).toBeHidden();
 
 	await page.getByRole("button", { name: "Author: qux" }).click();
 	await page.getByRole("button", { name: "Clear authors" }).press("Enter");
@@ -128,9 +135,8 @@ test("Clear pressed from the keyboard leaves the focus in the list’s search fi
 
 test("Esc drops the authors checked since the list opened", async ({ page, github }) => {
 	authored(github);
-	await page.goto("/?repo=foo/bar");
+	await open(page);
 	await unfold(page);
-	await expect(page.locator("progress")).toBeHidden();
 
 	await page.getByRole("button", { name: "Author" }).click();
 	await pick(page, "qux").check();
@@ -143,9 +149,8 @@ test("Esc drops the authors checked since the list opened", async ({ page, githu
 
 test("A click outside the list shows the authors checked in it", async ({ page, github }) => {
 	authored(github);
-	await page.goto("/?repo=foo/bar");
+	await open(page);
 	await unfold(page);
-	await expect(page.locator("progress")).toBeHidden();
 
 	await page.getByRole("button", { name: "Author" }).click();
 	await pick(page, "quux").check();
@@ -161,9 +166,8 @@ test("Tab past the list’s last button closes it and shows the authors checked 
 }) => {
 	test.skip(browserName === "webkit", "WebKit’s Tab skips buttons, as Safari’s does by default");
 	authored(github);
-	await page.goto("/?repo=foo/bar");
+	await open(page);
 	await unfold(page);
-	await expect(page.locator("progress")).toBeHidden();
 
 	await page.getByRole("button", { name: "Author" }).click();
 	await pick(page, "quux").check();
@@ -179,9 +183,8 @@ test("A click on the Author button closes the open list, as the focus the click 
 	github,
 }) => {
 	authored(github);
-	await page.goto("/?repo=foo/bar");
+	await open(page);
 	await unfold(page);
-	await expect(page.locator("progress")).toBeHidden();
 
 	let button = page.getByRole("button", { name: "Author" });
 	await button.click();
@@ -198,9 +201,8 @@ test("Esc that only clears the search field leaves the picks to show on a click 
 }) => {
 	test.skip(browserName === "webkit", "WebKit closes the list on that Esc");
 	authored(github);
-	await page.goto("/?repo=foo/bar");
+	await open(page);
 	await unfold(page);
-	await expect(page.locator("progress")).toBeHidden();
 
 	await openList(page);
 	let field = page.getByRole("searchbox", { name: "Filter authors" });
@@ -223,16 +225,15 @@ test("Enter in the list with no change closes it without a new search", async ({
 		searches++;
 		answer(found);
 	};
-	await page.goto("/?repo=foo/bar");
+	await open(page);
 	await unfold(page);
-	await expect(page.locator("progress")).toBeHidden();
 
 	await page.getByRole("button", { name: "Author" }).click();
 	await page.getByRole("searchbox", { name: "Filter authors" }).press("Enter");
 	await expect(page.locator("#authors")).toBeHidden();
 	// A search that Enter started would come before the refresh’s
-	await page.getByRole("button", { name: "Refresh" }).click();
-	await expect(page.locator("progress")).toBeHidden();
+	await refresh(page);
+	await loaded(page);
 
 	expect(searches).toBe(2);
 });
@@ -242,9 +243,8 @@ test("Every collaborator picked by name stays those people, not every later coll
 	github,
 }) => {
 	authored(github);
-	await page.goto("/?repo=foo/bar");
+	await open(page);
 	await unfold(page);
-	await expect(page.locator("progress")).toBeHidden();
 
 	await page.getByRole("button", { name: "Author" }).click();
 	for (let login of ["foo", "other-user", "third-user"]) {
@@ -260,9 +260,8 @@ test("A list open while a refresh ends lists the refresh’s authors once opened
 	github,
 }) => {
 	authored(github);
-	await page.goto("/?repo=foo/bar");
+	await open(page);
 	await unfold(page);
-	await expect(page.locator("progress")).toBeHidden();
 
 	let { promise, resolve } = Promise.withResolvers();
 	authored(github, { F: ["newcomer", "CONTRIBUTOR"] });
@@ -271,10 +270,10 @@ test("A list open while a refresh ends lists the refresh’s authors once opened
 		await promise;
 		answer(found);
 	};
-	await page.getByRole("button", { name: "Refresh" }).click();
+	await refresh(page);
 	await page.getByRole("button", { name: "Author" }).click();
 	resolve();
-	await expect(page.locator("progress")).toBeHidden();
+	await loaded(page);
 	await page.keyboard.press("Escape");
 	await page.getByRole("button", { name: "Author" }).click();
 
@@ -290,9 +289,8 @@ test("A list of outside contributors only has no group headings, as there is not
 		B: ["other-user", "CONTRIBUTOR"],
 		C: ["third-user", "NONE"],
 	});
-	await page.goto("/?repo=foo/bar");
+	await open(page);
 	await unfold(page);
-	await expect(page.locator("progress")).toBeHidden();
 
 	await page.getByRole("button", { name: "Author" }).click();
 
@@ -308,9 +306,8 @@ test("A queue without collaborators keeps “All collaborators” in the list, g
 		B: ["other-user", "CONTRIBUTOR"],
 		C: ["third-user", "NONE"],
 	});
-	await page.goto("/?repo=foo/bar");
+	await open(page);
 	await unfold(page);
-	await expect(page.locator("progress")).toBeHidden();
 
 	await page.getByRole("button", { name: "Author" }).click();
 
@@ -321,9 +318,8 @@ test("A queue without collaborators keeps “All collaborators” in the list, g
 
 test("A list of collaborators and others names both groups", async ({ page, github }) => {
 	authored(github);
-	await page.goto("/?repo=foo/bar");
+	await open(page);
 	await unfold(page);
-	await expect(page.locator("progress")).toBeHidden();
 
 	await page.getByRole("button", { name: "Author" }).click();
 
@@ -338,9 +334,8 @@ test("The button keeps its avatars when the list closes unchanged, so they don�
 	github,
 }) => {
 	authored(github);
-	await page.goto("/?repo=foo/bar&authors=qux");
+	await open(page, "/?repo=foo/bar&authors=qux");
 	await unfold(page);
-	await expect(page.locator("progress")).toBeHidden();
 	let face = await page.locator("#author-button img").elementHandle();
 
 	await page.getByRole("button", { name: "Author: qux" }).click();
@@ -373,9 +368,8 @@ test("Typing in the list narrows it to the logins that have what is typed", asyn
 	github,
 }) => {
 	authored(github);
-	await page.goto("/?repo=foo/bar");
+	await open(page);
 	await unfold(page);
-	await expect(page.locator("progress")).toBeHidden();
 
 	await openList(page);
 	await page.getByRole("searchbox", { name: "Filter authors" }).fill("qu");
@@ -388,9 +382,8 @@ test("Enter after typing in the list checks the first author that matches, and k
 	github,
 }) => {
 	authored(github);
-	await page.goto("/?repo=foo/bar");
+	await open(page);
 	await unfold(page);
-	await expect(page.locator("progress")).toBeHidden();
 
 	await openList(page);
 	let field = page.getByRole("searchbox", { name: "Filter authors" });
@@ -407,9 +400,8 @@ test("↓ and ↑ move from the list’s search field through the authors it sho
 	github,
 }) => {
 	authored(github);
-	await page.goto("/?repo=foo/bar");
+	await open(page);
 	await unfold(page);
-	await expect(page.locator("progress")).toBeHidden();
 
 	await openList(page);
 	let field = page.getByRole("searchbox", { name: "Filter authors" });
@@ -431,9 +423,8 @@ test("Tab goes from the list to its buttons in one press, not through every auth
 }) => {
 	test.skip(browserName === "webkit", "WebKit’s Tab skips buttons, as Safari’s does by default");
 	authored(github);
-	await page.goto("/?repo=foo/bar");
+	await open(page);
 	await unfold(page);
-	await expect(page.locator("progress")).toBeHidden();
 
 	await openList(page);
 	await page.keyboard.press("Tab");
@@ -448,9 +439,8 @@ test("With something typed, Tab from the list’s search field goes to the first
 	github,
 }) => {
 	authored(github);
-	await page.goto("/?repo=foo/bar");
+	await open(page);
 	await unfold(page);
-	await expect(page.locator("progress")).toBeHidden();
 
 	await openList(page);
 	await page.getByRole("searchbox", { name: "Filter authors" }).fill("qu");
@@ -466,9 +456,8 @@ test("Shift+Tab back into the list goes to the author ↓ and ↑ last moved to,
 }) => {
 	test.skip(browserName === "webkit", "WebKit’s Tab skips buttons, as Safari’s does by default");
 	authored(github);
-	await page.goto("/?repo=foo/bar");
+	await open(page);
 	await unfold(page);
-	await expect(page.locator("progress")).toBeHidden();
 
 	await openList(page);
 	await page.getByRole("searchbox", { name: "Filter authors" }).fill("qu");
@@ -485,9 +474,8 @@ test("Enter in the list’s search field says which author it checked, as the fo
 	github,
 }) => {
 	authored(github);
-	await page.goto("/?repo=foo/bar");
+	await open(page);
 	await unfold(page);
-	await expect(page.locator("progress")).toBeHidden();
 
 	await openList(page);
 	let field = page.getByRole("searchbox", { name: "Filter authors" });
@@ -502,9 +490,8 @@ test("While something is typed, the author that Enter checks is marked", async (
 	github,
 }) => {
 	authored(github);
-	await page.goto("/?repo=foo/bar");
+	await open(page);
 	await unfold(page);
-	await expect(page.locator("progress")).toBeHidden();
 
 	await openList(page);
 	await page.getByRole("searchbox", { name: "Filter authors" }).fill("qu");
@@ -520,9 +507,8 @@ test("Typing in the list marks the typed part of each login, in any case", async
 	github,
 }) => {
 	authored(github);
-	await page.goto("/?repo=foo/bar");
+	await open(page);
 	await unfold(page);
-	await expect(page.locator("progress")).toBeHidden();
 
 	await openList(page);
 	await page.getByRole("searchbox", { name: "Filter authors" }).fill("QU");
@@ -545,9 +531,7 @@ test("A new filter keeps the picked authors", async ({ page, github }) => {
 	authored(github);
 	await page.goto("/?repo=foo/bar&authors=qux");
 	await unfold(page);
-	let field = page.getByRole("searchbox", { name: "Filter", exact: true });
-	await field.fill("label:baz");
-	await field.press("Enter");
+	await filterBy(page, "label:baz");
 
 	await expect(page).toHaveURL(/authors=qux/);
 });
@@ -563,11 +547,10 @@ test("The same filter applied again loads the queue again, as only other authors
 		searches++;
 		answer(found);
 	};
-	await page.goto("/?repo=foo/bar&filter=label:baz");
+	await open(page, "/?repo=foo/bar&filter=label:baz");
 	await unfold(page);
-	await expect(page.locator("progress")).toBeHidden();
 
-	await page.getByRole("searchbox", { name: "Filter", exact: true }).press("Enter");
+	await filter(page).press("Enter");
 
 	await expect.poll(() => searches).toBe(2);
 });
@@ -577,8 +560,7 @@ test("Rows that tie in the new sort column keep the order of the last one", asyn
 	github,
 }) => {
 	authored(github);
-	await page.goto("/?repo=foo/bar&authors=@collaborators,qux");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page, "/?repo=foo/bar&authors=@collaborators,qux");
 
 	await page.getByRole("button", { name: "Changes", exact: true }).click();
 	// No PR has iterations, so all tie
@@ -592,8 +574,7 @@ test("The author view has no list of authors, since its PRs are all the user’s
 	github,
 }) => {
 	authored(github);
-	await page.goto("/?repo=foo/bar&role=author&authors=qux");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page, "/?repo=foo/bar&role=author&authors=qux");
 
 	await expect(page.locator("#author-button")).toBeHidden();
 	await expect(page.locator("#queue tbody tr")).toHaveCount(6);
@@ -610,9 +591,8 @@ test("The form after a failed load keeps the picked authors", async ({ page, git
 
 test("Unchecking the only picked author shows every PR", async ({ page, github }) => {
 	authored(github);
-	await page.goto("/?repo=foo/bar&authors=qux");
+	await open(page, "/?repo=foo/bar&authors=qux");
 	await unfold(page);
-	await expect(page.locator("progress")).toBeHidden();
 
 	await page.getByRole("button", { name: "Author: qux" }).click();
 	await pick(page, "qux").uncheck();
@@ -626,9 +606,8 @@ test("A step back to other authors after a failed load loads the queue, as none 
 	github,
 }) => {
 	authored(github);
-	await page.goto("/?repo=foo/bar");
+	await open(page);
 	await unfold(page);
-	await expect(page.locator("progress")).toBeHidden();
 	await page.getByRole("button", { name: "Author" }).click();
 	await pick(page, "qux").check();
 	await page.getByRole("button", { name: "Show 2 PRs" }).click();
@@ -651,9 +630,8 @@ test("A label clicked after a pick of authors keeps the picked authors", async (
 	github,
 }) => {
 	labeled(github);
-	await page.goto("/?repo=foo/bar");
+	await open(page);
 	await unfold(page);
-	await expect(page.locator("progress")).toBeHidden();
 	await pickQux(page);
 
 	await page.getByRole("link", { name: "Filter by label bug" }).click();
@@ -667,12 +645,11 @@ test("A refresh after a pick of authors marks no row that didn’t change", asyn
 	github,
 }) => {
 	labeled(github);
-	await page.goto("/?repo=foo/bar");
+	await open(page);
 	await unfold(page);
-	await expect(page.locator("progress")).toBeHidden();
 	await pickQux(page);
 
-	await page.getByRole("button", { name: "Refresh" }).click();
+	await refresh(page);
 	await expect(page.locator("#updated .changes")).toHaveText("No changes");
 
 	await expect(page.locator("#queue tbody mark:not([hidden])")).toHaveCount(0);
@@ -685,10 +662,8 @@ test("A step back while the list is open keeps the authors checked in it", async
 	authored(github);
 	await page.goto("/?repo=foo/bar");
 	await unfold(page);
-	let field = page.getByRole("searchbox", { name: "Filter", exact: true });
-	await field.fill("label:baz");
-	await field.press("Enter");
-	await expect(page.locator("progress")).toBeHidden();
+	await filterBy(page, "label:baz");
+	await loaded(page);
 
 	await page.getByRole("button", { name: "Author" }).click();
 	await pick(page, "qux").check();
@@ -704,10 +679,9 @@ test("A step back to other authors while their view loads after a failed load se
 }) => {
 	// Failed details store no queue, so nothing stands in for the rows on a step back
 	github.details = () => 500;
-	await page.goto("/?repo=foo/bar&authors=foo");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page, "/?repo=foo/bar&authors=foo");
 	await page.evaluate(() => navigation.navigate("?repo=foo/bar&authors=qux").finished);
-	await expect(page.locator("progress")).toBeHidden();
+	await loaded(page);
 	github.search = () => 500;
 	await page.getByRole("link", { name: "Author", exact: true }).click();
 	await expect(page.locator("#repo-form .notice")).toBeVisible();
@@ -722,7 +696,7 @@ test("A step back to other authors while their view loads after a failed load se
 	await expect.poll(() => searches).toBe(1);
 	await page.goBack();
 	resolve();
-	await expect(page.locator("progress")).toBeHidden();
+	await loaded(page);
 
 	expect(searches).toBe(1);
 });

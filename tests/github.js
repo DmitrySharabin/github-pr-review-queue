@@ -1,6 +1,6 @@
-import { test as base } from "@playwright/test";
+import { test as base, expect } from "@playwright/test";
 
-export { expect } from "@playwright/test";
+export { expect };
 
 /**
  * Playwright’s `test` with GitHub faked for the test’s page, as DmitrySharabin, whose queue in any repo holds PRs A–F (#65–#70).
@@ -143,9 +143,43 @@ export function label (github, labels) {
 	};
 }
 
+/** Open a view, the reviewer queue of foo/bar unless `url` asks for another, and wait until its load ends. */
+export async function open (page, url = "/?repo=foo/bar") {
+	await page.goto(url);
+	await loaded(page);
+}
+
+/** Wait until the load in flight ends, e.g. after a refresh. */
+export async function loaded (page) {
+	await expect(page.locator("progress")).toBeHidden();
+}
+
+/** Click Refresh. */
+export async function refresh (page) {
+	await page.getByRole("button", { name: "Refresh" }).click();
+}
+
 /** Unfold the filter row, which opens folded on the first visit. */
 export async function unfold (page) {
 	await page.getByRole("button", { name: "Show filters" }).click();
+}
+
+/** The filter field, which shows once the filter row is unfolded. */
+export function filter (page) {
+	return page.getByRole("searchbox", { name: "Filter", exact: true });
+}
+
+/** Apply `terms` as the filter, as the user types them, e.g. `label:bug`. */
+export async function filterBy (page, terms) {
+	await filter(page).fill(terms);
+	await filter(page).press("Enter");
+}
+
+/** Show the queue of another user, as the user types the login in the strip. */
+export async function changeUser (page, login) {
+	await page.getByRole("button", { name: "Change user" }).click();
+	await page.getByRole("textbox", { name: "User" }).fill(login);
+	await page.getByRole("textbox", { name: "User" }).press("Enter");
 }
 
 /** Fill the storage with other data, so a write that needs more room throws, e.g. of a key not stored yet. */
@@ -163,6 +197,11 @@ export async function fillStorage (page) {
 			}
 		}
 	});
+}
+
+/** The PR numbers of the rows, in the order shown, e.g. `#65`. */
+export function numbers (page) {
+	return page.locator("#queue tbody .number");
 }
 
 /** The row of a PR, e.g. of A, #65. */

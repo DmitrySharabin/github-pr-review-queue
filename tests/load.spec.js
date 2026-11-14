@@ -1,4 +1,20 @@
-import { test, expect, commit, detail, fillStorage, label, row, unfold } from "./github.js";
+import {
+	test,
+	expect,
+	changeUser,
+	commit,
+	detail,
+	fillStorage,
+	filter,
+	filterBy,
+	label,
+	loaded,
+	numbers,
+	open,
+	refresh,
+	row,
+	unfold,
+} from "./github.js";
 
 test("A failed search hides the bars that stood in for its rows, even of the view shown last", async ({
 	page,
@@ -6,8 +22,7 @@ test("A failed search hides the bars that stood in for its rows, even of the vie
 }) => {
 	// Failed details store no queue, so nothing stands in for the rows on a step back
 	github.details = () => 500;
-	await page.goto("/?repo=foo/bar");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page);
 	github.search = () => 500;
 	await page.getByRole("link", { name: "Author" }).click();
 	await expect(page.locator("#repo-form .notice")).toBeVisible();
@@ -26,8 +41,7 @@ test("A step back after a failed role switch shows the stored queue at once, as 
 	page,
 	github,
 }) => {
-	await page.goto("/?repo=foo/bar");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page);
 	github.search = () => 500;
 	await page.getByRole("link", { name: "Author" }).click();
 	await expect(page.locator("#repo-form .notice")).toBeVisible();
@@ -95,15 +109,14 @@ test("Someone else who signs in gets their own details, not those of the rows th
 	page,
 	github,
 }) => {
-	await page.goto("/?repo=foo/bar");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page);
 	// GitHub fails to say whose the token is, so the stored queue stays with a failure beside Refresh
 	github.user = () => 500;
 	await page.reload();
 	await expect(page.locator("header")).toHaveClass(/failed/);
 	// Then it rejects the token, so the sign-in card shows, and someone else signs in
 	github.user = () => 401;
-	await page.getByRole("button", { name: "Refresh" }).click();
+	await refresh(page);
 	github.user = answer => {
 		answer.login = "other-user";
 	};
@@ -111,7 +124,7 @@ test("Someone else who signs in gets their own details, not those of the rows th
 	await page.getByLabel("Fine-grained token").fill("github_pat_foo");
 	await page.getByRole("button", { name: "Use token" }).click();
 	await expect(page.locator("#summary .user")).toHaveText("other-user");
-	await expect(page.locator("progress")).toBeHidden();
+	await loaded(page);
 
 	await expect(row(page, "A").locator(".diff")).toContainText("+1 −2");
 });
@@ -137,9 +150,7 @@ test("A new user’s avatar shows a disc, not the last user’s face, while it l
 	await expect.poll(() => avatar.evaluate(img => img.naturalWidth)).toBe(48);
 	let face = await avatar.screenshot();
 
-	await page.getByRole("button", { name: "Change user" }).click();
-	await page.getByRole("textbox", { name: "User" }).fill("other-user");
-	await page.getByRole("textbox", { name: "User" }).press("Enter");
+	await changeUser(page, "other-user");
 	await expect(page.locator("#summary .user")).toHaveText("other-user");
 
 	expect((await avatar.screenshot()).equals(face)).toBe(false);
@@ -149,13 +160,10 @@ test("Bars, not the last user’s rows, stand in for a new user’s queue while 
 	page,
 	github,
 }) => {
-	await page.goto("/?repo=foo/bar");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page);
 	github.search = () => new Promise(() => {});
 
-	await page.getByRole("button", { name: "Change user" }).click();
-	await page.getByRole("textbox", { name: "User" }).fill("other-user");
-	await page.getByRole("textbox", { name: "User" }).press("Enter");
+	await changeUser(page, "other-user");
 
 	await expect(page.locator("#summary .user")).toHaveText("other-user");
 	await expect(page.locator("#queue tbody tr:not(.skeleton)")).toHaveCount(0);
@@ -165,8 +173,7 @@ test("Another repo’s view shows bars at once, not the last repo’s rows under
 	page,
 	github,
 }) => {
-	await page.goto("/?repo=foo/bar");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page);
 	github.search = () => new Promise(() => {});
 
 	await page.getByRole("button", { name: "Change repository" }).click();
@@ -180,21 +187,17 @@ test("The signed-in user’s own login, in any case, keeps the rows, as they are
 	page,
 	github,
 }) => {
-	await page.goto("/?repo=foo/bar");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page);
 	github.search = () => new Promise(() => {});
 
-	await page.getByRole("button", { name: "Change user" }).click();
-	await page.getByRole("textbox", { name: "User" }).fill("dmitrysharabin");
-	await page.getByRole("textbox", { name: "User" }).press("Enter");
+	await changeUser(page, "dmitrysharabin");
 
 	await expect(page).toHaveURL(/user=dmitrysharabin/);
 	await expect(page.locator("#queue tbody tr:not(.skeleton)")).toHaveCount(6);
 });
 
 test("A role switch shows bars at once, not the other role’s rows", async ({ page, github }) => {
-	await page.goto("/?repo=foo/bar");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page);
 	github.search = () => new Promise(() => {});
 
 	await page.getByRole("link", { name: "Author" }).click();
@@ -206,14 +209,11 @@ test("A new filter keeps the rows on screen until its search ends, as they are t
 	page,
 	github,
 }) => {
-	await page.goto("/?repo=foo/bar");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page);
 	github.search = () => new Promise(() => {});
 	await unfold(page);
 
-	let field = page.getByRole("searchbox", { name: "Filter", exact: true });
-	await field.fill("label:bug");
-	await field.press("Enter");
+	await filterBy(page, "label:bug");
 
 	await expect(page.locator("#queue tbody tr:not(.skeleton)")).toHaveCount(6);
 });
@@ -222,8 +222,7 @@ test("Bars name the picked authors of their own view, not those of the view befo
 	page,
 	github,
 }) => {
-	await page.goto("/?repo=foo/bar&authors=qux");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page, "/?repo=foo/bar&authors=qux");
 	github.search = () => new Promise(() => {});
 
 	// A link to another view, e.g. typed or shared, opens in place
@@ -261,7 +260,7 @@ test("Failed details keep the rows the search found on screen", async ({ page, g
 	// GitHub’s own words, as the fake fails
 	await expect(page.locator("#failure")).toContainText("Boom");
 
-	await expect(page.locator("#queue tbody .number").filter({ visible: true })).toHaveCount(6);
+	await expect(numbers(page).filter({ visible: true })).toHaveCount(6);
 });
 
 test("Details GitHub stops for running too long load in two halves, so a slow batch doesn’t fail the load", async ({
@@ -270,8 +269,7 @@ test("Details GitHub stops for running too long load in two halves, so a slow ba
 }) => {
 	// The 6 PRs take one query, and GitHub times out on more than 3
 	github.details = answer => (answer.data.nodes.length > 3 ? 502 : undefined);
-	await page.goto("/?repo=foo/bar");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page);
 
 	await expect(page.locator("#queue td.diff a")).toHaveCount(6);
 });
@@ -287,8 +285,7 @@ test("Details GitHub says may have timed out load in two halves too", async ({ p
 			];
 		}
 	};
-	await page.goto("/?repo=foo/bar");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page);
 
 	await expect(page.locator("#queue td.diff a")).toHaveCount(6);
 });
@@ -309,8 +306,7 @@ test("Details GitHub refuses, e.g. with a 403, aren’t asked for again in halve
 });
 
 test("A role switch stops the requests of the load it leaves", async ({ page, github }) => {
-	await page.goto("/?repo=foo/bar");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page);
 
 	let stopped = 0;
 	page.on("requestfailed", request => {
@@ -320,7 +316,7 @@ test("A role switch stops the requests of the load it leaves", async ({ page, gi
 	});
 	let { promise, resolve } = Promise.withResolvers();
 	github.search = () => promise;
-	await page.getByRole("button", { name: "Refresh" }).click();
+	await refresh(page);
 	await page.getByRole("link", { name: "Author" }).click();
 
 	await expect.poll(() => stopped).toBe(1);
@@ -370,8 +366,7 @@ test("Sign out stops the load in flight, so it stores no queue after the queues 
 });
 
 test("Sign out forgets the stored queues, e.g. the titles of private repos", async ({ page }) => {
-	await page.goto("/?repo=foo/bar");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page);
 	// The reload after it opens a blank page, so no sign-in card forgets them instead
 	await page.route("/?repo=foo/bar", route =>
 		route.fulfill({ contentType: "text/html", body: "" }));
@@ -429,14 +424,7 @@ test("A sort chosen while the bars show keeps them, and sorts the rows that repl
 	await expect(page.locator("#queue tr.skeleton").first()).toBeVisible();
 	resolve();
 
-	await expect(page.locator("#queue tbody .number")).toHaveText([
-		"#70",
-		"#69",
-		"#68",
-		"#67",
-		"#66",
-		"#65",
-	]);
+	await expect(numbers(page)).toHaveText(["#70", "#69", "#68", "#67", "#66", "#65"]);
 });
 
 test("A sort chosen before the rows slide into place puts them in its order", async ({ page }) => {
@@ -456,14 +444,7 @@ test("A sort chosen before the rows slide into place puts them in its order", as
 	await page.getByRole("button", { name: "Changes", exact: true }).click();
 	await page.evaluate(() => window.place());
 
-	await expect(page.locator("#queue tbody .number")).toHaveText([
-		"#65",
-		"#66",
-		"#67",
-		"#68",
-		"#69",
-		"#70",
-	]);
+	await expect(numbers(page)).toHaveText(["#65", "#66", "#67", "#68", "#69", "#70"]);
 });
 
 test("A PR deleted between the search and its details counts as loaded, and leaves the others to load", async ({
@@ -516,15 +497,14 @@ test("A PR stored without details, after GitHub said it was deleted, asks for th
 			},
 		];
 	};
-	await page.goto("/?repo=foo/bar");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page);
 
 	let asked = [];
 	github.details = answer => {
 		asked.push(...answer.data.nodes.map(pr => pr.id));
 	};
 	await page.reload();
-	await expect(page.locator("progress")).toBeHidden();
+	await loaded(page);
 
 	expect(asked).toEqual(["B"]);
 });
@@ -595,13 +575,12 @@ test("A click on a label keeps the rows that have it while the search runs", asy
 	github,
 }) => {
 	label(github, { A: ["bug"], C: ["bug"] });
-	await page.goto("/?repo=foo/bar");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page);
 
 	github.search = () => new Promise(() => {});
 	await page.getByRole("link", { name: "Filter by label bug" }).first().click();
 
-	await expect(page.locator("#queue tbody .number")).toHaveText(["#65", "#67"]);
+	await expect(numbers(page)).toHaveText(["#65", "#67"]);
 });
 
 test("A click on a label in a queue of 100 PRs, the most a search finds, keeps every row until the search ends", async ({
@@ -615,8 +594,7 @@ test("A click on a label in a queue of 100 PRs, the most a search finds, keeps e
 		}
 	};
 	label(github, { A: ["bug"] });
-	await page.goto("/?repo=foo/bar");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page);
 
 	github.search = () => new Promise(() => {});
 	await page.getByRole("link", { name: "Filter by label bug" }).click();
@@ -626,13 +604,6 @@ test("A click on a label in a queue of 100 PRs, the most a search finds, keeps e
 });
 
 test.describe("A filter that repeats the view’s qualifiers", () => {
-	/** Apply `filter` in the open view, as the user types it */
-	async function apply (page, filter) {
-		let field = page.getByRole("searchbox", { name: "Filter", exact: true });
-		await field.fill(filter);
-		await field.press("Enter");
-	}
-
 	/** The view the page’s URL asks for, e.g. `{ user: "foo", filter: null }` */
 	function view (page) {
 		let params = new URL(page.url()).searchParams;
@@ -646,7 +617,7 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 		await page.goto("/?repo=foo/bar&role=author");
 		await unfold(page);
 
-		await apply(page, "author:other-user label:bug");
+		await filterBy(page, "author:other-user label:bug");
 
 		await expect.poll(() => view(page)).toEqual({ user: "other-user", filter: "label:bug" });
 	});
@@ -655,7 +626,7 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 		await page.goto("/?repo=foo/bar");
 		await unfold(page);
 
-		await apply(page, "review-requested:other-user");
+		await filterBy(page, "review-requested:other-user");
 
 		await expect.poll(() => view(page)).toEqual({ user: "other-user", filter: null });
 	});
@@ -666,7 +637,7 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 		await page.goto("/?repo=foo/bar&role=author");
 		await unfold(page);
 
-		await apply(page, "author:third-user author:other-user");
+		await filterBy(page, "author:third-user author:other-user");
 
 		await expect.poll(() => view(page)).toEqual({ user: "other-user", filter: null });
 	});
@@ -675,7 +646,7 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 		await page.goto("/?repo=foo/bar&user=other-user&role=author");
 		await unfold(page);
 
-		await apply(page, "author:@me");
+		await filterBy(page, "author:@me");
 
 		await expect.poll(() => view(page)).toEqual({ user: null, filter: null });
 	});
@@ -685,7 +656,7 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 		await page.goto("/?repo=foo/bar&role=author");
 		await unfold(page);
 
-		await apply(page, "-author:other-user");
+		await filterBy(page, "-author:other-user");
 
 		await expect.poll(() => view(page)).toEqual({ user: null, filter: "-author:other-user" });
 	});
@@ -697,7 +668,7 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 		await page.goto("/?repo=foo/bar&authors=qux");
 		await unfold(page);
 
-		await apply(page, "author:other-user author:app/foo label:bar");
+		await filterBy(page, "author:other-user author:app/foo label:bar");
 
 		await expect
 			.poll(() => Object.fromEntries(new URL(page.url()).searchParams))
@@ -710,7 +681,7 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 		await page.goto("/?repo=foo/bar");
 		await unfold(page);
 
-		await apply(page, "-author:other-user");
+		await filterBy(page, "-author:other-user");
 
 		await expect.poll(() => view(page)).toEqual({ user: null, filter: "-author:other-user" });
 	});
@@ -728,7 +699,7 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 		await page.goto(
 			`/?repo=foo/bar&filter=${encodeURIComponent("repo:foo/baz org:baz user:baz label:bug")}`,
 		);
-		await expect(page.locator("progress")).toBeHidden();
+		await loaded(page);
 
 		expect(view(page)).toEqual({ user: null, filter: "label:bug" });
 		expect(queries.some(query => query.includes("baz"))).toBe(false);
@@ -764,8 +735,7 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 test("A queue stored for another user marks nothing new for the one signed in now", async ({
 	page,
 }) => {
-	await page.goto("/?repo=foo/bar");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page);
 	// As if whoever was signed in before saw three PRs fewer
 	await page.evaluate(() => {
 		let key = Object.keys(localStorage).find(key => key.startsWith("review-queue:queue:"));
@@ -777,7 +747,7 @@ test("A queue stored for another user marks nothing new for the one signed in no
 
 	await page.reload();
 	await expect(page.locator("#summary .count")).toHaveText("6");
-	await expect(page.locator("progress")).toBeHidden();
+	await loaded(page);
 
 	await expect(page.locator("#queue tbody mark:not([hidden])")).toHaveCount(0);
 });
@@ -786,14 +756,12 @@ test("A full storage drops the queue stored longest ago, and keeps the newer one
 	page,
 }) => {
 	for (let repo of ["foo/bar", "foo/baz"]) {
-		await page.goto(`/?repo=${repo}`);
-		await expect(page.locator("progress")).toBeHidden();
+		await open(page, `/?repo=${repo}`);
 	}
 	// Other data fills the rest, so the next queue fits only once another goes
 	await fillStorage(page);
 
-	await page.goto("/?repo=foo/qux");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page, "/?repo=foo/qux");
 	await page.goto("/");
 	await page.getByRole("combobox", { name: "Repository" }).press("ArrowDown");
 
@@ -803,28 +771,19 @@ test("A full storage drops the queue stored longest ago, and keeps the newer one
 test("A full storage still sorts the rows, and only the next visit forgets the sort", async ({
 	page,
 }) => {
-	await page.goto("/?repo=foo/bar");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page);
 	// Other data fills the rest, so the chosen sort doesn’t fit
 	await fillStorage(page);
 
 	await page.getByRole("button", { name: "Changes", exact: true }).click();
 
-	await expect(page.locator("#queue tbody .number")).toHaveText([
-		"#70",
-		"#69",
-		"#68",
-		"#67",
-		"#66",
-		"#65",
-	]);
+	await expect(numbers(page)).toHaveText(["#70", "#69", "#68", "#67", "#66", "#65"]);
 });
 
 test("A queue stored by another version, e.g. with a step this one doesn’t know, loads anew", async ({
 	page,
 }) => {
-	await page.goto("/?repo=foo/bar&role=author");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page, "/?repo=foo/bar&role=author");
 	await page.evaluate(() => {
 		let key = Object.keys(localStorage).find(key => key.startsWith("review-queue:queue:"));
 		let queue = JSON.parse(localStorage.getItem(key));
@@ -873,8 +832,7 @@ test("A refreshed row of a PR deleted before its details shows as it was, not di
 	page,
 	github,
 }) => {
-	await page.goto("/?repo=foo/bar");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page);
 
 	github.search = answer => {
 		answer.data.search.nodes[0].updatedAt = "2026-11-05T12:00:00Z";
@@ -889,8 +847,8 @@ test("A refreshed row of a PR deleted before its details shows as it was, not di
 			},
 		];
 	};
-	await page.getByRole("button", { name: "Refresh" }).click();
-	await expect(page.locator("progress")).toBeHidden();
+	await refresh(page);
+	await loaded(page);
 
 	await expect(page.locator("#queue tr.stale")).toHaveCount(0);
 });
@@ -947,8 +905,7 @@ test("A click on the app’s name opens the start page, with nothing in the URL,
 }) => {
 	// The controls span the title’s cell there
 	await page.setViewportSize({ width: 375, height: 812 });
-	await page.goto("/?repo=foo/bar&filter=label:bug");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page, "/?repo=foo/bar&filter=label:bug");
 
 	await page.getByRole("link", { name: "GitHub PR review queue" }).click();
 

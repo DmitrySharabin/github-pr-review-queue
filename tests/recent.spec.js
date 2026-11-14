@@ -1,10 +1,9 @@
-import { test, expect } from "./github.js";
+import { test, expect, open } from "./github.js";
 
 /** Load the queues of these repos, the last one latest, then open the page that asks for a repo. */
 async function visit (page, ...repos) {
 	for (let repo of repos) {
-		await page.goto(`/?repo=${repo}`);
-		await expect(page.locator("progress")).toBeHidden();
+		await open(page, `/?repo=${repo}`);
 	}
 	await page.goto("/");
 	return page.getByRole("combobox", { name: "Repository" });

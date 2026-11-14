@@ -1,4 +1,17 @@
-import { test, expect, commit, detail, row, unfold } from "./github.js";
+import {
+	test,
+	expect,
+	commit,
+	detail,
+	filter,
+	filterBy,
+	loaded,
+	numbers,
+	open,
+	refresh,
+	row,
+	unfold,
+} from "./github.js";
 
 /** The last commits of a PR, of `totalCount` in all, e.g. `commits(["N"], 101)`. */
 function commits (ids, totalCount = ids.length) {
@@ -53,8 +66,7 @@ test("The diffstat paints GitHub’s squares: one per line below five lines, the
 		// A share that comes out whole: 5 × 340 / 425 = 4
 		C: { additions: 340, deletions: 85 },
 	});
-	await page.goto("/?repo=foo/bar");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page);
 
 	expect([
 		await squares(row(page, "A").locator(".diff .diffstat")),
@@ -225,11 +237,10 @@ test("A refresh doesn’t compare 300 files again, since GitHub would list as ma
 		compared++;
 		answer.files = Array(300).fill({ additions: 1, deletions: 0 });
 	};
-	await page.goto("/?repo=foo/bar");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page);
 
-	await page.getByRole("button", { name: "Refresh" }).click();
-	await expect(page.locator("progress")).toBeHidden();
+	await refresh(page);
+	await loaded(page);
 
 	expect(compared).toBe(1);
 });
@@ -245,12 +256,12 @@ test("A failed comparison adds up the sizes of the commits, and a refresh compar
 	await page.goto("/?repo=foo/bar");
 	// N’s own size
 	await expect(row(page, "A").locator(".since-review")).toContainText("+780 −2");
-	await expect(page.locator("progress")).toBeHidden();
+	await loaded(page);
 
 	github.compare = answer => {
 		answer.files = [{ additions: 5, deletions: 1 }];
 	};
-	await page.getByRole("button", { name: "Refresh" }).click();
+	await refresh(page);
 
 	await expect(row(page, "A").locator(".since-review")).toContainText("+5 −1");
 });
@@ -340,14 +351,12 @@ test.describe("Exclude from counts", () => {
 			A: files({ "src/a.js": 10, "test/a.test.js": 500 }),
 			B: files({ "src/b.js": 300 }),
 		});
-		await page.goto("/?repo=foo/bar&exclude=test");
-		await expect(page.locator("progress")).toBeHidden();
+		await open(page, "/?repo=foo/bar&exclude=test");
 
 		await page.getByRole("button", { name: "Changes", exact: true }).click();
 
 		// C–F have no files, so they count every line and sort apart
-		let numbers = page.locator("#queue tbody .number").filter({ hasText: /#6[56]/ });
-		await expect(numbers).toHaveText(["#66", "#65"]);
+		await expect(numbers(page).filter({ hasText: /#6[56]/ })).toHaveText(["#66", "#65"]);
 	});
 
 	test("Without a pattern, the details don’t ask for files, which slow them down", async ({
@@ -359,8 +368,7 @@ test.describe("Exclude from counts", () => {
 				queries.push(request.postData());
 			}
 		});
-		await page.goto("/?repo=foo/bar");
-		await expect(page.locator("progress")).toBeHidden();
+		await open(page);
 
 		expect(queries.some(query => query.includes("files("))).toBe(false);
 	});
@@ -480,8 +488,7 @@ test.describe("Exclude from counts", () => {
 	}) => {
 		detail(github, { A: files({ "src/a.js": 10 }, 2) });
 		github.files = () => 500;
-		await page.goto("/?repo=foo/bar&exclude=test");
-		await expect(page.locator("progress")).toBeHidden();
+		await open(page, "/?repo=foo/bar&exclude=test");
 
 		github.files = answer => {
 			answer.push(
@@ -489,7 +496,7 @@ test.describe("Exclude from counts", () => {
 				{ filename: "test/a.test.js", additions: 500, deletions: 0 },
 			);
 		};
-		await page.getByRole("button", { name: "Refresh" }).click();
+		await refresh(page);
 
 		await expect(row(page, "A").locator(".diff a")).toHaveAccessibleName(
 			"+10 −0 without excluded files",
@@ -597,7 +604,7 @@ test.describe("Exclude from counts", () => {
 
 		await page.getByRole("button", { name: "Clear filter" }).press("Enter");
 
-		await expect(page.getByRole("searchbox", { name: "Filter", exact: true })).toBeFocused();
+		await expect(filter(page)).toBeFocused();
 	});
 
 	test("A click on the filter’s ✕ opens the queue without it and leaves the field alone, so a phone opens no keyboard", async ({
@@ -609,9 +616,7 @@ test.describe("Exclude from counts", () => {
 		await page.getByRole("button", { name: "Clear filter" }).click();
 		await expect(page).toHaveURL(/\?repo=foo%2Fbar$/);
 
-		await expect(
-			page.getByRole("searchbox", { name: "Filter", exact: true }),
-		).not.toBeFocused();
+		await expect(filter(page)).not.toBeFocused();
 	});
 
 	test("A pattern that isn’t a regular expression, e.g. from the URL, leaves out no file", async ({
@@ -619,8 +624,7 @@ test.describe("Exclude from counts", () => {
 		github,
 	}) => {
 		detail(github, { A: files({ "src/a.js": 10, "test/a.test.js": 500 }) });
-		await page.goto(`/?repo=foo/bar&exclude=${encodeURIComponent("test(")}`);
-		await expect(page.locator("progress")).toBeHidden();
+		await open(page, `/?repo=foo/bar&exclude=${encodeURIComponent("test(")}`);
 
 		// The PR’s own count, on one line
 		await expect(row(page, "A").locator(".diff")).toHaveText("+650 −2", { useInnerText: true });
@@ -643,8 +647,7 @@ test.describe("Exclude from counts", () => {
 		github,
 	}) => {
 		detail(github, { A: files({ "src/a.js": 10 }) });
-		await page.goto("/?repo=foo/bar&exclude=test");
-		await expect(page.locator("progress")).toBeHidden();
+		await open(page, "/?repo=foo/bar&exclude=test");
 
 		await expect(row(page, "A").locator(".diff")).toHaveText("+10 −0", { useInnerText: true });
 	});
@@ -652,17 +655,14 @@ test.describe("Exclude from counts", () => {
 	test("Applying a filter keeps the pattern", async ({ page }) => {
 		await page.goto("/?repo=foo/bar&exclude=test");
 		await unfold(page);
-		let field = page.getByRole("searchbox", { name: "Filter", exact: true });
-		await field.fill("label:bug");
-		await field.press("Enter");
+		await filterBy(page, "label:bug");
 
 		await expect(page).toHaveURL(/^(?=.*filter=label%3Abug)(?=.*exclude=test)/);
 	});
 
 	test("Applying a pattern keeps the filter", async ({ page }) => {
-		await page.goto("/?repo=foo/bar&filter=label:bug");
+		await open(page, "/?repo=foo/bar&filter=label:bug");
 		await unfold(page);
-		await expect(page.locator("progress")).toBeHidden();
 		await page.getByRole("button", { name: /^Display/ }).click();
 
 		await page.getByRole("textbox", { name: "Exclude from counts" }).fill("test");
@@ -694,8 +694,7 @@ test.describe("Exclude from counts", () => {
 			A: files({ "src/a.js": 10, "test/a.test.js": 500 }),
 			B: files({ "src/a.js": 10, "test/a.test.js": 500 }, 101),
 		});
-		await page.goto("/?repo=foo/bar&exclude=test");
-		await expect(page.locator("progress")).toBeHidden();
+		await open(page, "/?repo=foo/bar&exclude=test");
 
 		let [split, unsplit] = await Promise.all(
 			["A", "B"].map(id => row(page, id).locator(".diff .figures").first().boundingBox()),
@@ -710,8 +709,7 @@ test.describe("Exclude from counts", () => {
 				queries.push(request.postData());
 			}
 		});
-		await page.goto("/?repo=foo/bar&role=author&exclude=test");
-		await expect(page.locator("progress")).toBeHidden();
+		await open(page, "/?repo=foo/bar&role=author&exclude=test");
 
 		expect(queries.some(query => query.includes("files("))).toBe(false);
 	});

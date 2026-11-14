@@ -1,4 +1,4 @@
-import { test, expect, commit } from "./github.js";
+import { test, expect, commit, filter, loaded, open } from "./github.js";
 
 /**
  * Where each of these cells starts while bars stand in for the rows, then once the rows replace them, e.g. `[[65, 518, …], [65, 518, …]]`.
@@ -36,7 +36,7 @@ async function starts (page, github, selector, { url = "/?repo=foo/bar", edge = 
 	let before = await measure();
 
 	resolve();
-	await expect(page.locator("progress")).toBeHidden();
+	await loaded(page);
 
 	return [before, await measure()];
 }
@@ -180,8 +180,7 @@ test("On a phone, the ring of a focused name too long for its cell stays inside 
 
 test("On a tablet, the table scrolls in its own frame, not the page sideways", async ({ page }) => {
 	await page.setViewportSize({ width: 820, height: 1180 });
-	await page.goto("/?repo=foo/bar");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page);
 
 	let overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
 	expect(overflow).toBe(0);
@@ -202,8 +201,7 @@ test("On a tablet, the author view’s table fits, so its header stays at the to
 	page,
 }) => {
 	await page.setViewportSize({ width: 900, height: 400 });
-	await page.goto("/?repo=foo/bar&role=author");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page, "/?repo=foo/bar&role=author");
 
 	await page.mouse.wheel(0, 400);
 	await expect
@@ -285,8 +283,7 @@ test("The ring of a focused count hugs the count, not the change beside it", asy
 test("A sorted header’s label ends where its column’s values end, with the arrow past it", async ({
 	page,
 }) => {
-	await page.goto("/?repo=foo/bar");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page);
 
 	// Of the label’s text, since the button holds the arrow too
 	let label = await page.locator("#queue thead th[aria-sort] button").evaluate(button => {

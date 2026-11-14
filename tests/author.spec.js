@@ -1,4 +1,15 @@
-import { test, expect, commit, detail, row } from "./github.js";
+import {
+	test,
+	expect,
+	commit,
+	detail,
+	filter,
+	loaded,
+	numbers,
+	open,
+	refresh,
+	row,
+} from "./github.js";
 
 const day = 864e5;
 
@@ -314,14 +325,7 @@ test.describe("Next step", () => {
 		});
 		await page.goto("/?repo=foo/bar&role=author");
 
-		await expect(page.locator("#queue tbody .number")).toHaveText([
-			"#67",
-			"#68",
-			"#69",
-			"#70",
-			"#66",
-			"#65",
-		]);
+		await expect(numbers(page)).toHaveText(["#67", "#68", "#69", "#70", "#66", "#65"]);
 		await expect(page.locator("#summary .turns")).toHaveText("4");
 	});
 
@@ -635,17 +639,9 @@ test("The author’s turn sorts first, the longest wait first, and a draft last"
 		E: asked(["reviewer"], 30),
 		F: asked(["reviewer"], 10),
 	});
-	await page.goto("/?repo=foo/bar&role=author");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page, "/?repo=foo/bar&role=author");
 
-	await expect(page.locator("#queue tbody .number")).toHaveText([
-		"#67",
-		"#66",
-		"#68",
-		"#69",
-		"#70",
-		"#65",
-	]);
+	await expect(numbers(page)).toHaveText(["#67", "#66", "#68", "#69", "#70", "#65"]);
 });
 
 test("An approval before the author’s last commit is marked as of an earlier version", async ({
@@ -689,15 +685,14 @@ test("A refresh asks for every PR’s details again, since a finished check chan
 	page,
 	github,
 }) => {
-	await page.goto("/?repo=foo/bar&role=author");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page, "/?repo=foo/bar&role=author");
 
 	let asked = [];
 	github.details = answer => {
 		asked.push(...answer.data.nodes.map(pr => pr.id));
 	};
-	await page.getByRole("button", { name: "Refresh" }).click();
-	await expect(page.locator("progress")).toBeHidden();
+	await refresh(page);
+	await loaded(page);
 
 	expect(asked.toSorted()).toEqual([..."ABCDEF"]);
 });
@@ -773,8 +768,7 @@ test("A stored queue shows when each PR was opened and when it was asked for rev
 		answer.data.search.nodes[0].createdAt = ago(21);
 	};
 	detail(github, { A: asked(["reviewer"], 20) });
-	await page.goto("/?repo=foo/bar&role=author");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page, "/?repo=foo/bar&role=author");
 
 	github.search = () => new Promise(() => {});
 	await page.reload();
@@ -787,8 +781,7 @@ test("The author’s own stored queue says “Your turn” while the sign-in run
 	page,
 	github,
 }) => {
-	await page.goto("/?repo=foo/bar&role=author");
-	await expect(page.locator("progress")).toBeHidden();
+	await open(page, "/?repo=foo/bar&role=author");
 
 	github.user = () => new Promise(() => {});
 	await page.reload();
