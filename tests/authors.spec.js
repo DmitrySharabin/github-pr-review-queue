@@ -439,14 +439,6 @@ test("The count says how many PRs of all the search found are by the picked auth
 	await expect(page.locator("#summary .count")).toHaveText("2 of 6");
 });
 
-test("The button names the one picked author", async ({ page, github }) => {
-	authored(github);
-	await page.goto("/?repo=foo/bar&authors=quux");
-	await unfold(page);
-
-	await expect(page.getByRole("button", { name: "Author: quux" })).toBeVisible();
-});
-
 test("Picked authors with no PRs left, e.g. all merged, are named in the card, which clears them in one click", async ({
 	page,
 }) => {

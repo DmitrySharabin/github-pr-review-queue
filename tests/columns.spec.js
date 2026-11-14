@@ -328,18 +328,7 @@ test.describe("Exclude from counts", () => {
 		detail(github, { A: files({ "src/a.js": 10, "test/a.test.js": 500 }) });
 		await page.goto("/?repo=foo/bar&exclude=test");
 
-		let cell = row(page, "A").locator(".diff");
-		await expect(cell.locator("a")).toHaveAccessibleName("+10 −0 without excluded files");
-		await expect(cell.locator(".total")).toHaveText("+510 −0");
-	});
-
-	test("A screen reader hears which line leaves the excluded files out", async ({
-		page,
-		github,
-	}) => {
-		detail(github, { A: files({ "src/a.js": 10, "test/a.test.js": 500 }) });
-		await page.goto("/?repo=foo/bar&exclude=test");
-
+		// As a screen reader hears the cell, which says which line leaves the excluded files out
 		await expect(row(page, "A").locator(".diff")).toHaveAccessibleName(
 			"+10 −0 without excluded files +510 −0 total",
 		);

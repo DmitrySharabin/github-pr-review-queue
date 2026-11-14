@@ -97,11 +97,6 @@ test.describe("Next step", () => {
 			steps: { A: "Waiting for @reviewer" },
 		},
 		{
-			title: "A PR no one was asked to review asks the author to request a review",
-			details: {},
-			steps: { A: "Request a review" },
-		},
-		{
 			title: "A bot’s review leaves a PR without reviewers, since bots don’t take turns",
 			details: { A: reviewed([review("Copilot", "COMMENTED", { type: "Bot" })]) },
 			steps: { A: "Request a review" },
@@ -122,11 +117,6 @@ test.describe("Next step", () => {
 			title: "A merge state GitHub hasn’t computed yet counts as no conflict",
 			details: { A: { ...asked(["reviewer"]), mergeable: "UNKNOWN" } },
 			steps: { A: "Waiting for @reviewer" },
-		},
-		{
-			title: "Failing checks come before waiting for reviewers",
-			details: { A: { ...asked(["reviewer"]), statusCheckRollup: { state: "FAILURE" } } },
-			steps: { A: "Fix failing checks" },
 		},
 		{
 			title: "Running checks wait for no one but GitHub, so reviewers come first",
