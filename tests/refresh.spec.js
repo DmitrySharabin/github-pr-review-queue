@@ -1,4 +1,15 @@
-import { test, expect, filter, filterBy, label, loaded, open, refresh, unfold } from "./github.js";
+import {
+	test,
+	expect,
+	filter,
+	filterBy,
+	label,
+	loaded,
+	none,
+	open,
+	refresh,
+	unfold,
+} from "./github.js";
 
 test("A refresh asks for the details of only the PRs that changed since the last load", async ({
 	page,
@@ -144,9 +155,7 @@ test("A failed refresh of an empty queue doesn’t leave a screen reader hearing
 	page,
 	github,
 }) => {
-	github.search = answer => {
-		answer.data.search.nodes = [];
-	};
+	github.search = none;
 	await page.goto("/?repo=foo/bar");
 	await expect(page.locator("#empty")).toBeVisible();
 

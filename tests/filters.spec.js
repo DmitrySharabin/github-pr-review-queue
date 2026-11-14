@@ -6,6 +6,7 @@ import {
 	filter,
 	filterBy,
 	loaded,
+	none,
 	open,
 	refresh,
 	unfold,
@@ -282,9 +283,7 @@ test("A queue a filter emptied keeps the filter, to change or clear it", async (
 	page,
 	github,
 }) => {
-	github.search = answer => {
-		answer.data.search.nodes = [];
-	};
+	github.search = none;
 	await page.goto("/?repo=foo/bar&filter=label:none");
 	await unfold(page);
 
@@ -296,9 +295,7 @@ test("An empty queue with no filter has nothing to narrow, so no filter", async 
 	page,
 	github,
 }) => {
-	github.search = answer => {
-		answer.data.search.nodes = [];
-	};
+	github.search = none;
 	await page.goto("/?repo=foo/bar");
 
 	await expect(page.locator("#empty")).toBeVisible();
@@ -397,9 +394,7 @@ test("An empty queue keeps the filter row while authors are picked, so they can 
 	github,
 }) => {
 	// All their PRs merged, and no one else’s left
-	github.search = answer => {
-		answer.data.search.nodes = [];
-	};
+	github.search = none;
 	await page.goto("/?repo=foo/bar&authors=nobody");
 	await unfold(page);
 	await expect(page.locator("#empty")).toBeVisible();
@@ -408,9 +403,7 @@ test("An empty queue keeps the filter row while authors are picked, so they can 
 });
 
 test("An empty queue hides Display, as there is nothing to count", async ({ page, github }) => {
-	github.search = answer => {
-		answer.data.search.nodes = [];
-	};
+	github.search = none;
 	await page.goto("/?repo=foo/bar&filter=label:none&exclude=test");
 	await expect(page.locator("#empty")).toBeVisible();
 
@@ -421,9 +414,7 @@ test("The field focused after its ✕ stays, though the queue without the filter
 	page,
 	github,
 }) => {
-	github.search = answer => {
-		answer.data.search.nodes = [];
-	};
+	github.search = none;
 	await page.goto("/?repo=foo/bar&filter=label:none");
 	// From the keyboard, as Firefox shows no focus ring after a click, and ✕ then leaves the focus alone
 	await page.getByRole("button", { name: "Show filters" }).press("Enter");
@@ -520,9 +511,7 @@ test("The author list open while a refresh empties the queue stays by its button
 	await unfold(page);
 	await page.getByRole("button", { name: "Author" }).click();
 
-	github.search = answer => {
-		answer.data.search.nodes = [];
-	};
+	github.search = none;
 	// A click on Refresh would close the list first
 	await page.locator("#refresh").evaluate(button => button.click());
 	await expect(page.locator("#empty")).toBeVisible();

@@ -9,12 +9,37 @@ import {
 	filterBy,
 	label,
 	loaded,
+	none,
 	numbers,
 	open,
 	refresh,
 	row,
 	unfold,
 } from "./github.js";
+
+/** Count the GraphQL requests that the page stops, e.g. `await expect.poll(stopped).toBe(1)`. */
+function stops (page) {
+	let count = 0;
+	page.on("requestfailed", request => {
+		if (request.url() === "https://api.github.com/graphql") {
+			count++;
+		}
+	});
+	return () => count;
+}
+
+/** Answer for the PR at `index` as GitHub does once the PR is deleted, e.g. for B at 1. */
+function deleted (answer, index) {
+	let { id } = answer.data.nodes[index];
+	answer.data.nodes[index] = null;
+	answer.errors = [
+		{
+			type: "NOT_FOUND",
+			path: ["nodes", index],
+			message: `Could not resolve to a node with the global id of '${id}'.`,
+		},
+	];
+}
 
 test("A failed search hides the bars that stood in for its rows, even of the view shown last", async ({
 	page,
@@ -308,18 +333,13 @@ test("Details GitHub refuses, e.g. with a 403, aren’t asked for again in halve
 test("A role switch stops the requests of the load it leaves", async ({ page, github }) => {
 	await open(page);
 
-	let stopped = 0;
-	page.on("requestfailed", request => {
-		if (request.url() === "https://api.github.com/graphql") {
-			stopped++;
-		}
-	});
+	let stopped = stops(page);
 	let { promise, resolve } = Promise.withResolvers();
 	github.search = () => promise;
 	await refresh(page);
 	await page.getByRole("link", { name: "Author" }).click();
 
-	await expect.poll(() => stopped).toBe(1);
+	await expect.poll(stopped).toBe(1);
 	resolve();
 });
 
@@ -327,19 +347,14 @@ test("A role switch stops the details requests of the load it leaves too", async
 	page,
 	github,
 }) => {
-	let stopped = 0;
-	page.on("requestfailed", request => {
-		if (request.url() === "https://api.github.com/graphql") {
-			stopped++;
-		}
-	});
+	let stopped = stops(page);
 	let { promise, resolve } = Promise.withResolvers();
 	github.details = () => promise;
 	await page.goto("/?repo=foo/bar");
 	await expect(page.locator("#counter")).toBeVisible();
 	await page.getByRole("link", { name: "Author" }).click();
 
-	await expect.poll(() => stopped).toBe(1);
+	await expect.poll(stopped).toBe(1);
 	resolve();
 });
 
@@ -347,12 +362,7 @@ test("Sign out stops the load in flight, so it stores no queue after the queues 
 	page,
 	github,
 }) => {
-	let stopped = 0;
-	page.on("requestfailed", request => {
-		if (request.url() === "https://api.github.com/graphql") {
-			stopped++;
-		}
-	});
+	let stopped = stops(page);
 	let { promise, resolve } = Promise.withResolvers();
 	github.details = () => promise;
 	await page.goto("/?repo=foo/bar");
@@ -361,7 +371,7 @@ test("Sign out stops the load in flight, so it stores no queue after the queues 
 	await page.route("/?repo=foo/bar", () => {});
 	await page.getByRole("button", { name: "Sign out" }).click({ noWaitAfter: true });
 
-	await expect.poll(() => stopped).toBe(1);
+	await expect.poll(stopped).toBe(1);
 	resolve();
 });
 
@@ -465,14 +475,7 @@ test("A PR deleted between the search and its details counts as loaded, and leav
 		}
 
 		// As GitHub answers for B
-		answer.data.nodes[1] = null;
-		answer.errors = [
-			{
-				type: "NOT_FOUND",
-				path: ["nodes", 1],
-				message: "Could not resolve to a node with the global id of 'B'.",
-			},
-		];
+		deleted(answer, 1);
 	};
 	await page.goto("/?repo=foo/bar");
 	await expect(page.locator("#counter")).toContainText("10 of 11");
@@ -487,16 +490,7 @@ test("A PR stored without details, after GitHub said it was deleted, asks for th
 	page,
 	github,
 }) => {
-	github.details = answer => {
-		answer.data.nodes[1] = null;
-		answer.errors = [
-			{
-				type: "NOT_FOUND",
-				path: ["nodes", 1],
-				message: "Could not resolve to a node with the global id of 'B'.",
-			},
-		];
-	};
+	github.details = answer => deleted(answer, 1);
 	await open(page);
 
 	let asked = [];
@@ -831,16 +825,7 @@ test("A refreshed row of a PR deleted before its details shows as it was, not di
 	github.search = answer => {
 		answer.data.search.nodes[0].updatedAt = "2026-11-05T12:00:00Z";
 	};
-	github.details = answer => {
-		answer.data.nodes[0] = null;
-		answer.errors = [
-			{
-				type: "NOT_FOUND",
-				path: ["nodes", 0],
-				message: "Could not resolve to a node with the global id of 'A'.",
-			},
-		];
-	};
+	github.details = answer => deleted(answer, 0);
 	await refresh(page);
 	await loaded(page);
 
@@ -861,9 +846,7 @@ test("A queue of one PR counts it in the singular while its details load", async
 });
 
 test("An empty queue of the signed-in user speaks to them as “you”", async ({ page, github }) => {
-	github.search = answer => {
-		answer.data.search.nodes = [];
-	};
+	github.search = none;
 	await page.goto("/?repo=foo/bar&user=dmitrysharabin");
 
 	await expect(page.locator("#empty p")).toHaveText(
@@ -872,9 +855,7 @@ test("An empty queue of the signed-in user speaks to them as “you”", async (
 });
 
 test("An empty queue of another user names them", async ({ page, github }) => {
-	github.search = answer => {
-		answer.data.search.nodes = [];
-	};
+	github.search = none;
 	await page.goto("/?repo=foo/bar&role=author&user=other-user");
 
 	await expect(page.locator("#empty p")).toHaveText(

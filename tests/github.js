@@ -167,6 +167,11 @@ export async function refresh (page) {
 	await page.getByRole("button", { name: "Refresh" }).click();
 }
 
+/** A search that finds no PR: `github.search = none`. */
+export function none (answer) {
+	answer.data.search.nodes = [];
+}
+
 /** Unfold the filter row, which opens folded on the first visit. */
 export async function unfold (page) {
 	await page.getByRole("button", { name: "Show filters" }).click();
