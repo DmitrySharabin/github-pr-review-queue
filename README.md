@@ -106,9 +106,9 @@ To watch the tests run, step by step, use `npm test -- --ui`.
 
 ## Browser support
 
-Chrome or Edge 135, Firefox 144, or Safari 26.2.
+Chrome or Edge 145, Firefox 144, or Safari 26.2.
 
-- In older browsers, the columns do not sort.
+- In older browsers, the queue does not load.
 - Before Firefox 147, a filter or a view switch reloads the page.
 
 ## License
