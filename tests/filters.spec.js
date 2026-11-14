@@ -538,3 +538,18 @@ test("On a phone, a long login ends in an ellipsis inside the Author button, not
 	});
 	expect(spill).toBeLessThanOrEqual(0);
 });
+
+test("On a phone, the Author button takes the whole row when Display hides, e.g. over an empty queue", async ({
+	page,
+	github,
+}) => {
+	github.search = none;
+	await page.setViewportSize({ width: 390, height: 844 });
+	await open(page, "/?repo=foo/bar&authors=foo");
+	await unfold(page);
+
+	let [button, row] = await Promise.all(
+		["#author-button", "#filters"].map(selector => page.locator(selector).boundingBox()),
+	);
+	expect(button.width).toBeGreaterThan(row.width * 0.9);
+});

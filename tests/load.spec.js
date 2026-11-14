@@ -886,3 +886,45 @@ test("A user that isn’t a login shows the signed-in user’s queue, as no user
 
 	await expect(page.locator("#summary .user")).toHaveText("DmitrySharabin");
 });
+
+test.describe("After a first load that failed, the form is all there is to act on", () => {
+	test.beforeEach(async ({ page, github }) => {
+		github.search = () => 500;
+		await page.goto("/?repo=foo/bar");
+		await expect(page.locator("#repo-form .notice")).toBeVisible();
+	});
+
+	test("Refresh hides, as Show queue tries again", async ({ page }) => {
+		await expect(page.getByRole("button", { name: "Refresh" })).toBeHidden();
+	});
+
+	test("The update time, which has no time to say, is hidden from a screen reader too", async ({
+		page,
+	}) => {
+		await expect(page.locator("#updated")).toHaveCSS("visibility", "hidden");
+	});
+
+	test("The update time takes no room beside Sign out", async ({ page }) => {
+		let { width } = await page.locator("#updated").boundingBox();
+
+		expect(width).toBeLessThanOrEqual(1);
+	});
+
+	test("The form sits in the middle of the page, as the page that asks for a repo", async ({
+		page,
+	}) => {
+		let [form, main] = await Promise.all(
+			["#repo-form", "main"].map(selector => page.locator(selector).boundingBox()),
+		);
+
+		expect(form.x + form.width / 2).toBeCloseTo(main.x + main.width / 2, 0);
+	});
+});
+
+test("The update time fades in when a load ends, so a refresh in the same minute shows that it finished", async ({
+	page,
+}) => {
+	await open(page);
+
+	await expect(page.locator("#updated time")).toHaveCSS("animation-name", "appear");
+});
