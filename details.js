@@ -87,7 +87,7 @@ export async function fillDetails (stale, { view: { repo, role, exclude }, user 
 async function count (repo, diff, signal, ignore) {
 	let { ranges } = diff ?? {};
 	if (ranges) {
-		// The ranges go before the try. A failure sets `failed` below, so the next load compares again. A comparison of 300 files does not
+		// Deleted before the try. A failed comparison sets `failed` below, so the next load compares again. A comparison of 300 files sets nothing, so no load repeats it
 		delete diff.ranges;
 		try {
 			// NOTE: A failed comparison leaves the PR’s others running until they answer or time out

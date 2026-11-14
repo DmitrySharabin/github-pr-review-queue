@@ -10,7 +10,7 @@ let folded = localStorage.getItem(foldKey) !== "false";
 setFolded(folded);
 
 // A value unfolds the controls with the focus on its own, e.g. on Author for “Author foo”. A tap beside the values opens the filter.
-// Bars disable Author until the search ends, and a disabled button takes no focus
+// Author is disabled while bars stand in for the rows, and a disabled button takes no focus
 applied.addEventListener("click", event => {
 	let control = document.getElementById(
 		event.target.closest("[data-for]")?.dataset.for ?? "filter",
@@ -19,7 +19,7 @@ applied.addEventListener("click", event => {
 	(control.disabled ? fold : control).focus();
 });
 
-// No menu is open by then: a click on the fold button is a click outside it, and keyboard focus on the button is focus out of it, which both apply it
+// No menu is open by then. A click on the fold button is a click outside the menu, and keyboard focus on the button is focus out of it. Both apply the menu
 fold.addEventListener("click", () => setFolded(!folded));
 
 /**

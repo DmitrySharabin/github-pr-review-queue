@@ -10,7 +10,7 @@ const units = [
 	["hour", 36e5],
 	["minute", 6e4],
 ];
-// Short units, e.g. “11 min. ago”, keep the latest request on one line in the summary
+// Short units, e.g. “11 min. ago”, keep the latest request on one line in the strip
 const relative = new Intl.RelativeTimeFormat("en", { numeric: "auto", style: "short" });
 // Whole words, e.g. “35 days”, since a duration stands alone in its cell
 const durations = Object.fromEntries(

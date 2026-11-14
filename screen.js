@@ -39,7 +39,7 @@ export let queue;
 /** Whose PRs show, e.g. `["@collaborators", "foo"]`, see {@link matches}. An author’s PRs are all theirs */
 let authors = [];
 
-// Sorts without a view transition. Its capture holds the new order back up to 300 ms on 100 rows. When every row moves, no one follows one.
+// Sorts without a view transition, whose snapshot delays the new order by up to 300 ms on 100 rows. When every row moves, the eye follows none of them.
 // Bars wait for the search, which sorts what it finds
 table.addEventListener("command", event => {
 	chooseSort(event.source.value);

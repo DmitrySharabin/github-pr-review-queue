@@ -9,7 +9,7 @@ import { matches } from "./authors.js";
 
 let strip = document.querySelector("#summary");
 
-// A value in the summary turns into its form in place. Enter or ✓ opens the queue it names. Esc, ✕ or the pencil again goes back
+// A value in the strip turns into its form in place. Enter or ✓ opens the queue it names. Esc, ✕ or the pencil again goes back
 for (let form of strip.querySelectorAll("form")) {
 	let value = form.previousElementSibling;
 	let button = strip.querySelector(`[commandfor="${form.id}"]`);
@@ -101,7 +101,7 @@ export function showCounts ({ view, rows }, authors) {
 	strip.querySelector(".count").textContent =
 		authors.length > 0 ? `${shown.length} of ${rows.length}` : rows.length;
 
-	// Unknown until every row has its details, e.g. of a queue stored before PRs had steps
+	// Unknown until every row has its details, e.g. while they load
 	if (view.role === "author") {
 		let turns = strip.querySelector(".turns");
 		let steps = shown.map(row => row.summary.step);

@@ -80,8 +80,8 @@ export async function load () {
 	// By now a narrowed or restored queue is of this view too
 	showLoading({ comparing: onScreen(view) && Boolean(queue.seen) });
 
-	// Bars stand in for rows that aren’t this queue’s, e.g. nothing yet on a first visit, or another repo’s, user’s or role’s PRs,
-	// which would sit under this view’s names. Rows under another filter stay until the search replaces them.
+	// Bars stand in for rows of another queue, e.g. another repo’s, user’s or role’s PRs, which would sit under this view’s names.
+	// They also stand in for no rows at all, e.g. on a first visit. Rows under another filter stay until the search replaces them.
 	// A stored token signs in without a card, so bars show during the sign-in. Without one, they would flash before the sign-in card
 	// NOTE: An expired token still shows them before the card
 	if (!sameQueue(view) && github.isAuthenticated()) {

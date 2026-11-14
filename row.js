@@ -143,7 +143,10 @@ export function relink (rows) {
 	}
 }
 
-/** Remove the marks, leaving the row as {@link render} makes it, e.g. no `class=""`, so that it equals its next render. */
+/**
+ * Remove the marks, leaving the row as {@link render} makes it, e.g. no `class=""`, so that it equals its next render.
+ * @param {HTMLTableRowElement} tr
+ */
 export function unmark (tr) {
 	let label = tr.querySelector("mark");
 	label.hidden = true;
@@ -228,7 +231,7 @@ function render ({
 	tr.classList.toggle("totals", Boolean(tr.querySelector(".total:not([hidden])")));
 	tr.querySelector(".iterations").textContent = iterations === null ? "—" : (iterations ?? "");
 
-	// An author’s step has waited for so long, a reviewer’s request was made so long ago
+	// For an author, how long the step has waited. For a reviewer, how long ago the request came
 	showTime(tr.querySelector(".requested time"), waitingSince, { duration: Boolean(step) });
 	showReviewers(tr.querySelector(".reviewers"), reviewers);
 
@@ -291,7 +294,7 @@ function showAllLabels (element) {
 }
 
 /**
- * The step: text when others have the turn, else a button to where the author does it on GitHub, the PR’s page unless the step names another.
+ * Show the step as text when others have the turn. Otherwise show a button to where the author does it on GitHub, the PR’s page unless the step names another.
  * A draft’s button is quieter, since a draft waits for no one, e.g. “Ready for review”.
  */
 function showStep (cell, step, url) {
@@ -375,7 +378,7 @@ function showDiff (cell, diff) {
 		`--additions: ${diff.additions}; --deletions: ${diff.deletions}`;
 
 	// The lines of every file, ignored ones too, under those of the rest, e.g. “+650 −32 total”.
-	// Without a split, e.g. in a sum of commits, the figures are the total already, gray as a stand-in
+	// Without a split, e.g. in a sum of commits, the figures are the total already, marked as a stand-in
 	if (diff.unsplit) {
 		cell.classList.add("unsplit");
 		link.title = unsplitTitles[diff.unsplit];
@@ -387,7 +390,7 @@ function showDiff (cell, diff) {
 		all.hidden = false;
 		cell.querySelector("small").hidden = false;
 		// Sighted users tell the two lines apart by the word “total” under the first,
-		// so a screen reader hears the link as “+585 −2 without excluded files”, then “+650 −2 total”
+		// so a screen reader hears the link as “+585 −20 without excluded files”, then “+650 −32 total”
 		link.append(spoken(" without excluded files"));
 	}
 

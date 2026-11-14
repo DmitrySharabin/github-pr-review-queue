@@ -63,7 +63,7 @@ export function restore (view, rows = []) {
 		};
 	}
 	catch (error) {
-		// A queue this version can’t show, e.g. stored by an older one with a step since renamed, waits for the load, which stores it anew
+		// A stored queue this code can’t show, e.g. one with broken JSON, waits for the load, which stores it anew
 		console.warn("Couldn’t show the stored queue.", error);
 	}
 }

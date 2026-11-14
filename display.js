@@ -32,7 +32,7 @@ export function showDisplay (exclude) {
 	button.querySelector(".badge").hidden = !exclude;
 	button.ariaLabel = exclude ? "Display, 1 setting changed" : null;
 	button.classList.toggle("set", Boolean(exclude));
-	// A reset fires no input event, e.g. after Clear, so the last message would stay
+	// A reset fires no input event, so the message of the value before would stay, e.g. on a step back from `?exclude=test(`
 	check();
 }
 

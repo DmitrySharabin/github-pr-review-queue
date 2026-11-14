@@ -6,7 +6,7 @@ import { size } from "./pull-request.js";
 
 let table = document.querySelector("#queue");
 
-/** Whose turn sorts first: the author’s, then the others’, then no one’s, e.g. a draft’s */
+/** The author’s turn sorts first, then the others’, then no one’s, e.g. a draft’s */
 const turns = { author: 2, others: 1, nobody: 0 };
 
 /** Sort value of each column. `null` and `undefined` (still loading) sort last in both directions. */
@@ -20,7 +20,7 @@ const sortKeys = {
 	waitingSince: summary => summary.waitingSince && -summary.waitingSince,
 };
 
-/** Where each role’s last sort is saved, and what it sorts by until then. The reviewer’s key predates the author’s columns.
+/** Where each role’s last sort is saved, and what it sorts by until then. The reviewer’s key has no role in its name.
  * Each keeps its `sort` in this tab once read, which another tab may save over */
 const roles = {
 	reviewer: { key: "review-queue:sort", column: "waitingSince" },

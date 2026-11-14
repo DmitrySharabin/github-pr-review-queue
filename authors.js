@@ -83,7 +83,7 @@ export function showAuthors (rows, authors) {
 		found.getOrInsert(author.toLowerCase(), { author, avatar, count: 0 });
 	}
 
-	// No authors match anyone, but pick no one
+	// With no one picked, matches() lets every author through, but the button shows no faces
 	let picked =
 		authors.length > 0 ? [...found.values()].filter(person => matches(person, authors)) : [];
 	// The key agrees with the name, e.g. “Authors Collaborators”. “2 authors” names itself
@@ -181,7 +181,7 @@ function rove (item) {
 	}
 }
 
-/** Show the authors whose login has what is typed, with it in bold, e.g. **ba**z for `ba`. */
+/** Show the authors whose login has what is typed, with it marked, e.g. `<mark>ba</mark>z` for `ba`. */
 function narrow () {
 	let typed = search.value.trim();
 	for (let label of form.querySelectorAll("fieldset label")) {
@@ -214,7 +214,7 @@ function update () {
 	// With no collaborators to check, it shows the pick itself, e.g. `@collaborators` kept after theirs were merged
 	all.checked = inside.length > 0 ? on === inside.length : everyone;
 	all.indeterminate = on > 0 && on < inside.length;
-	// NOTE: Disabled while it holds the list’s Tab stop, e.g. by Space on it with no collaborators in the queue, it leaves the list with none. ↓ from the search field still reaches every author
+	// NOTE: Space on “All collaborators” with no collaborators in the queue disables it while it holds the list’s Tab stop. Tab then skips the list. ↓ from the search field still reaches every author
 	all.disabled = inside.length === 0 && !everyone;
 
 	let picked = boxes().filter(box => box.checked);

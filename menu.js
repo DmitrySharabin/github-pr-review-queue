@@ -1,7 +1,7 @@
 /** Whether Esc closed the menu, which drops the changes made in it */
 let cancelled = false;
 
-// On the document: Safari doesn’t focus a checkbox on a click, so Esc after one goes to the page.
+// On the document, since Safari doesn’t focus a checkbox on a click, so Esc after one goes to the page.
 // Esc in a filled search field only clears it, so the next key or click decides how the menu closes
 for (let type of ["keydown", "pointerdown"]) {
 	document.addEventListener(type, event => {
@@ -51,7 +51,7 @@ export function applyOnClose (form, { changed, open, discard }) {
 	});
 
 	// Focus moved out from the keyboard, e.g. by Tab past the last button, closes the menu as a click outside does, which applies it.
-	// A click needs no check: outside it is light dismiss, and on the menu’s own button it toggles the menu
+	// A click needs no check. Outside the menu, light dismiss closes it. On the menu’s own button, the click toggles it
 	document.addEventListener("focusin", event => {
 		if (
 			form.matches(":popover-open") &&

@@ -16,7 +16,7 @@
 	--control-radius: calc(var(--radius) * 0.75);
 	--control-border: color-mix(in oklch, var(--text) 20%, var(--surface));
 	--gutter: clamp(1rem, 3vw, 1.5rem);
-	/* Between the header, the summary and what follows */
+	/* Between the header, the strip and what follows */
 	--block-gap: 1.5rem;
 	/* A strong ease-out, so motion that answers the user starts at once */
 	--ease-out: cubic-bezier(0.23, 1, 0.32, 1);
@@ -49,12 +49,12 @@ body {
 }
 
 /* `hidden` hides whatever `display` a rule gives, e.g. a grid.
-   Not the progress bar, which fades out, nor what keeps its room while hidden: the push icon, and “total” beside a size with one */
+   Not the progress bar, which fades out. Not what keeps its room while hidden either, i.e. the push icon and “total” beside a size with one */
 [hidden]:not(progress, .force-pushed, .size small) {
 	display: none !important;
 }
 
-/* Every image is an avatar: round, on a disc that shows until it loads */
+/* Every image is an avatar, round, on a disc that shows until it loads */
 img {
 	block-size: auto;
 	border-radius: 50%;
@@ -227,7 +227,7 @@ h1 {
 	}
 }
 
-/* The summary replaces the status, so both keep the same gap below the header */
+/* The strip replaces the status, so both keep the same gap below the header */
 #status {
 	margin-block: var(--block-gap);
 	color: var(--muted);
@@ -351,7 +351,7 @@ header.failed #updated .now {
 }
 
 /* Read aloud but unseen, since something else on screen says the same.
-   The summary above the table says the caption. The delta next to its count says the changes, e.g. “+3” for “3 new”.
+   The strip above the table says the caption. The delta next to its count says the changes, e.g. “+3” for “3 new”.
    The counter takes the update time’s place during a load. A card, e.g. the sign-in, says the status, which a screen reader still hears change.
    With a card and no summary, the time hides only on screen, so a screen reader still hears when a load from the card ends.
    A size over its total says what it leaves out */
@@ -447,7 +447,7 @@ progress {
 		transition: inline-size 300ms var(--ease-out);
 	}
 
-	/* Firefox and browsers built on it, e.g. Zen. A rule that also names the WebKit pseudo-element is invalid in both engines, so each drops it */
+	/* Firefox and the browsers built on it. A rule that also names the WebKit pseudo-element is invalid in both engines, so each drops it */
 	&::-moz-progress-bar {
 		background: var(--gleam), var(--text);
 		border-radius: 1e5px;
@@ -573,7 +573,7 @@ progress {
 }
 
 /* The page that asks for a repo, the sign-in, and why the queue didn’t load each show one card in the middle.
-   The card sits lower than the summary that replaces it */
+   The card sits lower than the strip that replaces it */
 :is(#repo-form, #sign-in):has(~ #summary[hidden]) {
 	margin: clamp(var(--block-gap), 12vh, 7rem) auto var(--block-gap);
 }
@@ -949,7 +949,7 @@ progress {
 		margin-inline-end: 0.4em;
 	}
 
-	/* No user yet, so no link and no image. Chrome and Firefox frame an image without a source, so a disc stands in for it, as in the placeholder rows of a load */
+	/* No user yet, so no link and no image. Chrome and Firefox frame an image without a source, so a disc stands in for it, as in the bars of a load */
 	.user:not([href]) {
 		img {
 			display: none;
@@ -1023,7 +1023,7 @@ progress {
 	}
 }
 
-/* Icon buttons as big as the role switch in the summary, the smallest target WCAG allows. ✕ in the filter field too */
+/* Icon buttons as big as the role switch in the strip, the smallest target WCAG allows. ✕ in the filter field too */
 :is(#summary, #narrow) button {
 	flex: none;
 	inline-size: 1.5rem;
@@ -1045,7 +1045,7 @@ progress {
 	}
 }
 
-/* In the summary’s forms, in the filter field, and on each recent value */
+/* In the strip’s forms, in the filter field, and on each recent value */
 .cancel {
 	--icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round'%3E%3Cpath d='M4 4l8 8M12 4l-8 8'/%3E%3C/svg%3E");
 }
@@ -1056,7 +1056,7 @@ progress {
 #filters {
 	/* As short as GitHub’s own filter. A phone keeps the height a thumb needs */
 	--height: 2rem;
-	/* What faces on it ring themselves with, as the menus set it too */
+	/* The fill that rings the faces on it. A set menu button sets its own */
 	--fill: color-mix(in oklch, var(--ground) 50%, var(--surface));
 
 	display: grid;
@@ -1196,7 +1196,7 @@ progress {
 		max-inline-size: 16rem;
 	}
 
-	/* Faces as small as the text. The middle of a face sits on the middle of the caps: a face has no baseline, so its bottom sits on the text’s, then moves down half the difference */
+	/* Faces as small as the text, centered on the caps. A face has no baseline, so its bottom sits on the text’s baseline, then moves down half the difference */
 	.faces {
 		--face: 1.25em;
 
@@ -1328,7 +1328,7 @@ progress {
 	background: none;
 	color: var(--text);
 
-	/* Filled while set, so the row says which control hides rows, and on hover where a tap doesn’t leave the hover on, which would read as set */
+	/* Filled while set, so the row says which control hides rows. Filled on hover only where a tap leaves no hover on, which would read as set */
 	&.set {
 		--fill: var(--rule);
 		background: var(--fill);
@@ -1382,7 +1382,7 @@ progress {
 	}
 }
 
-/* The fill under faces that overlap rings each of them, e.g. the set button’s or the band’s */
+/* The fill under faces that overlap rings each of them, e.g. the set button’s or the filters’ */
 :is(#author-button, #filters .applied) .faces {
 	display: flex;
 	flex: none;
@@ -1613,7 +1613,7 @@ progress {
 	border-radius: var(--radius);
 }
 
-/* Too narrow for the table, so the table scrolls in its own frame, the width of the summary above it, instead of the page.
+/* Too narrow for the table, so the table scrolls in its own frame, the width of the strip above it, instead of the page.
    Only then, since a scrolling frame would also pin the sticky header to itself rather than the window */
 @container (width < 48rem) {
 	.scroller {
@@ -1776,7 +1776,7 @@ td:not(.requested) {
 	color: var(--muted);
 }
 
-/* Each role’s columns. An author sees their own PRs, so their avatar, sizes and rounds tell them nothing */
+/* Each role’s columns. An author sees their own PRs, so their avatar, sizes and iterations tell them nothing */
 #queue:not(.author) .step,
 #queue.author :is(.diff, .since-review, .iterations, .pull-request .avatar) {
 	display: none;
@@ -1945,7 +1945,7 @@ tbody td {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-	/* A focused checkbox finds its login through `~`, not `label:has()`, which made each load restyle the page */
+	/* A focused checkbox finds its login through `~`, not `label:has()`, which would restyle the page on each load */
 	:is(
 		.pull-request .author:is(:hover, :focus-visible),
 		#authors :is(label:hover, :focus-visible ~ .who) .login
@@ -1954,7 +1954,7 @@ tbody td {
 	}
 
 	/* Forward by the box’s width, then back by the text’s own. 1px short, so the text still overflows and the flag stays on.
-	   Only with scroll timelines: without them, e.g. in Firefox before 159, the flag is on for every login */
+	   Only with scroll timelines. Without them, e.g. in Firefox before 159, the flag is on for every login */
 	@supports (animation-timeline: scroll()) {
 		@container style(--truncated: 1) {
 			:is(
@@ -2041,7 +2041,7 @@ tbody td {
 	list-style: none;
 	--scale: 0.75;
 	font-size: calc(var(--scale) * 1em);
-	/* Centered on the title’s capitals, not its lowercase: raised by half the gap between the title’s cap height and x-height */
+	/* Centered on the title’s capitals, not its lowercase. Raised by half the gap between the title’s cap height and x-height */
 	vertical-align: calc((1cap - 1ex) / 2 / var(--scale));
 	font-weight: 500;
 	/* Fits the pills in the title’s line, so a row with labels is as tall as one without */
@@ -2184,7 +2184,7 @@ td:is(.diff, .since-review) small {
 	filter: grayscale(1);
 }
 
-/* GitHub’s push icon, in a slot every cell of the column keeps, so its figures, “No changes”, the loading bar and the header share one edge.
+/* GitHub’s push icon, in a slot every cell of the column keeps, so its figures, “No changes”, the bar of a size still loading and the header share one edge.
    In rem, so the smaller header keeps the same slot */
 .since-review {
 	--icon-size: 1rem;
@@ -2237,7 +2237,7 @@ td:is(.diff, .since-review) small {
 		var(--negative) 0 calc((var(--added) + var(--deleted)) * 20%),
 		var(--border) 0
 	);
-	/* Cuts the strip into squares with 1px gaps */
+	/* Cuts the gradient into squares with 1px gaps */
 	mask: repeating-linear-gradient(to right, black 0 calc(20% - 1px), transparent 0 20%);
 }
 
@@ -2331,7 +2331,7 @@ time.rounded {
 	}
 }
 
-/* A line tall, as the text that replaces it. A time that lays out as a flex box, e.g. in the summary, has no line around its bar.
+/* A line tall, as the text that replaces it. A time that lays out as a flex box, e.g. in the strip, has no line around its bar.
    Without this, the bar sits at the top */
 :is(td, time, .count, .turns):empty {
 	min-block-size: 1lh;

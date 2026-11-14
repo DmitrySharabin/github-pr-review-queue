@@ -128,8 +128,8 @@ if (`${normalized}` !== `${current}`) {
 }
 
 // A filter, a role switch or another repo loads in place, so what it doesn’t change stays put, e.g. the focus in the filter field.
-// Without the Navigation API, or to or from the page that asks for a repo, the page reloads:
-// going back to that page shows it, not just its URL, and leaving it brings back the controls it hides
+// Without the Navigation API, or to or from the page that asks for a repo, the page reloads.
+// Going back to that page then shows it, not just its URL, and leaving it brings back the controls it hides
 window.navigation?.addEventListener("navigate", event => {
 	let next = new URL(event.destination.url).searchParams;
 	let current = new URLSearchParams(location.search);
@@ -167,7 +167,7 @@ function showView ({ onlyAuthors } = {}) {
 	let { role, filter, exclude } = view;
 	pickAuthors(role === "author" ? [] : (params.get("authors")?.split(",").filter(Boolean) ?? []));
 
-	// As defaults, so a reset, e.g. Esc in a summary form, goes back to what the URL says
+	// As defaults, so a reset, e.g. Esc in a form of the strip, goes back to what the URL says
 	for (let form of forms) {
 		for (let field of form.elements) {
 			if (field.name) {

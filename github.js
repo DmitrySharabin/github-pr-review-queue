@@ -51,6 +51,9 @@ export function signedIn (signal) {
 /**
  * GitHub’s answer to a GraphQL query, through Madata’s request() rather than its load().
  * For a PR deleted since the search, GitHub answers null and an error, and Madata’s load() throws the whole answer away for it, the other PRs included.
+ * @param {string} text
+ * @param {AbortSignal} signal - The load’s
+ * @returns {Promise<object>} The answer’s `data`
  */
 export async function graphql (text, signal) {
 	let { data, errors = [] } = await github.request(
@@ -108,7 +111,7 @@ export async function nodes (query, ids, signal) {
  * @param {unknown} error - What Madata or graphql() threw
  */
 function stopped (error) {
-	// A 502’s body is its HTML page, which Madata throws as text, or JSON with its status or GitHub’s words, as is a query’s error
+	// Madata throws a 502’s HTML page as text, or its JSON with the status or GitHub’s words. A query’s error comes as JSON too
 	return (
 		typeof error === "string" ||
 		error?.status === "502" ||

@@ -43,7 +43,7 @@
  * @property {number | null} [iterations] - How many times review was asked for again after a review, `null` when unknown
  * @property {number | null} [waitingSince] - In epoch ms, the latest review request to the user, or for an author since when the PR waits for its {@link Step}
  * @property {Reviewer[]} [reviewers] - Everyone else asked to review it or who reviewed it, but teams
- * The optional ones are `undefined` until {@link details} arrive.
+ * The optional ones, but `association`, `opened` and `draft`, are `undefined` until {@link details} arrive.
  *
  * @typedef {object} Step - Whose turn a PR is, and what they have to do
  * @property {"draft" | "request-review" | "await-review" | "resolve-conflicts" | "fix-checks" | "make-changes" | "re-request" | "reply" | "waiting" | "queued" | "auto-merge" | "checks-running" | "approved" | "await-merge"} name -
@@ -188,8 +188,8 @@ export function hasLabel (pr, name) {
 }
 
 /**
- * Whether the {@link details} of an earlier copy of a PR from {@link query} may be out of date:
- * a review, a review request or a force push changes `updatedAt`, a push the head commit.
+ * Whether the {@link details} of an earlier copy of a PR from {@link query} may be out of date.
+ * A review, a review request or a force push changes `updatedAt`. A push changes the head commit.
  * @param {object} earlier
  * @param {object} pr
  * @returns {boolean}
@@ -209,7 +209,7 @@ export const searchLimit = 100;
 export function query ({ repo, user, role, filter }) {
 	let [owner, name] = repo.split("/");
 
-	// The search finds nothing for a repo or a user that does not exist, `repository` and `user` fail with an error instead.
+	// The search finds nothing for a repo or a user that does not exist. `repository` and `user` fail with an error instead.
 	// `repository` also tells what the signed-in user may do in it, see turn()
 	// NOTE: Gets only the first 100 PRs and their first 100 labels
 	return `query {
@@ -282,7 +282,8 @@ export function details ({ user, role, exclude, ids }) {
 
 /**
  * GraphQL query for the sizes of commits, e.g. of a {@link Diff}’s `commits`.
- * They are apart from {@link details}, since their sizes are the slowest field, e.g. 1–2 s for the last 100 commits of a PR, and a PR needs few of them.
+ * A query of its own, not a part of {@link details}, since the sizes are the slowest field, e.g. 1–2 s for the last 100 commits of a PR.
+ * A PR needs few of them.
  * @param {string[]} ids - At most 100
  * @returns {string}
  */
@@ -335,7 +336,7 @@ export function incomplete (summary) {
 	return summary.diffSinceReview.failed || summary.diff.unsplit === "unlisted";
 }
 
-/** Most comparisons a PR’s count since a review takes, one per run of the author’s commits. More add up the sizes of the commits instead */
+/** The most comparisons for one PR’s count since a review, one per run of the author’s commits. With more runs, the count adds up the sizes of the commits instead */
 const compareLimit = 5;
 
 /** What a reviewer sees of a PR: what is left to review, and since when it waits for them. */
@@ -411,7 +412,7 @@ function forReviewer (pr, user, ignore) {
 								? runs.map(run => `${run.base}...${run.head}`)
 								: undefined,
 					},
-		// A round is a request that follows a review. Requests with no review between them add no round
+		// An iteration is a request that follows a review. Requests with no review between them add none
 		iterations: viaTeam
 			? null
 			: requests.filter((request, i) =>
@@ -464,7 +465,7 @@ const whose = {
  * @returns {Omit<Step, "whose"> & { since?: number | null }} With `since`, in epoch ms, when the PR started to wait for it. Only reviews and requests give that time, so a conflict has none
  */
 function turn (pr, user) {
-	// Bots, e.g. Copilot, review when asked and never wait for the author. A deleted account has no login
+	// Bots review when asked and never wait for the author. A deleted account has no login
 	let human = actor =>
 		Boolean(actor?.login) && actor.__typename !== "Bot" && !isLogin(actor.login, user);
 	// A step that names the reviewers of these reviews, and waits since the oldest
@@ -602,7 +603,12 @@ function oldest (times) {
 	return dates.length > 0 ? Math.min(...dates) : null;
 }
 
-/** Whether two logins are the same, which GitHub matches in any case. */
+/**
+ * Whether two logins are the same, which GitHub matches in any case.
+ * @param {string | null | undefined} login
+ * @param {string} other
+ * @returns {boolean}
+ */
 export function isLogin (login, other) {
 	return login?.toLowerCase() === other.toLowerCase();
 }
