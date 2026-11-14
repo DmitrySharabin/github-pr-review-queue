@@ -157,7 +157,6 @@ test("A size with its total under it leaves its row as tall as the bars", async 
 
 test("On a phone, the ring of a focused name too long for its cell stays inside the cell", async ({
 	page,
-	github,
 }) => {
 	await page.setViewportSize({ width: 375, height: 812 });
 	await page.goto("/?repo=foo/bar");
@@ -179,10 +178,7 @@ test("On a phone, the ring of a focused name too long for its cell stays inside 
 	expect(ring).toBeLessThanOrEqual(edge);
 });
 
-test("On a tablet, the table scrolls in its own frame, not the page sideways", async ({
-	page,
-	github,
-}) => {
+test("On a tablet, the table scrolls in its own frame, not the page sideways", async ({ page }) => {
 	await page.setViewportSize({ width: 820, height: 1180 });
 	await page.goto("/?repo=foo/bar");
 	await expect(page.locator("progress")).toBeHidden();
@@ -193,7 +189,6 @@ test("On a tablet, the table scrolls in its own frame, not the page sideways", a
 
 test("On a phone, what a size says only to a screen reader doesn’t widen the page, so Safari doesn’t zoom out", async ({
 	page,
-	github,
 }) => {
 	await page.setViewportSize({ width: 375, height: 812 });
 	await page.goto("/?repo=foo/bar&exclude=test");
@@ -205,7 +200,6 @@ test("On a phone, what a size says only to a screen reader doesn’t widen the p
 
 test("On a tablet, the author view’s table fits, so its header stays at the top of the window", async ({
 	page,
-	github,
 }) => {
 	await page.setViewportSize({ width: 900, height: 400 });
 	await page.goto("/?repo=foo/bar&role=author");
@@ -219,7 +213,6 @@ test("On a tablet, the author view’s table fits, so its header stays at the to
 
 test("The field that edits the user is as tall as the name it replaces, so the strip doesn’t move", async ({
 	page,
-	github,
 }) => {
 	await page.goto("/?repo=foo/bar");
 	let cell = page.locator("#summary > div").filter({ has: page.locator(".user") });
@@ -234,7 +227,6 @@ test("The field that edits the user is as tall as the name it replaces, so the s
 
 test("The ring of the field that edits the user stays inside the cell that scrolls it", async ({
 	page,
-	github,
 }) => {
 	await page.goto("/?repo=foo/bar");
 	await page.getByRole("button", { name: "Change user" }).click();
@@ -271,10 +263,7 @@ test("A total sits under the figures it adds to, not over them", async ({ page, 
 	expect(total.y).toBeGreaterThanOrEqual(figures.y + figures.height - 1);
 });
 
-test("The ring of a focused count hugs the count, not the change beside it", async ({
-	page,
-	github,
-}) => {
+test("The ring of a focused count hugs the count, not the change beside it", async ({ page }) => {
 	await page.goto("/?repo=foo/bar");
 	let count = page.locator("#summary .count");
 	await expect(count).toHaveText("6");
@@ -295,7 +284,6 @@ test("The ring of a focused count hugs the count, not the change beside it", asy
 
 test("A sorted header’s label ends where its column’s values end, with the arrow past it", async ({
 	page,
-	github,
 }) => {
 	await page.goto("/?repo=foo/bar");
 	await expect(page.locator("progress")).toBeHidden();

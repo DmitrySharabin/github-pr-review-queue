@@ -532,7 +532,6 @@ test("Typing in the list marks the typed part of each login, in any case", async
 
 test("Picked authors with no PRs left, e.g. all merged, are named in the card, which clears them in one click", async ({
 	page,
-	github,
 }) => {
 	// No PR has an author with a role in the repo
 	await page.goto("/?repo=foo/bar&authors=nobody,@collaborators");

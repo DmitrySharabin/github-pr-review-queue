@@ -85,7 +85,6 @@ test.describe("Next step", () => {
 
 	test("A PR no one was asked to review asks the author to request a review", async ({
 		page,
-		github,
 	}) => {
 		await page.goto("/?repo=foo/bar&role=author");
 
@@ -714,7 +713,7 @@ test("The summary counts the PRs whose turn is the author’s, as “Author’s 
 	await expect(page.locator("#summary .tally")).toHaveText("Author’s turn");
 });
 
-test("The summary counts the author’s own turns as theirs", async ({ page, github }) => {
+test("The summary counts the author’s own turns as theirs", async ({ page }) => {
 	await page.goto("/?repo=foo/bar&role=author");
 
 	await expect(page.locator("#summary .tally")).toHaveText("Your turn");
@@ -722,7 +721,6 @@ test("The summary counts the author’s own turns as theirs", async ({ page, git
 
 test("The author sees only the columns that help them: whose turn, for how long, and the reviewers", async ({
 	page,
-	github,
 }) => {
 	await page.goto("/?repo=foo/bar&role=author");
 

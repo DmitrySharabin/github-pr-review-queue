@@ -40,7 +40,6 @@ test("A step back after a failed role switch shows the stored queue at once, as 
 
 test("With a stored token, bars stand in for the rows while the sign-in runs, so nothing jumps in when they arrive", async ({
 	page,
-	github,
 }) => {
 	// Madata asks auth.madata.dev for its services before it signs in
 	await page.route("https://auth.madata.dev/**", () => {});
@@ -52,7 +51,7 @@ test("With a stored token, bars stand in for the rows while the sign-in runs, so
 test.describe("Without a stored token", () => {
 	test.use({ token: null });
 
-	test("No bars flash before the sign-in card", async ({ page, github }) => {
+	test("No bars flash before the sign-in card", async ({ page }) => {
 		await page.route("https://auth.madata.dev/**", () => {});
 		await page.goto("/?repo=foo/bar");
 
@@ -73,7 +72,7 @@ test.describe("Without a stored token", () => {
 		);
 	});
 
-	test("A pasted token that GitHub accepts loads the queue", async ({ page, github }) => {
+	test("A pasted token that GitHub accepts loads the queue", async ({ page }) => {
 		await page.goto("/?repo=foo/bar");
 		await page.getByLabel("Fine-grained token").fill("github_pat_foo");
 		await page.getByRole("button", { name: "Use token" }).click();
@@ -370,10 +369,7 @@ test("Sign out stops the load in flight, so it stores no queue after the queues 
 	resolve();
 });
 
-test("Sign out forgets the stored queues, e.g. the titles of private repos", async ({
-	page,
-	github,
-}) => {
+test("Sign out forgets the stored queues, e.g. the titles of private repos", async ({ page }) => {
 	await page.goto("/?repo=foo/bar");
 	await expect(page.locator("progress")).toBeHidden();
 	// The reload after it opens a blank page, so no sign-in card forgets them instead
@@ -443,10 +439,7 @@ test("A sort chosen while the bars show keeps them, and sorts the rows that repl
 	]);
 });
 
-test("A sort chosen before the rows slide into place puts them in its order", async ({
-	page,
-	github,
-}) => {
+test("A sort chosen before the rows slide into place puts them in its order", async ({ page }) => {
 	// The rows slide into place on a call, which a busy page makes a frame or more later
 	await page.addInitScript(() => {
 		document.startViewTransition = place => {
@@ -649,7 +642,6 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 	// The search would join the two authors with an OR, while the summary names one of them
 	test("Another author in the author view’s filter opens their queue, as on GitHub’s pulls page", async ({
 		page,
-		github,
 	}) => {
 		await page.goto("/?repo=foo/bar&role=author");
 		await unfold(page);
@@ -659,10 +651,7 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 		await expect.poll(() => view(page)).toEqual({ user: "other-user", filter: "label:bug" });
 	});
 
-	test("Another reviewer in the reviewer view’s filter opens their queue", async ({
-		page,
-		github,
-	}) => {
+	test("Another reviewer in the reviewer view’s filter opens their queue", async ({ page }) => {
 		await page.goto("/?repo=foo/bar");
 		await unfold(page);
 
@@ -673,7 +662,6 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 
 	test("Of two authors in the filter, the last one wins, as on GitHub’s pulls page", async ({
 		page,
-		github,
 	}) => {
 		await page.goto("/?repo=foo/bar&role=author");
 		await unfold(page);
@@ -683,7 +671,7 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 		await expect.poll(() => view(page)).toEqual({ user: "other-user", filter: null });
 	});
 
-	test("`author:@me` opens the signed-in user’s queue", async ({ page, github }) => {
+	test("`author:@me` opens the signed-in user’s queue", async ({ page }) => {
 		await page.goto("/?repo=foo/bar&user=other-user&role=author");
 		await unfold(page);
 
@@ -693,7 +681,7 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 	});
 
 	// A negated author narrows the search, so it is a filter of its own
-	test("A negated author in the author view stays in the filter", async ({ page, github }) => {
+	test("A negated author in the author view stays in the filter", async ({ page }) => {
 		await page.goto("/?repo=foo/bar&role=author");
 		await unfold(page);
 
@@ -705,7 +693,6 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 	// Two places would pick authors apart, e.g. `author:foo` with `foo` unpicked in the list, and show nothing
 	test("Authors in the reviewer view’s filter become the Author button’s picks, in place of the ones before", async ({
 		page,
-		github,
 	}) => {
 		await page.goto("/?repo=foo/bar&authors=qux");
 		await unfold(page);
@@ -719,7 +706,6 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 
 	test("A negated author in the reviewer view stays in the filter, as the Author button can’t exclude", async ({
 		page,
-		github,
 	}) => {
 		await page.goto("/?repo=foo/bar");
 		await unfold(page);
@@ -731,7 +717,6 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 
 	test("A link to the view with other repos in the filter searches only its own repo", async ({
 		page,
-		github,
 	}) => {
 		let queries = [];
 		page.on("request", request => {
@@ -751,7 +736,6 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 
 	test("A link to the view with closed PRs or issues in the filter keeps to open PRs, drafts and all", async ({
 		page,
-		github,
 	}) => {
 		await page.goto(
 			`/?repo=foo/bar&filter=${encodeURIComponent("is:closed is:issue is:draft")}`,
@@ -760,7 +744,7 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 		expect(view(page)).toEqual({ user: null, filter: "is:draft" });
 	});
 
-	test("A link that the page rewrites keeps its fragment", async ({ page, github }) => {
+	test("A link that the page rewrites keeps its fragment", async ({ page }) => {
 		await page.goto(`/?repo=foo/bar&filter=${encodeURIComponent("repo:foo/baz")}#queue`);
 
 		expect(new URL(page.url()).hash).toBe("#queue");
@@ -768,7 +752,6 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 
 	test("The switch to the author view opens the queue of the author that the filter names", async ({
 		page,
-		github,
 	}) => {
 		await page.goto(`/?repo=foo/bar&filter=${encodeURIComponent("author:other-user")}`);
 
@@ -780,7 +763,6 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 
 test("A queue stored for another user marks nothing new for the one signed in now", async ({
 	page,
-	github,
 }) => {
 	await page.goto("/?repo=foo/bar");
 	await expect(page.locator("progress")).toBeHidden();
@@ -802,7 +784,6 @@ test("A queue stored for another user marks nothing new for the one signed in no
 
 test("A full storage drops the queue stored longest ago, and keeps the newer ones", async ({
 	page,
-	github,
 }) => {
 	for (let repo of ["foo/bar", "foo/baz"]) {
 		await page.goto(`/?repo=${repo}`);
@@ -821,7 +802,6 @@ test("A full storage drops the queue stored longest ago, and keeps the newer one
 
 test("A full storage still sorts the rows, and only the next visit forgets the sort", async ({
 	page,
-	github,
 }) => {
 	await page.goto("/?repo=foo/bar");
 	await expect(page.locator("progress")).toBeHidden();
@@ -842,7 +822,6 @@ test("A full storage still sorts the rows, and only the next visit forgets the s
 
 test("A queue stored by another version, e.g. with a step this one doesn’t know, loads anew", async ({
 	page,
-	github,
 }) => {
 	await page.goto("/?repo=foo/bar&role=author");
 	await expect(page.locator("progress")).toBeHidden();
@@ -951,10 +930,7 @@ test("An empty queue of another user names them", async ({ page, github }) => {
 	);
 });
 
-test("A repo that isn’t `owner/name` asks for a repo, as no repo does", async ({
-	page,
-	github,
-}) => {
+test("A repo that isn’t `owner/name` asks for a repo, as no repo does", async ({ page }) => {
 	let form = page.locator("#repo-form");
 	await page.goto("/");
 	await expect(form).toBeVisible();
@@ -968,7 +944,6 @@ test("A repo that isn’t `owner/name` asks for a repo, as no repo does", async 
 
 test("A click on the app’s name opens the start page, with nothing in the URL, on a phone too", async ({
 	page,
-	github,
 }) => {
 	// The controls span the title’s cell there
 	await page.setViewportSize({ width: 375, height: 812 });
@@ -983,7 +958,6 @@ test("A click on the app’s name opens the start page, with nothing in the URL,
 
 test("A user that isn’t a login shows the signed-in user’s queue, as no user does", async ({
 	page,
-	github,
 }) => {
 	await page.goto("/?repo=foo/bar&user=foo/baz");
 

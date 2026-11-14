@@ -352,7 +352,6 @@ test.describe("Exclude from counts", () => {
 
 	test("Without a pattern, the details don’t ask for files, which slow them down", async ({
 		page,
-		github,
 	}) => {
 		let queries = [];
 		page.on("request", request => {
@@ -545,7 +544,7 @@ test.describe("Exclude from counts", () => {
 		await expect(row(page, "A").locator(".since-review small")).toBeHidden();
 	});
 
-	test("A pattern that isn’t a regular expression stops Apply", async ({ page, github }) => {
+	test("A pattern that isn’t a regular expression stops Apply", async ({ page }) => {
 		await page.goto("/?repo=foo/bar");
 		await unfold(page);
 		await page.getByRole("button", { name: /^Display/ }).click();
@@ -565,7 +564,6 @@ test.describe("Exclude from counts", () => {
 
 	test("Clear and Apply open the queue without the pattern, and keep the filter", async ({
 		page,
-		github,
 	}) => {
 		await page.goto("/?repo=foo/bar&filter=label:bug&exclude=test");
 		await unfold(page);
@@ -579,7 +577,6 @@ test.describe("Exclude from counts", () => {
 
 	test("Clear leaves the focus in the emptied field, not on the page", async ({
 		page,
-		github,
 		browserName,
 	}) => {
 		// NOTE: Playwright’s press() focuses the button by script, which Firefox doesn’t take as :focus-visible. A real Tab, then Enter, works
@@ -593,7 +590,7 @@ test.describe("Exclude from counts", () => {
 		await expect(page.getByRole("textbox", { name: "Exclude from counts" })).toBeFocused();
 	});
 
-	test("The filter’s ✕ leaves the focus in its emptied field", async ({ page, github }) => {
+	test("The filter’s ✕ leaves the focus in its emptied field", async ({ page }) => {
 		await page.goto("/?repo=foo/bar&filter=label:bug");
 		// From the keyboard, as Firefox shows no focus ring after a click, and ✕ then leaves the focus alone
 		await page.getByRole("button", { name: "Show filters" }).press("Enter");
@@ -605,7 +602,6 @@ test.describe("Exclude from counts", () => {
 
 	test("A click on the filter’s ✕ opens the queue without it and leaves the field alone, so a phone opens no keyboard", async ({
 		page,
-		github,
 	}) => {
 		await page.goto("/?repo=foo/bar&filter=label:bug");
 		await unfold(page);
@@ -653,7 +649,7 @@ test.describe("Exclude from counts", () => {
 		await expect(row(page, "A").locator(".diff")).toHaveText("+10 −0", { useInnerText: true });
 	});
 
-	test("Applying a filter keeps the pattern", async ({ page, github }) => {
+	test("Applying a filter keeps the pattern", async ({ page }) => {
 		await page.goto("/?repo=foo/bar&exclude=test");
 		await unfold(page);
 		let field = page.getByRole("searchbox", { name: "Filter", exact: true });
@@ -663,7 +659,7 @@ test.describe("Exclude from counts", () => {
 		await expect(page).toHaveURL(/^(?=.*filter=label%3Abug)(?=.*exclude=test)/);
 	});
 
-	test("Applying a pattern keeps the filter", async ({ page, github }) => {
+	test("Applying a pattern keeps the filter", async ({ page }) => {
 		await page.goto("/?repo=foo/bar&filter=label:bug");
 		await unfold(page);
 		await expect(page.locator("progress")).toBeHidden();
@@ -677,7 +673,6 @@ test.describe("Exclude from counts", () => {
 
 	test("A pattern that isn’t a regular expression marks its field once the user leaves it", async ({
 		page,
-		github,
 	}) => {
 		await page.goto("/?repo=foo/bar&exclude=test");
 		await unfold(page);
@@ -708,7 +703,7 @@ test.describe("Exclude from counts", () => {
 		expect(unsplit.x + unsplit.width).toBeCloseTo(split.x + split.width, 0);
 	});
 
-	test("The author view asks for no files, as it counts no lines", async ({ page, github }) => {
+	test("The author view asks for no files, as it counts no lines", async ({ page }) => {
 		let queries = [];
 		page.on("request", request => {
 			if (request.url().endsWith("/graphql")) {

@@ -382,7 +382,6 @@ test("A refresh marks a row whose other reviewer approved, though avatars are al
 
 test("A refresh keeps the sort of its own tab, though another tab saved a different one", async ({
 	page,
-	github,
 }) => {
 	await page.goto("/?repo=foo/bar");
 	await page.getByRole("button", { name: "Iterations" }).click();
@@ -401,7 +400,6 @@ test("A refresh keeps the sort of its own tab, though another tab saved a differ
 
 test("A switch to the author and back keeps the reviewer sort of its own tab, though another tab saved a different one", async ({
 	page,
-	github,
 }) => {
 	await page.goto("/?repo=foo/bar");
 	await page.getByRole("button", { name: "Iterations" }).click();
@@ -455,7 +453,7 @@ test("A label links to the queue with it in place of the filter’s other labels
 });
 
 test.describe("A failed refresh says why", () => {
-	test.beforeEach(async ({ page, github }) => {
+	test.beforeEach(async ({ page }) => {
 		await page.goto("/?repo=foo/bar");
 		await expect(page.locator("progress")).toBeHidden();
 	});

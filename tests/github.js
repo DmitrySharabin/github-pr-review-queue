@@ -15,95 +15,99 @@ export const test = base.extend({
 	// The token Madata finds stored, or none for the sign-in card: `test.use({ token: null })`
 	token: ["fake", { option: true }],
 
-	github: async ({ context, token }, use) => {
-		let github = {
-			user () {},
-			search () {},
-			details () {},
-			compare () {},
-			files () {},
-		};
+	// Automatic, so GitHub is faked for a test that changes no answer too
+	github: [
+		async ({ context, token }, use) => {
+			let github = {
+				user () {},
+				search () {},
+				details () {},
+				compare () {},
+				files () {},
+			};
 
-		// Madata signs in with a stored token without asking GitHub for one
-		if (token) {
-			await context.addInitScript(
-				token => localStorage.setItem("madata:token:auth.madata.dev/github", token),
-				token,
-			);
-		}
-
-		// Nothing waits on the network. An avatar that GitHub is slow to send holds up the page’s load event, and with it `page.goto()`.
-		// Every avatar is a black square
-		await context.route("https://auth.madata.dev/services.json", route =>
-			route.fulfill({ json: { Github: { client_id: "fake" } } }));
-		await context.route("https://github.com/*.png*", route =>
-			route.fulfill({
-				contentType: "image/svg+xml",
-				body: `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><rect width="48" height="48"/></svg>`,
-			}));
-
-		await context.route("https://api.github.com/**", async route => {
-			let path = new URL(route.request().url()).pathname;
-			if (path === "/user") {
-				let answer = { login: "DmitrySharabin" };
-				let status = await github.user(answer);
-				return route.fulfill(failed(status) ?? { json: answer });
+			// Madata signs in with a stored token without asking GitHub for one
+			if (token) {
+				await context.addInitScript(
+					token => localStorage.setItem("madata:token:auth.madata.dev/github", token),
+					token,
+				);
 			}
 
-			if (path.includes("/compare/")) {
-				let answer = { files: [] };
-				let status = await github.compare(answer, path.split("/compare/")[1]);
-				return route.fulfill(failed(status) ?? { json: answer });
-			}
+			// Nothing waits on the network. An avatar that GitHub is slow to send holds up the page’s load event, and with it `page.goto()`.
+			// Every avatar is a black square
+			await context.route("https://auth.madata.dev/services.json", route =>
+				route.fulfill({ json: { Github: { client_id: "fake" } } }));
+			await context.route("https://github.com/*.png*", route =>
+				route.fulfill({
+					contentType: "image/svg+xml",
+					body: `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><rect width="48" height="48"/></svg>`,
+				}));
 
-			let [, number] = path.match(/\/pulls\/(\d+)\/files$/) ?? [];
-			if (number) {
-				let answer = [];
-				let page = new URL(route.request().url()).searchParams.get("page");
-				let status = await github.files(answer, Number(number), Number(page));
-				return route.fulfill(failed(status) ?? { json: answer });
-			}
-
-			let { query } = route.request().postDataJSON();
-			let isSearch = query.includes("search(");
-			let answer = isSearch
-				? {
-						data: {
-							// As GitHub, only when the query asks for it
-							repository: query.includes("viewerPermission")
-								? { viewerPermission: "WRITE" }
-								: {},
-							search: { nodes: [..."ABCDEF"].map(found) },
-						},
-					}
-				: {
-						data: {
-							nodes: JSON.parse(query.match(/nodes\(ids: (\[.*?\])\)/)[1]).map(
-								detailed,
-							),
-						},
-					};
-
-			let status = await (isSearch ? github.search : github.details)(answer);
-			// GitHub answers a field under the query’s alias for it, e.g. `filename: path`.
-			// In new objects, so a test’s files keep their paths for the next request
-			let alias = query.match(/(\w+): path\b/)?.[1] ?? "path";
-			for (let pr of answer.data?.nodes ?? []) {
-				if (pr?.files) {
-					pr.files = {
-						...pr.files,
-						nodes: pr.files.nodes.map(({ path, ...file }) => ({
-							...file,
-							[alias]: path,
-						})),
-					};
+			await context.route("https://api.github.com/**", async route => {
+				let path = new URL(route.request().url()).pathname;
+				if (path === "/user") {
+					let answer = { login: "DmitrySharabin" };
+					let status = await github.user(answer);
+					return route.fulfill(failed(status) ?? { json: answer });
 				}
-			}
-			route.fulfill(failed(status) ?? { json: answer });
-		});
 
-		await use(github);
-	},
+				if (path.includes("/compare/")) {
+					let answer = { files: [] };
+					let status = await github.compare(answer, path.split("/compare/")[1]);
+					return route.fulfill(failed(status) ?? { json: answer });
+				}
+
+				let [, number] = path.match(/\/pulls\/(\d+)\/files$/) ?? [];
+				if (number) {
+					let answer = [];
+					let page = new URL(route.request().url()).searchParams.get("page");
+					let status = await github.files(answer, Number(number), Number(page));
+					return route.fulfill(failed(status) ?? { json: answer });
+				}
+
+				let { query } = route.request().postDataJSON();
+				let isSearch = query.includes("search(");
+				let answer = isSearch
+					? {
+							data: {
+								// As GitHub, only when the query asks for it
+								repository: query.includes("viewerPermission")
+									? { viewerPermission: "WRITE" }
+									: {},
+								search: { nodes: [..."ABCDEF"].map(found) },
+							},
+						}
+					: {
+							data: {
+								nodes: JSON.parse(query.match(/nodes\(ids: (\[.*?\])\)/)[1]).map(
+									detailed,
+								),
+							},
+						};
+
+				let status = await (isSearch ? github.search : github.details)(answer);
+				// GitHub answers a field under the query’s alias for it, e.g. `filename: path`.
+				// In new objects, so a test’s files keep their paths for the next request
+				let alias = query.match(/(\w+): path\b/)?.[1] ?? "path";
+				for (let pr of answer.data?.nodes ?? []) {
+					if (pr?.files) {
+						pr.files = {
+							...pr.files,
+							nodes: pr.files.nodes.map(({ path, ...file }) => ({
+								...file,
+								[alias]: path,
+							})),
+						};
+					}
+				}
+				route.fulfill(failed(status) ?? { json: answer });
+			});
+
+			await use(github);
+		},
+		{ auto: true },
+	],
 });
 
 /** A commit of a PR’s details, e.g. a merge with 2 parents. */

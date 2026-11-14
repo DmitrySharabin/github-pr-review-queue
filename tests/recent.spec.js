@@ -12,7 +12,6 @@ async function visit (page, ...repos) {
 
 test("Typing in the repository field marks the typed part of each recent repository, in any case", async ({
 	page,
-	github,
 }) => {
 	let field = await visit(page, "foo/bar");
 
@@ -23,7 +22,6 @@ test("Typing in the repository field marks the typed part of each recent reposit
 
 test("↓ in the repository field lists the recent repositories, the latest first", async ({
 	page,
-	github,
 }) => {
 	let field = await visit(page, "foo/bar", "foo/baz");
 
@@ -32,7 +30,7 @@ test("↓ in the repository field lists the recent repositories, the latest firs
 	await expect(page.getByRole("option")).toHaveText(["foo/baz", "foo/bar"]);
 });
 
-test("Enter picks the active recent repository", async ({ page, github }) => {
+test("Enter picks the active recent repository", async ({ page }) => {
 	let field = await visit(page, "foo/bar", "foo/baz");
 
 	await field.press("ArrowDown");
@@ -44,7 +42,7 @@ test("Enter picks the active recent repository", async ({ page, github }) => {
 	await expect(page).toHaveURL("/");
 });
 
-test("Esc closes the recent repositories and keeps what is typed", async ({ page, github }) => {
+test("Esc closes the recent repositories and keeps what is typed", async ({ page }) => {
 	let field = await visit(page, "foo/bar");
 
 	await field.fill("foo");
@@ -57,7 +55,6 @@ test("Esc closes the recent repositories and keeps what is typed", async ({ page
 
 test("Shift+Delete removes the active recent repository, also on the next visit", async ({
 	page,
-	github,
 }) => {
 	let field = await visit(page, "foo/bar", "foo/baz");
 
@@ -69,10 +66,7 @@ test("Shift+Delete removes the active recent repository, also on the next visit"
 	await expect(page.getByRole("option")).toHaveText(["foo/bar"]);
 });
 
-test("Clear recent repositories empties the list, also on the next visit", async ({
-	page,
-	github,
-}) => {
+test("Clear recent repositories empties the list, also on the next visit", async ({ page }) => {
 	let field = await visit(page, "foo/bar", "foo/baz");
 
 	await field.press("ArrowDown");
@@ -86,7 +80,6 @@ test("Clear recent repositories empties the list, also on the next visit", async
 
 test("A repo with queues of two roles shows once, and removing it forgets both", async ({
 	page,
-	github,
 }) => {
 	let field = await visit(page, "foo/bar", "foo/bar&role=author", "foo/baz");
 
@@ -100,7 +93,7 @@ test("A repo with queues of two roles shows once, and removing it forgets both",
 	await expect(page.getByRole("option")).toHaveText(["foo/baz"]);
 });
 
-test("Delete without Shift keeps the active recent repository", async ({ page, github }) => {
+test("Delete without Shift keeps the active recent repository", async ({ page }) => {
 	let field = await visit(page, "foo/bar");
 
 	await field.press("ArrowDown");
@@ -109,7 +102,7 @@ test("Delete without Shift keeps the active recent repository", async ({ page, g
 	await expect(page.getByRole("option")).toHaveText(["foo/bar"]);
 });
 
-test("Removing a recent user forgets that user’s queues only", async ({ page, github }) => {
+test("Removing a recent user forgets that user’s queues only", async ({ page }) => {
 	let field = await visit(page, "foo/bar&user=other-user", "foo/baz");
 
 	let user = page.getByRole("combobox", { name: "User" });
