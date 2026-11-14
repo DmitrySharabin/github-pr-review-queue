@@ -139,6 +139,12 @@ export function describe (error, advice = "Try again.") {
 	let message = error?.message;
 	let slow = "GitHub took too long to respond. Try again in a minute.";
 
+	// A defect in the page’s own code isn’t GitHub’s answer, e.g. a method that an older browser lacks. The console keeps its stack
+	if ([TypeError, ReferenceError, RangeError].some(type => error instanceof type)) {
+		console.error(error);
+		return "This page ran into a problem. Update your browser, then reload the page.";
+	}
+
 	// Madata drops the failed fetch’s error, so only its own message tells a network failure apart, e.g. a request inTime() stopped before GitHub answered
 	if (message === GithubAPI.phrase("something_went_wrong_while_connecting", GithubAPI.name)) {
 		return navigator.onLine ? slow : "You’re offline. Check your connection, then try again.";
