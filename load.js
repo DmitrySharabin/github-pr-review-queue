@@ -5,27 +5,16 @@
  */
 import {
 	addedLabel,
-	details,
 	hasLabel,
 	incomplete,
 	isLogin,
 	outdated,
-	pattern,
 	query,
 	searchLimit,
 	summarize,
 } from "./pull-request.js";
-import {
-	count,
-	describe,
-	github,
-	graphql,
-	listFiles,
-	nodes,
-	notFound,
-	signedIn,
-	signedInUser,
-} from "./github.js";
+import { describe, github, graphql, notFound, signedIn, signedInUser } from "./github.js";
+import { fillDetails } from "./details.js";
 import { forget, restore, store } from "./queues.js";
 import { fill, mark, summaries, unmark } from "./row.js";
 import { viewOf } from "./view.js";
@@ -36,7 +25,6 @@ import {
 	showLoaded,
 	showLoading,
 	showNotice,
-	showProgress,
 } from "./status.js";
 import {
 	countsAs,
@@ -262,80 +250,6 @@ function fail (view, error) {
 			describe(error, "Check the repository and the user, then try again."),
 		);
 	}
-}
-
-/**
- * Fill in the slow fields of these rows, a few PRs per query, and count them on the progress bar.
- * A failed query leaves its rows as they were, and the others fill in still.
- * @param {Row[]} stale
- * @param {Queue} queue - The load’s
- * @param {AbortSignal} signal - The load’s
- * @returns {Promise<PromiseRejectedResult | undefined>} The first failure, if any
- */
-async function fillDetails (stale, { view: { repo, role, exclude }, user }, signal) {
-	// Rows with details on screen already are rechecked, e.g. on a refresh
-	let task = stale.some(row => row.detailed) ? "rechecked" : "loaded";
-	if (stale.length > 0) {
-		showProgress(task, 0, stale.length);
-	}
-
-	// An author’s view counts no lines.
-	// NOTE: A pattern that isn’t a regular expression, e.g. typed into the URL, ignores nothing.
-	// One that backtracks a lot, e.g. `(.+)+x$`, freezes the tab, as it runs on every path
-	let ignore = role === "author" ? undefined : pattern(exclude);
-	let done = 0;
-	// GitHub stops a query that runs too long, so each asks for a few PRs
-	let size = 10;
-	let batches = Array.from({ length: Math.ceil(stale.length / size) }, (_, i) =>
-		stale.slice(i * size, (i + 1) * size));
-
-	let results = await Promise.allSettled(
-		batches.map(async batch => {
-			let prs = await nodes(
-				ids => details({ user, role, exclude: ignore && exclude, ids }),
-				batch.map(row => row.pr.id),
-				signal,
-			);
-			return Promise.allSettled(
-				prs.map(async pr => {
-					// Rows a newer load owns, e.g. after a role switch
-					if (signal.aborted) {
-						return;
-					}
-
-					// GitHub answers null for a PR deleted since the search. Its row has nothing to fill, and the next search drops it
-					if (!pr) {
-						showProgress(task, ++done, stale.length);
-						return;
-					}
-
-					let row = batch.find(row => row.pr.id === pr.id);
-
-					pr = { ...row.pr, ...pr };
-					await listFiles(repo, pr, signal);
-					let summary = summarize(pr, user, role, ignore);
-					await count(repo, summary.diffSinceReview, signal, ignore);
-					// A newer load may have started during the count
-					if (signal.aborted) {
-						return;
-					}
-
-					// The search may have refreshed the cheap fields during the count, e.g. a new title.
-					// Undimmed first, the row equals its render when nothing changed, and keeps focus
-					if (row.tr.classList.contains("stale")) {
-						unmark(row.tr);
-					}
-					fill(row, { ...summary, ...summarize(row.pr, user, role) });
-					row.detailed = row.pr;
-					showProgress(task, ++done, stale.length);
-				}),
-			);
-		}),
-	);
-	// A batch that answered settles each of its PRs apart, e.g. one whose commit sizes failed
-	return results
-		.flatMap(result => result.value ?? result)
-		.find(result => result.status === "rejected");
 }
 
 async function login (repo, signal) {

@@ -1,7 +1,6 @@
-/** @import { Diff } from "./pull-request.js" */
 // The commit is also in index.html, which preloads the modules this one imports
 import GithubAPI from "https://cdn.jsdelivr.net/gh/madatajs/madata@063fc247b1a03924c836d74ea2f3d8fdc86ded2c/backends/github/api/github-api.js";
-import { isLogin, sizes, split, sum } from "./pull-request.js";
+import { isLogin } from "./pull-request.js";
 
 export let github = new GithubAPI("https://api.github.com/graphql");
 
@@ -71,6 +70,15 @@ export async function graphql (text, signal) {
 }
 
 /**
+ * GitHub’s answer to a REST request, e.g. to `repos/foo/bar/compare/a...b`.
+ * @param {string} path
+ * @param {AbortSignal} signal - The load’s
+ */
+export function rest (path, signal) {
+	return github.request(`https://api.github.com/${path}`, {}, "GET", { signal: inTime(signal) });
+}
+
+/**
  * The nodes that a `nodes(ids:)` query finds, e.g. of `details()`. GitHub stops a query that runs too long,
  * so one it stopped asks again in two halves, each faster. Only once, so a slow GitHub doesn’t get many more requests
  * @param {(ids: string[]) => string} query
@@ -115,94 +123,6 @@ function stopped (error) {
  */
 function inTime (signal) {
 	return AbortSignal.any([signal, AbortSignal.timeout(20_000)]);
-}
-
-/**
- * Count a diff that summarize() left uncounted, if any. An author’s summary has none. One with ranges to compare counts closer to exact, others by the sizes of their commits.
- * @param {string} repo
- * @param {Diff} [diff]
- * @param {AbortSignal} signal - The load’s
- * @param {RegExp} [ignore] - The paths of files whose lines a comparison counts apart. The sizes of commits can’t
- */
-export async function count (repo, diff, signal, ignore) {
-	let { ranges } = diff ?? {};
-	if (ranges) {
-		// The ranges go before the try. A failure sets `failed` below, so the next load compares again. A comparison of 300 files does not
-		delete diff.ranges;
-		try {
-			// NOTE: A failed comparison leaves the PR’s others running until they answer or time out
-			let comparisons = await Promise.all(
-				ranges.map(range =>
-					github.request(
-						`https://api.github.com/repos/${repo}/compare/${range}`,
-						{},
-						"GET",
-						{ signal: inTime(signal) },
-					)),
-			);
-			// GitHub lists at most 300 files, so a comparison of 300 may leave some out
-			if (comparisons.every(({ files }) => files.length < 300)) {
-				let files = comparisons.flatMap(({ files }) => files);
-				Object.assign(diff, ignore ? split(files, ignore) : sum(files));
-				delete diff.commits;
-				return;
-			}
-		}
-		catch (error) {
-			signal.throwIfAborted();
-			// One failed comparison should not hide the queue, so the commits’ sizes estimate the count instead
-			// NOTE: A refresh whose comparison fails, or succeeds after one that failed, marks the cell as changed
-			console.warn(
-				`Couldn’t compare ${ranges.join(", ")}, adding up its commits instead.`,
-				error,
-			);
-			diff.failed = true;
-		}
-	}
-
-	if (diff?.commits) {
-		// Commits don’t list their files
-		Object.assign(
-			diff,
-			sum(await nodes(sizes, diff.commits, signal)),
-			ignore && { unsplit: "commits" },
-		);
-		delete diff.commits;
-	}
-}
-
-/**
- * List all files of a PR whose details hold only the first 100, so its lines split by a pattern.
- * GitHub lists at most 3000 files of a PR, so a PR of more keeps the 100 and counts every file.
- * @param {string} repo
- * @param {object} pr - A node from details(), with the PR’s `number` from the search
- * @param {AbortSignal} signal - The load’s
- */
-export async function listFiles (repo, pr, signal) {
-	let { totalCount, nodes } = pr.files ?? {};
-	if (!(nodes?.length < totalCount && totalCount <= 3000)) {
-		return;
-	}
-
-	// NOTE: A failed page leaves the PR’s others running until they answer or time out
-	try {
-		// Pages by number, not by the next one’s link, so they load at once
-		let pages = await Promise.all(
-			Array.from({ length: Math.ceil(totalCount / 100) }, (_, i) =>
-				github.request(
-					`https://api.github.com/repos/${repo}/pulls/${pr.number}/files?per_page=100&page=${i + 1}`,
-					{},
-					"GET",
-					{ signal: inTime(signal) },
-				)),
-		);
-		pr.files.nodes = pages.flat();
-	}
-	catch (error) {
-		signal.throwIfAborted();
-		// The first 100 files can’t split the lines, so the cell counts every file instead
-		console.warn(`Couldn’t list the files of #${pr.number}, counting all of them.`, error);
-	}
 }
 
 /**
