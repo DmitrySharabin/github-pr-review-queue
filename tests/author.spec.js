@@ -78,148 +78,192 @@ function step (page, id) {
 }
 
 test.describe("Next step", () => {
-	test("A PR re-requested after a change request waits for the reviewer, which GitHub gets wrong", async ({
-		page,
-		github,
-	}) => {
-		// The reviewer requested changes, then the author pushed and asked them again
-		detail(github, {
-			A: {
-				...reviewed([review("reviewer", "CHANGES_REQUESTED", { days: 42 })], ["L", "N"]),
-				...asked(["reviewer"], 35),
-			},
-		});
-		await page.goto("/?repo=foo/bar&role=author");
+	let running = { statusCheckRollup: { state: "PENDING" } };
 
-		await expect(step(page, "A")).toHaveText("Waiting for @reviewer");
-	});
-
-	test("A PR no one was asked to review asks the author to request a review", async ({
-		page,
-	}) => {
-		await page.goto("/?repo=foo/bar&role=author");
-
-		await expect(step(page, "A")).toHaveText("Request a review");
-	});
-
-	test("A bot’s review leaves a PR without reviewers, since bots don’t take turns", async ({
-		page,
-		github,
-	}) => {
-		detail(github, { A: reviewed([review("Copilot", "COMMENTED", { type: "Bot" })]) });
-		await page.goto("/?repo=foo/bar&role=author");
-
-		await expect(step(page, "A")).toHaveText("Request a review");
-	});
-
-	test("A conflict comes before waiting for reviewers, since the author must resolve it first", async ({
-		page,
-		github,
-	}) => {
-		detail(github, { A: { ...asked(["reviewer"]), mergeable: "CONFLICTING" } });
-		await page.goto("/?repo=foo/bar&role=author");
-
-		await expect(step(page, "A")).toHaveText("Resolve conflicts");
-	});
-
-	test("Failing checks come before waiting for reviewers", async ({ page, github }) => {
-		detail(github, {
-			A: {
-				...asked(["reviewer"]),
-				statusCheckRollup: { state: "FAILURE" },
-			},
-		});
-		await page.goto("/?repo=foo/bar&role=author");
-
-		await expect(step(page, "A")).toHaveText("Fix failing checks");
-	});
-
-	test("Running checks wait for no one but GitHub, so reviewers come first", async ({
-		page,
-		github,
-	}) => {
-		let running = {
-			statusCheckRollup: { state: "PENDING" },
-		};
-		detail(github, {
-			A: { ...asked(["reviewer"]), ...running },
-			B: { ...reviewed([review("reviewer", "COMMENTED")]), ...running },
-		});
-		await page.goto("/?repo=foo/bar&role=author");
-
-		await expect(step(page, "A")).toHaveText("Waiting for @reviewer");
-		await expect(step(page, "B")).toHaveText("Checks are running");
-	});
-
-	test("Requested changes with no push since are the author’s to make", async ({
-		page,
-		github,
-	}) => {
-		// A merge of the base branch brings no change of the author’s
-		detail(github, {
-			A: reviewed([review("reviewer", "CHANGES_REQUESTED")], ["L", "M"]),
-			B: {
-				...reviewed([review("reviewer", "CHANGES_REQUESTED")], ["L"]),
-				commits: { totalCount: 2, nodes: [commit("L"), commit("M", 2)] },
-			},
-		});
-		await page.goto("/?repo=foo/bar&role=author");
-
-		await expect(step(page, "A")).toHaveText("Re-request review");
-		await expect(step(page, "B")).toHaveText("Make changes");
-	});
-
-	test("Several reviewers to ask again share one button", async ({ page, github }) => {
-		detail(github, {
-			A: reviewed(
-				[
-					review("reviewer", "CHANGES_REQUESTED"),
-					review("other-user", "CHANGES_REQUESTED"),
-				],
-				["L", "M"],
-			),
-		});
-		await page.goto("/?repo=foo/bar&role=author");
-
-		await expect(step(page, "A")).toHaveText("Re-request reviews");
-	});
-
-	test("Conversations count only where the author has yet to reply and the reviewer isn’t asked again", async ({
-		page,
-		github,
-	}) => {
-		detail(github, {
-			A: {
-				...reviewed([review("reviewer", "COMMENTED"), review("other-user", "COMMENTED")]),
-				...asked(["other-user"]),
-				reviewThreads: {
-					nodes: [
-						thread("reviewer"),
-						thread("reviewer"),
-						thread("reviewer", { isResolved: true }),
-						thread("DmitrySharabin"),
-						thread("other-user"),
-						thread("Copilot", { type: "Bot" }),
-					],
+	// Each case gives PRs their details, and names the step each of them then shows
+	let cases = [
+		{
+			title: "A PR re-requested after a change request waits for the reviewer, which GitHub gets wrong",
+			// The reviewer requested changes, then the author pushed and asked them again
+			details: {
+				A: {
+					...reviewed(
+						[review("reviewer", "CHANGES_REQUESTED", { days: 42 })],
+						["L", "N"],
+					),
+					...asked(["reviewer"], 35),
 				},
 			},
-		});
-		await page.goto("/?repo=foo/bar&role=author");
-
-		await expect(step(page, "A")).toHaveText("Reply to 2 conversations");
-	});
-
-	test("One conversation reads in the singular", async ({ page, github }) => {
-		detail(github, {
-			A: {
-				...reviewed([review("reviewer", "COMMENTED")]),
-				reviewThreads: { nodes: [thread("reviewer")] },
+			steps: { A: "Waiting for @reviewer" },
+		},
+		{
+			title: "A PR no one was asked to review asks the author to request a review",
+			details: {},
+			steps: { A: "Request a review" },
+		},
+		{
+			title: "A bot’s review leaves a PR without reviewers, since bots don’t take turns",
+			details: { A: reviewed([review("Copilot", "COMMENTED", { type: "Bot" })]) },
+			steps: { A: "Request a review" },
+		},
+		{
+			title: "A review asked of a bot waits for no one, since bots don’t take turns",
+			details: {
+				A: { reviewRequests: { nodes: [{ requestedReviewer: person("Copilot", "Bot") }] } },
 			},
-		});
-		await page.goto("/?repo=foo/bar&role=author");
+			steps: { A: "Request a review" },
+		},
+		{
+			title: "A conflict comes before waiting for reviewers, since the author must resolve it first",
+			details: { A: { ...asked(["reviewer"]), mergeable: "CONFLICTING" } },
+			steps: { A: "Resolve conflicts" },
+		},
+		{
+			title: "A merge state GitHub hasn’t computed yet counts as no conflict",
+			details: { A: { ...asked(["reviewer"]), mergeable: "UNKNOWN" } },
+			steps: { A: "Waiting for @reviewer" },
+		},
+		{
+			title: "Failing checks come before waiting for reviewers",
+			details: { A: { ...asked(["reviewer"]), statusCheckRollup: { state: "FAILURE" } } },
+			steps: { A: "Fix failing checks" },
+		},
+		{
+			title: "Running checks wait for no one but GitHub, so reviewers come first",
+			details: {
+				A: { ...asked(["reviewer"]), ...running },
+				B: { ...reviewed([review("reviewer", "COMMENTED")]), ...running },
+			},
+			steps: { A: "Waiting for @reviewer", B: "Checks are running" },
+		},
+		{
+			title: "A check that errs fails too, and one GitHub still expects is running",
+			details: {
+				A: {
+					...reviewed([review("reviewer", "COMMENTED")]),
+					statusCheckRollup: { state: "ERROR" },
+				},
+				B: {
+					...reviewed([review("reviewer", "COMMENTED")]),
+					statusCheckRollup: { state: "EXPECTED" },
+				},
+			},
+			steps: { A: "Fix failing checks", B: "Checks are running" },
+		},
+		{
+			title: "An approved PR whose checks still run waits for them, since GitHub merges only once they pass",
+			details: { A: { ...reviewed([review("reviewer", "APPROVED")]), ...running } },
+			steps: { A: "Checks are running" },
+		},
+		{
+			title: "Requested changes with no push since are the author’s to make",
+			// A merge of the base branch brings no change of the author’s
+			details: {
+				A: reviewed([review("reviewer", "CHANGES_REQUESTED")], ["L", "M"]),
+				B: {
+					...reviewed([review("reviewer", "CHANGES_REQUESTED")], ["L"]),
+					commits: { totalCount: 2, nodes: [commit("L"), commit("M", 2)] },
+				},
+			},
+			steps: { A: "Re-request review", B: "Make changes" },
+		},
+		{
+			title: "Requested changes on code a force push removed are the reviewer’s to see again",
+			details: {
+				A: reviewed([review("reviewer", "CHANGES_REQUESTED", { oid: "L" })], ["N"]),
+			},
+			steps: { A: "Re-request review" },
+		},
+		{
+			title: "Several reviewers to ask again share one button",
+			details: {
+				A: reviewed(
+					[
+						review("reviewer", "CHANGES_REQUESTED"),
+						review("other-user", "CHANGES_REQUESTED"),
+					],
+					["L", "M"],
+				),
+			},
+			steps: { A: "Re-request reviews" },
+		},
+		{
+			title: "A reviewer who only commented, with nothing left to answer, is the author’s to ask again",
+			details: { A: reviewed([review("reviewer", "COMMENTED")]) },
+			steps: { A: "Re-request review" },
+		},
+		{
+			title: "Auto-merge waits for an approval, which only the author can ask for",
+			details: {
+				A: {
+					...reviewed([review("reviewer", "COMMENTED")]),
+					autoMergeRequest: { enabledAt: ago(2) },
+				},
+			},
+			steps: { A: "Re-request review" },
+		},
+		{
+			title: "A dismissed review comes before an approval, since it no longer counts and needs asking again",
+			details: {
+				A: {
+					...reviewed([review("other-user", "APPROVED")]),
+					latestReviews: {
+						nodes: [review("reviewer", "DISMISSED"), review("other-user", "APPROVED")],
+					},
+				},
+			},
+			steps: { A: "Re-request review" },
+		},
+		{
+			title: "Several reviewers asked show as a count",
+			details: { A: asked(["reviewer", "other-user"]) },
+			steps: { A: "Waiting for 2 reviews" },
+		},
+		{
+			title: "Conversations count only where the author has yet to reply and the reviewer isn’t asked again",
+			details: {
+				A: {
+					...reviewed([
+						review("reviewer", "COMMENTED"),
+						review("other-user", "COMMENTED"),
+					]),
+					...asked(["other-user"]),
+					reviewThreads: {
+						nodes: [
+							thread("reviewer"),
+							thread("reviewer"),
+							thread("reviewer", { isResolved: true }),
+							thread("DmitrySharabin"),
+							thread("other-user"),
+							thread("Copilot", { type: "Bot" }),
+						],
+					},
+				},
+			},
+			steps: { A: "Reply to 2 conversations" },
+		},
+		{
+			title: "One conversation reads in the singular",
+			details: {
+				A: {
+					...reviewed([review("reviewer", "COMMENTED")]),
+					reviewThreads: { nodes: [thread("reviewer")] },
+				},
+			},
+			steps: { A: "Reply to 1 conversation" },
+		},
+	];
 
-		await expect(step(page, "A")).toHaveText("Reply to 1 conversation");
-	});
+	for (let { title, details, steps } of cases) {
+		test(title, async ({ page, github }) => {
+			detail(github, details);
+			await page.goto("/?repo=foo/bar&role=author");
+
+			for (let [id, text] of Object.entries(steps)) {
+				await expect(step(page, id)).toHaveText(text);
+			}
+		});
+	}
 
 	test("An approval with no one asked is the author’s to merge, though the app can’t tell it is enough", async ({
 		page,
@@ -278,21 +322,6 @@ test.describe("Next step", () => {
 		await expect(step(page, "A")).toHaveText("Merge pull request");
 	});
 
-	test("An approved PR whose checks still run waits for them, since GitHub merges only once they pass", async ({
-		page,
-		github,
-	}) => {
-		detail(github, {
-			A: {
-				...reviewed([review("reviewer", "APPROVED")]),
-				statusCheckRollup: { state: "PENDING" },
-			},
-		});
-		await page.goto("/?repo=foo/bar&role=author");
-
-		await expect(step(page, "A")).toHaveText("Checks are running");
-	});
-
 	test("A PR in the merge queue or set to merge automatically waits for GitHub, not the author", async ({
 		page,
 		github,
@@ -329,37 +358,6 @@ test.describe("Next step", () => {
 		await expect(page.locator("#summary .turns")).toHaveText("4");
 	});
 
-	test("Auto-merge waits for an approval, which only the author can ask for", async ({
-		page,
-		github,
-	}) => {
-		detail(github, {
-			A: {
-				...reviewed([review("reviewer", "COMMENTED")]),
-				autoMergeRequest: { enabledAt: ago(2) },
-			},
-		});
-		await page.goto("/?repo=foo/bar&role=author");
-
-		await expect(step(page, "A")).toHaveText("Re-request review");
-	});
-
-	test("A dismissed review comes before an approval, since it no longer counts and needs asking again", async ({
-		page,
-		github,
-	}) => {
-		let approval = review("other-user", "APPROVED");
-		detail(github, {
-			A: {
-				...reviewed([approval]),
-				latestReviews: { nodes: [review("reviewer", "DISMISSED"), approval] },
-			},
-		});
-		await page.goto("/?repo=foo/bar&role=author");
-
-		await expect(step(page, "A")).toHaveText("Re-request review");
-	});
-
 	test("A request to a team the token can’t see waits for the team, from when it was asked", async ({
 		page,
 		github,
@@ -375,54 +373,6 @@ test.describe("Next step", () => {
 
 		await expect(step(page, "A")).toHaveText("Waiting for a team review");
 		await expect(row(page, "A").locator(".requested time")).toHaveText("8 days");
-	});
-
-	test("A review asked of a bot waits for no one, since bots don’t take turns", async ({
-		page,
-		github,
-	}) => {
-		detail(github, {
-			A: {
-				reviewRequests: {
-					nodes: [{ requestedReviewer: person("Copilot", "Bot") }],
-				},
-			},
-		});
-		await page.goto("/?repo=foo/bar&role=author");
-
-		await expect(step(page, "A")).toHaveText("Request a review");
-	});
-
-	test("Several reviewers asked show as a count", async ({ page, github }) => {
-		detail(github, { A: asked(["reviewer", "other-user"]) });
-		await page.goto("/?repo=foo/bar&role=author");
-
-		await expect(step(page, "A")).toHaveText("Waiting for 2 reviews");
-	});
-
-	test("A check that errs fails too, and one GitHub still expects is running", async ({
-		page,
-		github,
-	}) => {
-		let checks = state => ({ statusCheckRollup: { state } });
-		detail(github, {
-			A: { ...reviewed([review("reviewer", "COMMENTED")]), ...checks("ERROR") },
-			B: { ...reviewed([review("reviewer", "COMMENTED")]), ...checks("EXPECTED") },
-		});
-		await page.goto("/?repo=foo/bar&role=author");
-
-		await expect(step(page, "A")).toHaveText("Fix failing checks");
-		await expect(step(page, "B")).toHaveText("Checks are running");
-	});
-
-	test("A merge state GitHub hasn’t computed yet counts as no conflict", async ({
-		page,
-		github,
-	}) => {
-		detail(github, { A: { ...asked(["reviewer"]), mergeable: "UNKNOWN" } });
-		await page.goto("/?repo=foo/bar&role=author");
-
-		await expect(step(page, "A")).toHaveText("Waiting for @reviewer");
 	});
 
 	test("Only the reviewers whose reviewed code is still there wait for the author’s changes", async ({
@@ -446,28 +396,6 @@ test.describe("Next step", () => {
 			"href",
 			"https://github.com/foo/bar/pull/1#review-other-user",
 		);
-	});
-
-	test("Requested changes on code a force push removed are the reviewer’s to see again", async ({
-		page,
-		github,
-	}) => {
-		detail(github, {
-			A: reviewed([review("reviewer", "CHANGES_REQUESTED", { oid: "L" })], ["N"]),
-		});
-		await page.goto("/?repo=foo/bar&role=author");
-
-		await expect(step(page, "A")).toHaveText("Re-request review");
-	});
-
-	test("A reviewer who only commented, with nothing left to answer, is the author’s to ask again", async ({
-		page,
-		github,
-	}) => {
-		detail(github, { A: reviewed([review("reviewer", "COMMENTED")]) });
-		await page.goto("/?repo=foo/bar&role=author");
-
-		await expect(step(page, "A")).toHaveText("Re-request review");
 	});
 
 	test("A draft is no one’s turn, whatever else it lacks", async ({ page, github }) => {
