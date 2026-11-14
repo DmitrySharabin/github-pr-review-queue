@@ -81,6 +81,123 @@ main {
 	container-type: inline-size;
 }
 
+small {
+	color: var(--muted);
+	font-size: 0.85em;
+}
+
+/* A quick second tap on a control, e.g. Refresh, doesn’t zoom the page on a phone. Pinch zoom still works */
+:is(button, a) {
+	touch-action: manipulation;
+}
+
+/* Every button, text or icon, with the page’s font and no browser chrome. Each kind adds its own size and fill */
+button {
+	padding: 0;
+	border: none;
+	background: none;
+	color: inherit;
+	font: inherit;
+	cursor: pointer;
+}
+
+/* What looks like a button shrinks under the press, an avatar link a little more.
+   No id in the list: nested, each rule gets the specificity of its strongest selector, and would win over a control that opts out */
+button,
+.step .action,
+.labels a,
+.pull-request .avatar,
+.reviewers a {
+	/* The press eases. A hover changes at once, as one seen many times a day needs no fade */
+	transition: scale 160ms var(--ease-out);
+
+	/* Answers the press before the network does */
+	@media (prefers-reduced-motion: no-preference) {
+		&:active:not([aria-disabled="true"]) {
+			scale: var(--press, 0.97);
+		}
+	}
+}
+
+/* Text buttons, as tall as the fields next to them */
+#refresh,
+#sign-out,
+#sign-in > button,
+:is(#repo-form, #token-form, #authors footer, #display footer) > button {
+	min-block-size: var(--control-size);
+	padding-inline: 1em;
+	border-radius: var(--control-radius);
+	font-weight: 500;
+}
+
+#sign-in > button,
+#repo-form > button,
+:is(#authors, #display) .show {
+	background: var(--text);
+	color: white;
+
+	&:hover {
+		background: color-mix(in oklch, var(--text) 80%, var(--surface));
+	}
+}
+
+/* Secondary to the table it updates or filters, or to the sign-in, or to a step the author does */
+#refresh,
+#sign-out,
+#token-form button,
+#queue td.step a.action {
+	background: color-mix(in oklch, var(--text) 8%, var(--surface));
+	color: var(--text);
+
+	&:hover {
+		background: color-mix(in oklch, var(--text) 14%, var(--surface));
+	}
+
+	&[aria-disabled="true"] {
+		color: var(--muted);
+		cursor: progress;
+	}
+}
+
+form {
+	label {
+		display: flex;
+		gap: 0.5em;
+		font-weight: 500;
+	}
+
+	input {
+		min-block-size: var(--control-size);
+		padding-inline: 0.75em;
+		border: 1px solid var(--control-border);
+		border-radius: var(--control-radius);
+		background: var(--surface);
+		font: inherit;
+		font-weight: 400;
+
+		/* Once the user leaves the field, e.g. with a pattern that isn’t a regular expression, until the value is fixed */
+		&:user-invalid {
+			border-color: var(--negative);
+		}
+	}
+}
+
+/* The intro belongs to the heading more than to what follows */
+hgroup {
+	display: grid;
+	gap: 0.5em;
+
+	h2 {
+		margin: 0;
+		font-size: 1rem;
+	}
+
+	p {
+		margin: 0;
+		color: var(--muted);
+	}
+}
+
 header {
 	position: relative;
 	display: flex;
@@ -112,11 +229,6 @@ h1 {
 			}
 		}
 	}
-}
-
-small {
-	color: var(--muted);
-	font-size: 0.85em;
 }
 
 /* The summary replaces the status, so both keep the same gap below the header */
@@ -262,6 +374,461 @@ main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #upd
 	overflow: hidden;
 	clip-path: inset(50%);
 	white-space: nowrap;
+}
+
+/* Centered in the gap between the header and the queue, so showing it moves nothing */
+progress {
+	--duration: 1.5s;
+	--animation: none;
+	--gleam: none;
+
+	position: absolute;
+	inset-block-start: calc(100% + var(--block-gap) / 2);
+	inset-inline-start: 0;
+	inline-size: 100%;
+	translate: 0 -50%;
+	block-size: 0.25rem;
+	appearance: none;
+	border: none;
+	border-radius: 1e5px;
+	overflow: clip;
+	background: var(--border);
+	/* Lets the fill move in track units (cqi) */
+	container-type: inline-size;
+	/* Fades in and out, so a quick refresh doesn’t flash it. The `display` transition keeps it on screen while it fades out */
+	transition-property: opacity, display;
+	transition-duration: 150ms;
+	transition-behavior: allow-discrete;
+
+	@starting-style {
+		opacity: 0;
+	}
+
+	&[hidden] {
+		opacity: 0;
+	}
+
+	/* Until the load knows how many PRs it waits for, e.g. during the search */
+	&:indeterminate {
+		--animation: progress-indeterminate var(--duration) infinite linear;
+	}
+
+	/* A counted load can wait seconds on one request, e.g. at “4 of 10”. A gleam sweeping the track and the fill shows it still works */
+	&:not(:indeterminate) {
+		--animation: gleam var(--duration) infinite linear;
+		--gleam: linear-gradient(
+				to right,
+				transparent,
+				color-mix(in oklch, white 40%, transparent),
+				transparent
+			)
+			0 0 / 40cqi 100% no-repeat;
+		background:
+			linear-gradient(
+					to right,
+					transparent,
+					color-mix(in oklch, var(--text) 35%, transparent),
+					transparent
+				)
+				0 0 / 40cqi 100% no-repeat,
+			var(--border);
+		animation: var(--animation);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		/* Slowed, not stopped, since without its animation the indeterminate fill has no width */
+		--duration: 10s;
+	}
+
+	&::-webkit-progress-bar {
+		background: transparent;
+	}
+
+	&::-webkit-progress-value {
+		background: var(--gleam), var(--text);
+		border-radius: 1e5px;
+		animation: var(--animation);
+		transition: inline-size 300ms var(--ease-out);
+	}
+
+	/* Firefox and browsers built on it, e.g. Zen. A rule that also names the WebKit pseudo-element is invalid in both engines, so each drops it */
+	&::-moz-progress-bar {
+		background: var(--gleam), var(--text);
+		border-radius: 1e5px;
+		animation: var(--animation);
+	}
+}
+
+/* Sweeps the track and the fill as one bar. On both, cqi is the bar’s width.
+   The fill’s container is the bar, and the bar is as wide as its own container, main */
+@keyframes gleam {
+	from {
+		background-position-x: -40cqi;
+	}
+
+	to {
+		background-position-x: 100cqi;
+	}
+}
+
+@keyframes progress-indeterminate {
+	from,
+	to {
+		inline-size: 30%;
+		margin-inline-end: auto;
+	}
+
+	from {
+		translate: -100%;
+	}
+
+	to {
+		translate: 100cqi;
+	}
+}
+
+/* On a phone, the title sits next to Sign out, and the time next to Refresh under them.
+   The controls span both rows and share the header’s grid, so they still fade in as one.
+   Placed after the buttons’ own sizes, so it overrides them */
+@container (width < 36rem) {
+	/* The first row is as tall as Sign out on every page, so the title stays put, e.g. on the page that asks for a repo */
+	header {
+		display: grid;
+		grid-template: minmax(2rem, auto) / 1fr auto;
+		gap: 0 1em;
+	}
+
+	h1 {
+		grid-area: 1 / 1;
+		/* Above the controls, which span its cell too, so a click still reaches the link to the start page */
+		z-index: 1;
+		font-size: 1.25rem;
+	}
+
+	#controls {
+		display: grid;
+		grid-area: 1 / 1 / 3 / 3;
+		grid-template: subgrid / subgrid;
+		gap: inherit;
+	}
+
+	#sign-out {
+		grid-area: 1 / 2;
+	}
+
+	/* Spaced by a margin, not a gap, so the row takes no room while they hide, e.g. on the sign-in */
+	#updated,
+	#counter,
+	#refresh {
+		margin-block-start: 0.5em;
+	}
+
+	#updated,
+	#counter {
+		grid-area: 2 / 1;
+	}
+
+	#refresh {
+		grid-area: 2 / 2;
+	}
+
+	/* Over the time, which would otherwise break inside, e.g. “Last updated at” over “4:26 PM” */
+	#updated strong {
+		display: block;
+
+		&::after {
+			content: "" / ", ";
+		}
+	}
+
+	/* As tall as the two lines it replaces during a retry, e.g. “Couldn’t refresh” over the time, so the reason under it stays put */
+	header.failed #counter {
+		min-block-size: var(--control-size);
+	}
+
+	#failure {
+		grid-area: 3 / 1 / 4 / 3;
+		margin-block-start: 0.25em;
+		padding-inline-start: 0;
+		text-align: start;
+	}
+
+	#refresh,
+	#sign-out {
+		min-block-size: 2rem;
+		padding-inline: 0.75em;
+	}
+}
+
+#repo-form,
+#sign-in {
+	display: grid;
+	max-inline-size: 24rem;
+	margin-block: var(--block-gap);
+	padding: 1.5rem;
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	background: var(--surface);
+
+	@container (width < 36rem) {
+		max-inline-size: none;
+		padding: 1rem;
+	}
+}
+
+/* The page that asks for a repo, the sign-in, and why the queue didn’t load each show one card in the middle.
+   The card sits lower than the summary that replaces it */
+main:has(> #summary[hidden]) > :is(#repo-form, #sign-in) {
+	margin: clamp(var(--block-gap), 12vh, 7rem) auto var(--block-gap);
+}
+
+/* What went wrong, in the card that can fix it. Amber, as the marks of what changed, so it reads as worth a look, not as an alarm */
+.notice {
+	margin: 0;
+	padding: 0.75em 1em;
+	border: 1px solid color-mix(in oklch, var(--attention) 35%, var(--surface));
+	border-radius: var(--control-radius);
+	background: color-mix(in oklch, var(--attention) 14%, var(--surface));
+	color: color-mix(in oklch, var(--text) 75%, var(--surface));
+	text-wrap: pretty;
+
+	strong {
+		display: block;
+		color: var(--text);
+	}
+
+	/* Focused by a script, so a screen reader reads it. Not operable itself, so no ring */
+	&:focus {
+		outline: none;
+	}
+}
+
+/* Why a load failed, in a notice or under the controls */
+:is(.notice, #failure) {
+	/* A word too long for the card, e.g. a link, breaks instead of widening it */
+	span {
+		overflow-wrap: anywhere;
+	}
+
+	/* The first lines until Show all shows the rest */
+	&:not(.expanded) span {
+		/* NOTE: Only Safari Technology Preview ships `line-clamp` without the prefix (November 2026) */
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: var(--lines, 3);
+		line-clamp: var(--lines, 3);
+		overflow: hidden;
+	}
+
+	button {
+		color: var(--text);
+		font-weight: 500;
+		text-decoration: underline;
+		text-underline-offset: 0.15em;
+	}
+}
+
+#sign-in {
+	gap: 0.75em;
+
+	small {
+		text-wrap: pretty;
+	}
+
+	a {
+		color: inherit;
+	}
+}
+
+/* A rule on each side of the word */
+.or {
+	display: flex;
+	gap: 1em;
+	align-items: center;
+	margin-block: 0.75em;
+	color: var(--muted);
+
+	&::before,
+	&::after {
+		content: "";
+		flex: 1;
+		border-block-start: 1px solid var(--border);
+	}
+}
+
+#token-form {
+	display: grid;
+	gap: 0.5em;
+
+	label {
+		flex-direction: column;
+	}
+}
+
+#repo-form {
+	gap: 1.25em;
+
+	.optional {
+		color: var(--muted);
+		font-weight: 400;
+	}
+
+	> button {
+		justify-self: start;
+	}
+
+	/* A phone’s thumb reaches a full-width button anywhere */
+	@container (width < 36rem) {
+		> button {
+			justify-self: stretch;
+		}
+	}
+}
+
+/* A label above its field, and a note under it */
+.field {
+	display: grid;
+	gap: 0.375em;
+
+	/* A chevron, as on a combo box, shows there are values to pick. A click on it lands on the field */
+	&.offers {
+		/* The chevron shares the field’s cell. Placed alone, it would push the field to the next row */
+		input,
+		&::after {
+			grid-area: 2 / 1;
+		}
+
+		input {
+			padding-inline-end: var(--control-size);
+		}
+
+		&::after {
+			content: "";
+			place-self: center end;
+			inline-size: 0.875rem;
+			aspect-ratio: 1;
+			margin-inline-end: 0.75em;
+			background-color: var(--muted);
+			mask: var(--chevron) no-repeat center / contain;
+			rotate: 90deg;
+			pointer-events: none;
+		}
+	}
+}
+
+/* The values a field had before, under it */
+.recent {
+	position-area: block-end span-inline-end;
+	position-try-fallbacks: flip-block;
+	inline-size: anchor-size(inline);
+	/* No taller than the room on its side, e.g. on a phone held sideways, so its list scrolls instead of covering the field.
+	   With its margin it is 0.25rem taller than that room, so a list too long for the room below tries the room above */
+	max-block-size: calc(100% - 0.25rem);
+	margin: 0.25rem 0;
+	padding: 0.25rem;
+
+	/* A column whose list shrinks, unlike a grid row, when the popover can’t be as tall as it */
+	&:popover-open {
+		display: flex;
+		flex-direction: column;
+	}
+
+	ul {
+		/* Half a row shows under the shadow, so a long list reads as one that scrolls */
+		max-block-size: calc(var(--control-size) * 6.5);
+		margin: 0;
+		padding: 0;
+		overflow-y: auto;
+		overscroll-behavior: contain;
+		scrollbar-width: thin;
+		list-style: none;
+	}
+
+	li {
+		display: flex;
+		align-items: center;
+		min-block-size: var(--control-size);
+		padding-inline-start: 0.5rem;
+		border-radius: var(--control-radius);
+		cursor: pointer;
+		overflow-wrap: anywhere;
+
+		/* Not on touch, where a tap would leave a gray close to the active row’s */
+		@media (hover: hover) {
+			&:hover {
+				background: color-mix(in oklch, var(--text) 4%, var(--surface));
+			}
+		}
+
+		/* Ringed like a focused control. Inside its row, since the list that scrolls would clip it outside */
+		&[aria-selected="true"] {
+			background: color-mix(in oklch, var(--text) 8%, var(--surface));
+
+			/* Only while focus is in the field. Tab moves on to “Clear recent …”, which then has the ring instead */
+			.field:has(> input:focus) & {
+				outline: auto;
+				/* The browser’s own ring color, as on the field. Chrome draws `auto` alone in the text color.
+				   Firefox draws it in its own color and has no keyword for it */
+				outline-color: -webkit-focus-ring-color;
+				outline-offset: -2px;
+			}
+		}
+
+		span {
+			flex: 1;
+		}
+	}
+
+	/* With a mouse, shown only on the row it would remove */
+	li button {
+		flex: none;
+		/* As tall as its row, so a click near ✕ removes rather than picks */
+		align-self: stretch;
+		inline-size: 2rem;
+		color: color-mix(in oklch, var(--muted) 70%, var(--surface));
+
+		&::before {
+			content: "";
+			display: block;
+			block-size: 0.625rem;
+			background-color: currentColor;
+			mask: var(--icon) no-repeat center / contain;
+		}
+
+		&:hover {
+			color: var(--text);
+		}
+
+		@media (hover: hover) and (pointer: fine) {
+			li:not(:hover, [aria-selected="true"]) > & {
+				opacity: 0;
+			}
+		}
+	}
+
+	/* Names what it clears, so it reads apart from the rows above */
+	> button {
+		min-block-size: 2rem;
+		padding-inline: 0.5rem;
+		border-block-start: 1px solid var(--rule);
+		text-align: start;
+		color: var(--muted);
+		font-size: 0.85em;
+		font-weight: 500;
+		text-decoration: underline;
+		text-underline-offset: 0.15em;
+
+		&:hover {
+			color: var(--text);
+		}
+	}
+}
+
+/* What was typed, in a recent value or an author’s login. Colored, as bold on black text barely shows */
+:is(.recent, #authors) mark {
+	border-radius: 0.15em;
+	background: var(--match);
+	color: inherit;
 }
 
 /* A value too long for its cell scrolls inside it. The 1px gap shows the strip’s own fill as hairlines */
@@ -485,453 +1052,6 @@ main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #upd
 /* In the summary’s forms, in the filter field, and on each recent value */
 .cancel {
 	--icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round'%3E%3Cpath d='M4 4l8 8M12 4l-8 8'/%3E%3C/svg%3E");
-}
-
-/* What was typed, in a recent value or an author’s login. Colored, as bold on black text barely shows */
-:is(.recent, #authors) mark {
-	border-radius: 0.15em;
-	background: var(--match);
-	color: inherit;
-}
-
-/* A quick second tap on a control, e.g. Refresh, doesn’t zoom the page on a phone. Pinch zoom still works */
-:is(button, a) {
-	touch-action: manipulation;
-}
-
-/* Every button, text or icon, with the page’s font and no browser chrome. Each kind adds its own size and fill */
-button {
-	padding: 0;
-	border: none;
-	background: none;
-	color: inherit;
-	font: inherit;
-	cursor: pointer;
-}
-
-/* What looks like a button shrinks under the press, an avatar link a little more.
-   No id in the list: nested, each rule gets the specificity of its strongest selector, and would win over a control that opts out */
-button,
-.step .action,
-.labels a,
-.pull-request .avatar,
-.reviewers a {
-	/* The press eases. A hover changes at once, as one seen many times a day needs no fade */
-	transition: scale 160ms var(--ease-out);
-
-	/* Answers the press before the network does */
-	@media (prefers-reduced-motion: no-preference) {
-		&:active:not([aria-disabled="true"]) {
-			scale: var(--press, 0.97);
-		}
-	}
-}
-
-/* Text buttons, as tall as the fields next to them */
-#refresh,
-#sign-out,
-#sign-in > button,
-:is(#repo-form, #token-form, #authors footer, #display footer) > button {
-	min-block-size: var(--control-size);
-	padding-inline: 1em;
-	border-radius: var(--control-radius);
-	font-weight: 500;
-}
-
-#sign-in > button,
-#repo-form > button,
-:is(#authors, #display) .show {
-	background: var(--text);
-	color: white;
-
-	&:hover {
-		background: color-mix(in oklch, var(--text) 80%, var(--surface));
-	}
-}
-
-/* Secondary to the table it updates or filters, or to the sign-in, or to a step the author does */
-#refresh,
-#sign-out,
-#token-form button,
-#queue td.step a.action {
-	background: color-mix(in oklch, var(--text) 8%, var(--surface));
-	color: var(--text);
-
-	&:hover {
-		background: color-mix(in oklch, var(--text) 14%, var(--surface));
-	}
-
-	&[aria-disabled="true"] {
-		color: var(--muted);
-		cursor: progress;
-	}
-}
-
-/* On a phone, the title sits next to Sign out, and the time next to Refresh under them.
-   The controls span both rows and share the header’s grid, so they still fade in as one.
-   Placed after the buttons’ own sizes, so it overrides them */
-@container (width < 36rem) {
-	/* The first row is as tall as Sign out on every page, so the title stays put, e.g. on the page that asks for a repo */
-	header {
-		display: grid;
-		grid-template: minmax(2rem, auto) / 1fr auto;
-		gap: 0 1em;
-	}
-
-	h1 {
-		grid-area: 1 / 1;
-		/* Above the controls, which span its cell too, so a click still reaches the link to the start page */
-		z-index: 1;
-		font-size: 1.25rem;
-	}
-
-	#controls {
-		display: grid;
-		grid-area: 1 / 1 / 3 / 3;
-		grid-template: subgrid / subgrid;
-		gap: inherit;
-	}
-
-	#sign-out {
-		grid-area: 1 / 2;
-	}
-
-	/* Spaced by a margin, not a gap, so the row takes no room while they hide, e.g. on the sign-in */
-	#updated,
-	#counter,
-	#refresh {
-		margin-block-start: 0.5em;
-	}
-
-	#updated,
-	#counter {
-		grid-area: 2 / 1;
-	}
-
-	#refresh {
-		grid-area: 2 / 2;
-	}
-
-	/* Over the time, which would otherwise break inside, e.g. “Last updated at” over “4:26 PM” */
-	#updated strong {
-		display: block;
-
-		&::after {
-			content: "" / ", ";
-		}
-	}
-
-	/* As tall as the two lines it replaces during a retry, e.g. “Couldn’t refresh” over the time, so the reason under it stays put */
-	header.failed #counter {
-		min-block-size: var(--control-size);
-	}
-
-	#failure {
-		grid-area: 3 / 1 / 4 / 3;
-		margin-block-start: 0.25em;
-		padding-inline-start: 0;
-		text-align: start;
-	}
-
-	#refresh,
-	#sign-out {
-		min-block-size: 2rem;
-		padding-inline: 0.75em;
-	}
-}
-
-#sign-in {
-	gap: 0.75em;
-
-	small {
-		text-wrap: pretty;
-	}
-
-	a {
-		color: inherit;
-	}
-}
-
-/* A rule on each side of the word */
-.or {
-	display: flex;
-	gap: 1em;
-	align-items: center;
-	margin-block: 0.75em;
-	color: var(--muted);
-
-	&::before,
-	&::after {
-		content: "";
-		flex: 1;
-		border-block-start: 1px solid var(--border);
-	}
-}
-
-form {
-	label {
-		display: flex;
-		gap: 0.5em;
-		font-weight: 500;
-	}
-
-	input {
-		min-block-size: var(--control-size);
-		padding-inline: 0.75em;
-		border: 1px solid var(--control-border);
-		border-radius: var(--control-radius);
-		background: var(--surface);
-		font: inherit;
-		font-weight: 400;
-
-		/* Once the user leaves the field, e.g. with a pattern that isn’t a regular expression, until the value is fixed */
-		&:user-invalid {
-			border-color: var(--negative);
-		}
-	}
-}
-
-#repo-form,
-#sign-in {
-	display: grid;
-	max-inline-size: 24rem;
-	margin-block: var(--block-gap);
-	padding: 1.5rem;
-	border: 1px solid var(--border);
-	border-radius: var(--radius);
-	background: var(--surface);
-
-	@container (width < 36rem) {
-		max-inline-size: none;
-		padding: 1rem;
-	}
-}
-
-/* The page that asks for a repo, the sign-in, and why the queue didn’t load each show one card in the middle.
-   The card sits lower than the summary that replaces it */
-main:has(> #summary[hidden]) > :is(#repo-form, #sign-in) {
-	margin: clamp(var(--block-gap), 12vh, 7rem) auto var(--block-gap);
-}
-
-/* The intro belongs to the heading more than to what follows */
-hgroup {
-	display: grid;
-	gap: 0.5em;
-
-	h2 {
-		margin: 0;
-		font-size: 1rem;
-	}
-
-	p {
-		margin: 0;
-		color: var(--muted);
-	}
-}
-
-/* What went wrong, in the card that can fix it. Amber, as the marks of what changed, so it reads as worth a look, not as an alarm */
-.notice {
-	margin: 0;
-	padding: 0.75em 1em;
-	border: 1px solid color-mix(in oklch, var(--attention) 35%, var(--surface));
-	border-radius: var(--control-radius);
-	background: color-mix(in oklch, var(--attention) 14%, var(--surface));
-	color: color-mix(in oklch, var(--text) 75%, var(--surface));
-	text-wrap: pretty;
-
-	strong {
-		display: block;
-		color: var(--text);
-	}
-
-	/* Focused by a script, so a screen reader reads it. Not operable itself, so no ring */
-	&:focus {
-		outline: none;
-	}
-}
-
-/* Why a load failed, in a notice or under the controls */
-:is(.notice, #failure) {
-	/* A word too long for the card, e.g. a link, breaks instead of widening it */
-	span {
-		overflow-wrap: anywhere;
-	}
-
-	/* The first lines until Show all shows the rest */
-	&:not(.expanded) span {
-		/* NOTE: Only Safari Technology Preview ships `line-clamp` without the prefix (November 2026) */
-		display: -webkit-box;
-		-webkit-box-orient: vertical;
-		-webkit-line-clamp: var(--lines, 3);
-		line-clamp: var(--lines, 3);
-		overflow: hidden;
-	}
-
-	button {
-		color: var(--text);
-		font-weight: 500;
-		text-decoration: underline;
-		text-underline-offset: 0.15em;
-	}
-}
-
-#repo-form {
-	gap: 1.25em;
-
-	.optional {
-		color: var(--muted);
-		font-weight: 400;
-	}
-
-	> button {
-		justify-self: start;
-	}
-
-	/* A phone’s thumb reaches a full-width button anywhere */
-	@container (width < 36rem) {
-		> button {
-			justify-self: stretch;
-		}
-	}
-}
-
-/* A label above its field, and a note under it */
-.field {
-	display: grid;
-	gap: 0.375em;
-
-	/* A chevron, as on a combo box, shows there are values to pick. A click on it lands on the field */
-	&.offers {
-		/* The chevron shares the field’s cell. Placed alone, it would push the field to the next row */
-		input,
-		&::after {
-			grid-area: 2 / 1;
-		}
-
-		input {
-			padding-inline-end: var(--control-size);
-		}
-
-		&::after {
-			content: "";
-			place-self: center end;
-			inline-size: 0.875rem;
-			aspect-ratio: 1;
-			margin-inline-end: 0.75em;
-			background-color: var(--muted);
-			mask: var(--chevron) no-repeat center / contain;
-			rotate: 90deg;
-			pointer-events: none;
-		}
-	}
-}
-
-/* The values a field had before, under it */
-.recent {
-	position-area: block-end span-inline-end;
-	position-try-fallbacks: flip-block;
-	inline-size: anchor-size(inline);
-	/* No taller than the room on its side, e.g. on a phone held sideways, so its list scrolls instead of covering the field.
-	   With its margin it is 0.25rem taller than that room, so a list too long for the room below tries the room above */
-	max-block-size: calc(100% - 0.25rem);
-	margin: 0.25rem 0;
-	padding: 0.25rem;
-
-	/* A column whose list shrinks, unlike a grid row, when the popover can’t be as tall as it */
-	&:popover-open {
-		display: flex;
-		flex-direction: column;
-	}
-
-	ul {
-		/* Half a row shows under the shadow, so a long list reads as one that scrolls */
-		max-block-size: calc(var(--control-size) * 6.5);
-		margin: 0;
-		padding: 0;
-		overflow-y: auto;
-		overscroll-behavior: contain;
-		scrollbar-width: thin;
-		list-style: none;
-	}
-
-	li {
-		display: flex;
-		align-items: center;
-		min-block-size: var(--control-size);
-		padding-inline-start: 0.5rem;
-		border-radius: var(--control-radius);
-		cursor: pointer;
-		overflow-wrap: anywhere;
-
-		/* Not on touch, where a tap would leave a gray close to the active row’s */
-		@media (hover: hover) {
-			&:hover {
-				background: color-mix(in oklch, var(--text) 4%, var(--surface));
-			}
-		}
-
-		/* Ringed like a focused control. Inside its row, since the list that scrolls would clip it outside */
-		&[aria-selected="true"] {
-			background: color-mix(in oklch, var(--text) 8%, var(--surface));
-
-			/* Only while focus is in the field. Tab moves on to “Clear recent …”, which then has the ring instead */
-			.field:has(> input:focus) & {
-				outline: auto;
-				/* The browser’s own ring color, as on the field. Chrome draws `auto` alone in the text color.
-				   Firefox draws it in its own color and has no keyword for it */
-				outline-color: -webkit-focus-ring-color;
-				outline-offset: -2px;
-			}
-		}
-
-		span {
-			flex: 1;
-		}
-	}
-
-	/* With a mouse, shown only on the row it would remove */
-	li button {
-		flex: none;
-		/* As tall as its row, so a click near ✕ removes rather than picks */
-		align-self: stretch;
-		inline-size: 2rem;
-		color: color-mix(in oklch, var(--muted) 70%, var(--surface));
-
-		&::before {
-			content: "";
-			display: block;
-			block-size: 0.625rem;
-			background-color: currentColor;
-			mask: var(--icon) no-repeat center / contain;
-		}
-
-		&:hover {
-			color: var(--text);
-		}
-
-		@media (hover: hover) and (pointer: fine) {
-			li:not(:hover, [aria-selected="true"]) > & {
-				opacity: 0;
-			}
-		}
-	}
-
-	/* Names what it clears, so it reads apart from the rows above */
-	> button {
-		min-block-size: 2rem;
-		padding-inline: 0.5rem;
-		border-block-start: 1px solid var(--rule);
-		text-align: start;
-		color: var(--muted);
-		font-size: 0.85em;
-		font-weight: 500;
-		text-decoration: underline;
-		text-underline-offset: 0.15em;
-
-		&:hover {
-			color: var(--text);
-		}
-	}
 }
 
 /* Which PRs show and how they count, at the top of the table card they act on.
@@ -1491,126 +1611,6 @@ hgroup {
 	padding: 1rem;
 }
 
-#token-form {
-	display: grid;
-	gap: 0.5em;
-
-	label {
-		flex-direction: column;
-	}
-}
-
-/* Centered in the gap between the header and the queue, so showing it moves nothing */
-progress {
-	--duration: 1.5s;
-	--animation: none;
-	--gleam: none;
-
-	position: absolute;
-	inset-block-start: calc(100% + var(--block-gap) / 2);
-	inset-inline-start: 0;
-	inline-size: 100%;
-	translate: 0 -50%;
-	block-size: 0.25rem;
-	appearance: none;
-	border: none;
-	border-radius: 1e5px;
-	overflow: clip;
-	background: var(--border);
-	/* Lets the fill move in track units (cqi) */
-	container-type: inline-size;
-	/* Fades in and out, so a quick refresh doesn’t flash it. The `display` transition keeps it on screen while it fades out */
-	transition-property: opacity, display;
-	transition-duration: 150ms;
-	transition-behavior: allow-discrete;
-
-	@starting-style {
-		opacity: 0;
-	}
-
-	&[hidden] {
-		opacity: 0;
-	}
-
-	/* Until the load knows how many PRs it waits for, e.g. during the search */
-	&:indeterminate {
-		--animation: progress-indeterminate var(--duration) infinite linear;
-	}
-
-	/* A counted load can wait seconds on one request, e.g. at “4 of 10”. A gleam sweeping the track and the fill shows it still works */
-	&:not(:indeterminate) {
-		--animation: gleam var(--duration) infinite linear;
-		--gleam: linear-gradient(
-				to right,
-				transparent,
-				color-mix(in oklch, white 40%, transparent),
-				transparent
-			)
-			0 0 / 40cqi 100% no-repeat;
-		background:
-			linear-gradient(
-					to right,
-					transparent,
-					color-mix(in oklch, var(--text) 35%, transparent),
-					transparent
-				)
-				0 0 / 40cqi 100% no-repeat,
-			var(--border);
-		animation: var(--animation);
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		/* Slowed, not stopped, since without its animation the indeterminate fill has no width */
-		--duration: 10s;
-	}
-
-	&::-webkit-progress-bar {
-		background: transparent;
-	}
-
-	&::-webkit-progress-value {
-		background: var(--gleam), var(--text);
-		border-radius: 1e5px;
-		animation: var(--animation);
-		transition: inline-size 300ms var(--ease-out);
-	}
-
-	/* Firefox and browsers built on it, e.g. Zen. A rule that also names the WebKit pseudo-element is invalid in both engines, so each drops it */
-	&::-moz-progress-bar {
-		background: var(--gleam), var(--text);
-		border-radius: 1e5px;
-		animation: var(--animation);
-	}
-}
-
-/* Sweeps the track and the fill as one bar. On both, cqi is the bar’s width.
-   The fill’s container is the bar, and the bar is as wide as its own container, main */
-@keyframes gleam {
-	from {
-		background-position-x: -40cqi;
-	}
-
-	to {
-		background-position-x: 100cqi;
-	}
-}
-
-@keyframes progress-indeterminate {
-	from,
-	to {
-		inline-size: 30%;
-		margin-inline-end: auto;
-	}
-
-	from {
-		translate: -100%;
-	}
-
-	to {
-		translate: 100cqi;
-	}
-}
-
 /* The table’s card. Its frame draws the edge, not the table, so a fade over the cells as they scroll leaves the edge whole */
 .scroller {
 	border: 1px solid var(--border);
@@ -1786,104 +1786,6 @@ td:not(.requested) {
 	display: none;
 }
 
-/* GitHub’s icon of an open PR, or a draft’s, in place of the author’s avatar, as GitHub’s list of pull requests has it */
-.kind {
-	display: none;
-}
-
-#queue.author .pull-request {
-	grid-template-columns: 1em 1fr;
-	column-gap: 0.6em;
-
-	.kind {
-		display: block;
-		grid-row: span 2;
-		/* Centered on the title’s first line */
-		margin-block-start: calc((1lh - 1em) / 2);
-		inline-size: 1em;
-		aspect-ratio: 1;
-		background-color: var(--positive);
-		mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z'/%3E%3C/svg%3E")
-			no-repeat center / contain;
-	}
-
-	.draft {
-		background-color: var(--muted);
-		mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.25 1A2.25 2.25 0 0 1 4 5.372v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.251 2.251 0 0 1 3.25 1Zm9.5 14a2.25 2.25 0 1 1 0-4.5 2.25 2.25 0 0 1 0 4.5ZM2.5 3.25a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0ZM3.25 12a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm9.5 0a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5ZM14 7.5a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Zm0-4.25a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Z'/%3E%3C/svg%3E");
-	}
-}
-
-/* Forced colors paint backgrounds as the page, which would hide an icon drawn as a mask */
-@media (forced-colors: active) {
-	#queue.author .pull-request .kind,
-	#filters .applied::before,
-	#narrow .box::before {
-		forced-color-adjust: none;
-		background-color: CanvasText;
-	}
-}
-
-/* Where the icon will be */
-#queue.author .skeleton .kind {
-	background: color-mix(in oklch, var(--text) 8%, var(--surface));
-	mask: none;
-	border-radius: 50%;
-}
-
-/* Text, not a figure. Room for most steps on one line, e.g. “Waiting for a maintainer to merge”, which arrive after the rows.
-   Less on a phone, where the table scrolls */
-:is(th, td).step {
-	min-inline-size: clamp(13em, 25vw, 20em);
-	/* Two lines fit in the height of a title and its byline, so a step that wraps, e.g. “Waiting for a maintainer to merge”, doesn’t make its row taller as it arrives */
-	line-height: 1.3;
-}
-
-/* A step the author does, a button that opens GitHub where GitHub’s own button does it, smaller than the header’s.
-   With the table’s id, to win over the links of the table body */
-#queue td.step {
-	a.action {
-		display: inline-flex;
-		align-items: center;
-		min-block-size: 2rem;
-		padding-inline: 0.85em;
-		border-radius: var(--control-radius);
-		font-size: 0.9em;
-		font-weight: 500;
-		white-space: nowrap;
-		text-decoration: none;
-	}
-
-	/* A step no one waits for, e.g. a draft’s “Ready for review” */
-	a.quiet {
-		background: none;
-		box-shadow: inset 0 0 0 1px var(--border);
-		color: var(--muted);
-
-		&:hover {
-			background: color-mix(in oklch, var(--text) 4%, var(--surface));
-			color: var(--text);
-		}
-	}
-}
-
-/* Room for the times up to “30 days ago”, which arrive after the rows. A wider time would move every column, title wraps included */
-td.requested {
-	min-inline-size: 9ch;
-}
-
-/* Room for sizes such as “+999 −99”, which arrive after the rows, as the times do */
-td.diff {
-	min-inline-size: 13ch;
-}
-
-/* Room for four reviewers, who arrive after the rows. More wrap, as on GitHub, since a wider cell would squeeze the titles */
-td.reviewers {
-	--avatar: 1.5rem;
-	--gap: 0.4em;
-
-	min-inline-size: calc(4 * var(--avatar) + 3 * var(--gap));
-}
-
 thead {
 	position: sticky;
 	inset-block-start: 0;
@@ -1902,6 +1804,45 @@ thead {
 			border-start-end-radius: var(--radius);
 		}
 	}
+}
+
+thead button {
+	&:hover {
+		color: var(--text);
+	}
+
+	/* After the label, as GitHub’s tables have it. It hangs into the cell’s padding and takes no space,
+	   so a label stays on its column’s edge, e.g. “Next step” over the steps and “Waiting” over the times, and doesn’t move on sort */
+	&::after {
+		content: "";
+		display: inline-block;
+		inline-size: 1em;
+		aspect-ratio: 1;
+		margin-inline: 0.3em -1.3em;
+		vertical-align: -0.1em;
+		background-color: currentColor;
+		/* In forced colors, the label’s color, where the page background would hide it */
+		forced-color-adjust: preserve-parent-color;
+		mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 3v10M4 9l4 4 4-4'/%3E%3C/svg%3E")
+			no-repeat center / contain;
+
+		/* Turns when the order flips */
+		@media (prefers-reduced-motion: no-preference) {
+			transition: scale 160ms var(--ease-out);
+		}
+	}
+}
+
+th:not([aria-sort]) button::after {
+	visibility: hidden;
+}
+
+th[aria-sort] button {
+	color: var(--text);
+}
+
+th[aria-sort="ascending"] button::after {
+	scale: 1 -1;
 }
 
 tbody {
@@ -1948,6 +1889,15 @@ tbody {
 
 	&:hover {
 		text-decoration: underline;
+	}
+}
+
+/* Old values that a load is replacing, e.g. on a refresh. They come back to full strength as the new ones arrive */
+tbody td {
+	transition: opacity 300ms var(--ease-out);
+
+	tr.stale > & {
+		opacity: 0.4;
 	}
 }
 
@@ -2041,6 +1991,50 @@ tbody {
 	}
 }
 
+/* GitHub’s icon of an open PR, or a draft’s, in place of the author’s avatar, as GitHub’s list of pull requests has it */
+.kind {
+	display: none;
+}
+
+#queue.author .pull-request {
+	grid-template-columns: 1em 1fr;
+	column-gap: 0.6em;
+
+	.kind {
+		display: block;
+		grid-row: span 2;
+		/* Centered on the title’s first line */
+		margin-block-start: calc((1lh - 1em) / 2);
+		inline-size: 1em;
+		aspect-ratio: 1;
+		background-color: var(--positive);
+		mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z'/%3E%3C/svg%3E")
+			no-repeat center / contain;
+	}
+
+	.draft {
+		background-color: var(--muted);
+		mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.25 1A2.25 2.25 0 0 1 4 5.372v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.251 2.251 0 0 1 3.25 1Zm9.5 14a2.25 2.25 0 1 1 0-4.5 2.25 2.25 0 0 1 0 4.5ZM2.5 3.25a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0ZM3.25 12a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm9.5 0a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5ZM14 7.5a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Zm0-4.25a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Z'/%3E%3C/svg%3E");
+	}
+}
+
+/* Forced colors paint backgrounds as the page, which would hide an icon drawn as a mask */
+@media (forced-colors: active) {
+	#queue.author .pull-request .kind,
+	#filters .applied::before,
+	#narrow .box::before {
+		forced-color-adjust: none;
+		background-color: CanvasText;
+	}
+}
+
+/* Where the icon will be */
+#queue.author .skeleton .kind {
+	background: color-mix(in oklch, var(--text) 8%, var(--surface));
+	mask: none;
+	border-radius: 50%;
+}
+
 /* Start on the title’s last line, or all move to the next when they don’t fit there */
 .labels {
 	display: inline-flex;
@@ -2083,64 +2077,58 @@ tbody {
 	}
 }
 
-/* A wait rounded to months or years has its days in the tooltip. The dotted line says so, as under an abbreviation */
-time.rounded {
-	text-decoration: underline dotted color-mix(in oklch, currentColor 40%, transparent);
-	text-underline-offset: 0.2em;
-	cursor: help;
+/* Text, not a figure. Room for most steps on one line, e.g. “Waiting for a maintainer to merge”, which arrive after the rows.
+   Less on a phone, where the table scrolls */
+:is(th, td).step {
+	min-inline-size: clamp(13em, 25vw, 20em);
+	/* Two lines fit in the height of a title and its byline, so a step that wraps, e.g. “Waiting for a maintainer to merge”, doesn’t make its row taller as it arrives */
+	line-height: 1.3;
 }
 
-/* A line tall, as the text that replaces it. A time that lays out as a flex box, e.g. in the summary, has no line around its bar.
-   Without this, the bar sits at the top */
-:is(td, time, .count, .turns):empty {
-	min-block-size: 1lh;
-}
-
-/* A value still loading leaves its cell or time empty. A flat bar holds its place */
-:is(td, time, .count, .turns):empty::before,
-.user:not([href]) > span::before,
-.user:not([href])::before,
-.skeleton :is(.avatar, .headline, small)::before {
-	content: "";
-	display: inline-block;
-	inline-size: 3em;
-	block-size: 0.8em;
-	vertical-align: middle;
-	border-radius: 0.25em;
-	background: color-mix(in oklch, var(--text) 8%, var(--surface));
-}
-
-/* Where a PR will be: its avatar, title and byline */
-.skeleton {
-	.avatar::before {
-		display: block;
-		inline-size: 2rem;
-		block-size: 2rem;
-		border-radius: 50%;
+/* A step the author does, a button that opens GitHub where GitHub’s own button does it, smaller than the header’s.
+   With the table’s id, to win over the links of the table body */
+#queue td.step {
+	a.action {
+		display: inline-flex;
+		align-items: center;
+		min-block-size: 2rem;
+		padding-inline: 0.85em;
+		border-radius: var(--control-radius);
+		font-size: 0.9em;
+		font-weight: 500;
+		white-space: nowrap;
+		text-decoration: none;
 	}
 
-	/* No wider than the column, so the bars don’t widen it, e.g. on a phone */
-	.headline::before {
-		inline-size: min(16em, 100%);
-	}
+	/* A step no one waits for, e.g. a draft’s “Ready for review” */
+	a.quiet {
+		background: none;
+		box-shadow: inset 0 0 0 1px var(--border);
+		color: var(--muted);
 
-	small::before {
-		inline-size: 7em;
+		&:hover {
+			background: color-mix(in oklch, var(--text) 4%, var(--surface));
+			color: var(--text);
+		}
 	}
 }
 
-/* As wide as a count of two digits, so the strip’s cells keep their widths when it arrives */
-:is(.count, .turns):empty::before {
-	inline-size: 1.25em;
+/* Room for the times up to “30 days ago”, which arrive after the rows. A wider time would move every column, title wraps included */
+td.requested {
+	min-inline-size: 9ch;
 }
 
-/* Old values that a load is replacing, e.g. on a refresh. They come back to full strength as the new ones arrive */
-tbody td {
-	transition: opacity 300ms var(--ease-out);
+/* Room for sizes such as “+999 −99”, which arrive after the rows, as the times do */
+td.diff {
+	min-inline-size: 13ch;
+}
 
-	tr.stale > & {
-		opacity: 0.4;
-	}
+/* Room for four reviewers, who arrive after the rows. More wrap, as on GitHub, since a wider cell would squeeze the titles */
+td.reviewers {
+	--avatar: 1.5rem;
+	--gap: 0.4em;
+
+	min-inline-size: calc(4 * var(--avatar) + 3 * var(--gap));
 }
 
 /* The figures over the lines of every file, e.g. “+650 −32 total”, in one column, so their right edges meet.
@@ -2227,6 +2215,108 @@ td:is(.diff, .since-review) small {
 	}
 }
 
+.added {
+	color: var(--positive);
+}
+
+.deleted {
+	color: var(--negative);
+}
+
+/* GitHub’s diffstat: five squares split by the share of added, then deleted lines, each rounded down, and the rest neutral.
+   A diff under five lines gets a square per line, e.g. +1 −1 paints one green and one red */
+.diffstat {
+	--total: calc(var(--additions) + var(--deletions));
+	/* Half a line rounds down to the same square, and keeps a whole share off the boundary,
+	   e.g. 5 × 340 / 425 = 4, which WebKit’s division falls just short of */
+	--added: min(var(--additions), round(down, (5 * var(--additions) + 0.5) / var(--total)));
+	--deleted: min(var(--deletions), round(down, (5 * var(--deletions) + 0.5) / var(--total)));
+
+	display: inline-block;
+	inline-size: calc(5 * 0.6em + 4px);
+	block-size: 0.6em;
+	background: linear-gradient(
+		to right,
+		var(--positive) calc(var(--added) * 20%),
+		var(--negative) 0 calc((var(--added) + var(--deleted)) * 20%),
+		var(--border) 0
+	);
+	/* Cuts the strip into squares with 1px gaps */
+	mask: repeating-linear-gradient(to right, black 0 calc(20% - 1px), transparent 0 20%);
+}
+
+/* A wait rounded to months or years has its days in the tooltip. The dotted line says so, as under an abbreviation */
+time.rounded {
+	text-decoration: underline dotted color-mix(in oklch, currentColor 40%, transparent);
+	text-underline-offset: 0.2em;
+	cursor: help;
+}
+
+/* Avatars with a badge for what each did */
+.reviewers ul {
+	display: flex;
+	flex-wrap: wrap;
+	/* Five reviewers make 3 + 2, not 4 + 1 */
+	flex-wrap: balance;
+	gap: var(--gap);
+	justify-content: end;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.reviewers li {
+	a,
+	img {
+		display: block;
+	}
+
+	a {
+		position: relative;
+	}
+
+	img {
+		inline-size: var(--avatar);
+	}
+
+	a::after {
+		content: "";
+		position: absolute;
+		inset-block-end: -0.2em;
+		inset-inline-end: -0.2em;
+		inline-size: 0.85rem;
+		aspect-ratio: 1;
+		border-radius: 50%;
+		background: var(--badge) var(--icon, none) center / 75% no-repeat;
+		/* Cuts the badge out of the avatar */
+		box-shadow: 0 0 0 2px var(--surface);
+	}
+
+	&.awaiting {
+		--badge: var(--attention);
+	}
+
+	&.approved {
+		--badge: var(--positive);
+		--icon: var(--check);
+	}
+
+	/* Approved before the author’s last commit */
+	&.approved.earlier {
+		--badge: var(--muted);
+	}
+
+	&.changes-requested {
+		--badge: var(--negative);
+		--icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M8 3v6M5 6h6M5 12h6'/%3E%3C/svg%3E");
+	}
+
+	&.commented {
+		--badge: var(--muted);
+		--icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='white'%3E%3Cpath d='M3 3.5h10v6.5H8l-3 2.5V10H3z'/%3E%3C/svg%3E");
+	}
+}
+
 /* Avatar links: a ring on hover and focus */
 .pull-request .avatar,
 .reviewers a {
@@ -2243,6 +2333,50 @@ td:is(.diff, .since-review) small {
 	&:focus-visible {
 		outline-color: var(--text);
 	}
+}
+
+/* A line tall, as the text that replaces it. A time that lays out as a flex box, e.g. in the summary, has no line around its bar.
+   Without this, the bar sits at the top */
+:is(td, time, .count, .turns):empty {
+	min-block-size: 1lh;
+}
+
+/* A value still loading leaves its cell or time empty. A flat bar holds its place */
+:is(td, time, .count, .turns):empty::before,
+.user:not([href]) > span::before,
+.user:not([href])::before,
+.skeleton :is(.avatar, .headline, small)::before {
+	content: "";
+	display: inline-block;
+	inline-size: 3em;
+	block-size: 0.8em;
+	vertical-align: middle;
+	border-radius: 0.25em;
+	background: color-mix(in oklch, var(--text) 8%, var(--surface));
+}
+
+/* Where a PR will be: its avatar, title and byline */
+.skeleton {
+	.avatar::before {
+		display: block;
+		inline-size: 2rem;
+		block-size: 2rem;
+		border-radius: 50%;
+	}
+
+	/* No wider than the column, so the bars don’t widen it, e.g. on a phone */
+	.headline::before {
+		inline-size: min(16em, 100%);
+	}
+
+	small::before {
+		inline-size: 7em;
+	}
+}
+
+/* As wide as a count of two digits, so the strip’s cells keep their widths when it arrives */
+:is(.count, .turns):empty::before {
+	inline-size: 1.25em;
 }
 
 /* Framed as the table it replaces, so a queue that empties keeps its place on the page */
@@ -2337,140 +2471,6 @@ td:is(.diff, .since-review) small {
 	background: var(--positive) var(--check) center / 75% no-repeat;
 	/* Cuts the badge out of the tile */
 	box-shadow: 0 0 0 2px var(--surface);
-}
-
-/* Avatars with a badge for what each did */
-.reviewers ul {
-	display: flex;
-	flex-wrap: wrap;
-	/* Five reviewers make 3 + 2, not 4 + 1 */
-	flex-wrap: balance;
-	gap: var(--gap);
-	justify-content: end;
-	margin: 0;
-	padding: 0;
-	list-style: none;
-}
-
-.reviewers li {
-	a,
-	img {
-		display: block;
-	}
-
-	a {
-		position: relative;
-	}
-
-	img {
-		inline-size: var(--avatar);
-	}
-
-	a::after {
-		content: "";
-		position: absolute;
-		inset-block-end: -0.2em;
-		inset-inline-end: -0.2em;
-		inline-size: 0.85rem;
-		aspect-ratio: 1;
-		border-radius: 50%;
-		background: var(--badge) var(--icon, none) center / 75% no-repeat;
-		/* Cuts the badge out of the avatar */
-		box-shadow: 0 0 0 2px var(--surface);
-	}
-
-	&.awaiting {
-		--badge: var(--attention);
-	}
-
-	&.approved {
-		--badge: var(--positive);
-		--icon: var(--check);
-	}
-
-	/* Approved before the author’s last commit */
-	&.approved.earlier {
-		--badge: var(--muted);
-	}
-
-	&.changes-requested {
-		--badge: var(--negative);
-		--icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M8 3v6M5 6h6M5 12h6'/%3E%3C/svg%3E");
-	}
-
-	&.commented {
-		--badge: var(--muted);
-		--icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='white'%3E%3Cpath d='M3 3.5h10v6.5H8l-3 2.5V10H3z'/%3E%3C/svg%3E");
-	}
-}
-
-.added {
-	color: var(--positive);
-}
-
-.deleted {
-	color: var(--negative);
-}
-
-/* GitHub’s diffstat: five squares split by the share of added, then deleted lines, each rounded down, and the rest neutral.
-   A diff under five lines gets a square per line, e.g. +1 −1 paints one green and one red */
-.diffstat {
-	--total: calc(var(--additions) + var(--deletions));
-	/* Half a line rounds down to the same square, and keeps a whole share off the boundary,
-	   e.g. 5 × 340 / 425 = 4, which WebKit’s division falls just short of */
-	--added: min(var(--additions), round(down, (5 * var(--additions) + 0.5) / var(--total)));
-	--deleted: min(var(--deletions), round(down, (5 * var(--deletions) + 0.5) / var(--total)));
-
-	display: inline-block;
-	inline-size: calc(5 * 0.6em + 4px);
-	block-size: 0.6em;
-	background: linear-gradient(
-		to right,
-		var(--positive) calc(var(--added) * 20%),
-		var(--negative) 0 calc((var(--added) + var(--deleted)) * 20%),
-		var(--border) 0
-	);
-	/* Cuts the strip into squares with 1px gaps */
-	mask: repeating-linear-gradient(to right, black 0 calc(20% - 1px), transparent 0 20%);
-}
-
-thead button {
-	&:hover {
-		color: var(--text);
-	}
-
-	/* After the label, as GitHub’s tables have it. It hangs into the cell’s padding and takes no space,
-	   so a label stays on its column’s edge, e.g. “Next step” over the steps and “Waiting” over the times, and doesn’t move on sort */
-	&::after {
-		content: "";
-		display: inline-block;
-		inline-size: 1em;
-		aspect-ratio: 1;
-		margin-inline: 0.3em -1.3em;
-		vertical-align: -0.1em;
-		background-color: currentColor;
-		/* In forced colors, the label’s color, where the page background would hide it */
-		forced-color-adjust: preserve-parent-color;
-		mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 3v10M4 9l4 4 4-4'/%3E%3C/svg%3E")
-			no-repeat center / contain;
-
-		/* Turns when the order flips */
-		@media (prefers-reduced-motion: no-preference) {
-			transition: scale 160ms var(--ease-out);
-		}
-	}
-}
-
-th:not([aria-sort]) button::after {
-	visibility: hidden;
-}
-
-th[aria-sort] button {
-	color: var(--text);
-}
-
-th[aria-sort="ascending"] button::after {
-	scale: 1 -1;
 }
 
 footer {
