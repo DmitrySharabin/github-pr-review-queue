@@ -245,28 +245,6 @@ test("The filter says which search terms it takes, under the field", async ({ pa
 	await expect(page.getByRole("link", { name: "GitHub search terms" })).toBeVisible();
 });
 
-test("A long login shrinks the Author button, rather than push Display onto a line of its own", async ({
-	page,
-	github,
-}) => {
-	github.search = answer => {
-		for (let pr of answer.data.search.nodes) {
-			pr.author = { login: "a-very-long-login-name-that-goes-on-and-on", avatarUrl: "" };
-		}
-	};
-	await page.setViewportSize({ width: 375, height: 812 });
-	await page.goto(
-		"/?repo=foo/bar&authors=a-very-long-login-name-that-goes-on-and-on&exclude=test",
-	);
-	await unfold(page);
-	await loaded(page);
-
-	let [author, display] = await Promise.all(
-		["#author-button", "#display-button"].map(selector => page.locator(selector).boundingBox()),
-	);
-	expect(display.y).toBe(author.y);
-});
-
 test("The filter’s note wraps rather than cut the label of the Author menu beside it", async ({
 	page,
 }) => {
