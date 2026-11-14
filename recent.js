@@ -1,5 +1,7 @@
 import { highlight } from "./highlight.js";
 
+let template = document.querySelector("#recent");
+
 /**
  * Offer the values a text field had before, as a combo box. A click or ↓ opens them, typing narrows them, and Enter or a click picks one.
  * The field’s `aria-controls` names a listbox inside a popover, and the button after the listbox clears them all.
@@ -31,27 +33,17 @@ export function offerRecent (input, { values, remove }) {
 		options = all
 			.filter(value => value.toLowerCase().includes(typed))
 			.map(value => {
-				let text = document.createElement("span");
-				text.append(...highlight(value, typed));
+				let option = template.content.firstElementChild.cloneNode(true);
+				option.dataset.value = value;
+				option.querySelector("span").append(...highlight(value, typed));
 
-				// A screen reader user removes the active option with Shift+Delete instead
-				let button = document.createElement("button");
-				button.type = "button";
-				button.tabIndex = -1;
-				button.ariaHidden = "true";
-				button.className = "cancel";
-				button.title = "Remove from recent";
+				// Hidden from a screen reader, whose user removes the active option with Shift+Delete instead
+				let button = option.querySelector("button");
 				button.addEventListener("click", () => {
 					remove(value);
 					update();
 					show();
 				});
-
-				let option = document.createElement("li");
-				option.role = "option";
-				option.ariaKeyShortcuts = "Shift+Delete";
-				option.dataset.value = value;
-				option.append(text, button);
 				option.addEventListener("click", event => {
 					if (event.target !== button) {
 						pick(option);
