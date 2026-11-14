@@ -48,6 +48,29 @@ body {
 	text-size-adjust: 100%;
 }
 
+/* `hidden` hides whatever `display` a rule gives, e.g. a grid.
+   Not the progress bar, which fades out, nor what keeps its room while hidden: the push icon, and “total” beside a size with one */
+[hidden]:not(progress, .force-pushed, .size small) {
+	display: none !important;
+}
+
+/* Every image is an avatar: round, on a disc that shows until it loads */
+img {
+	block-size: auto;
+	border-radius: 50%;
+	background: var(--rule);
+}
+
+/* What opens over the page: the recent values and the menus */
+[popover] {
+	box-sizing: border-box;
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	background: var(--surface);
+	color: var(--text);
+	box-shadow: 0 0.5rem 1.5rem color-mix(in oklch, var(--text) 12%, transparent);
+}
+
 main,
 footer {
 	padding-inline: var(--gutter);
@@ -112,10 +135,6 @@ small {
 	transition:
 		opacity 150ms var(--ease-out),
 		visibility 150ms;
-
-	&[hidden] {
-		display: none;
-	}
 
 	/* Unseen until the sign-in check passes, but in place, so the controls appear without moving the page */
 	&[inert] {
@@ -256,10 +275,6 @@ main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #upd
 	border: 1px solid var(--border);
 	border-radius: var(--radius);
 
-	&[hidden] {
-		display: none;
-	}
-
 	div {
 		padding: 0.85em var(--inset);
 		background: var(--surface);
@@ -311,10 +326,6 @@ main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #upd
 		> * {
 			display: inline-flex;
 			align-items: center;
-
-			&[hidden] {
-				display: none;
-			}
 		}
 
 		/* A link wider than the cell, e.g. a long user name on a phone, scrolls under its edge, and its ring with it.
@@ -372,10 +383,7 @@ main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #upd
 
 	img {
 		inline-size: 1.2em;
-		block-size: auto;
 		margin-inline-end: 0.4em;
-		border-radius: 50%;
-		background: var(--rule);
 	}
 
 	/* No user yet, so no link and no image. Chrome and Firefox frame an image without a source, so a disc stands in for it, as in the placeholder rows of a load */
@@ -499,13 +507,22 @@ button {
 	color: inherit;
 	font: inherit;
 	cursor: pointer;
+}
+
+/* What looks like a button shrinks under the press, an avatar link a little more.
+   No id in the list: nested, each rule gets the specificity of its strongest selector, and would win over a control that opts out */
+button,
+.step .action,
+.labels a,
+.pull-request .avatar,
+.reviewers a {
 	/* The press eases. A hover changes at once, as one seen many times a day needs no fade */
 	transition: scale 160ms var(--ease-out);
 
 	/* Answers the press before the network does */
 	@media (prefers-reduced-motion: no-preference) {
 		&:active:not([aria-disabled="true"]) {
-			scale: 0.97;
+			scale: var(--press, 0.97);
 		}
 	}
 }
@@ -684,10 +701,6 @@ form {
 	border-radius: var(--radius);
 	background: var(--surface);
 
-	&[hidden] {
-		display: none;
-	}
-
 	@container (width < 36rem) {
 		max-inline-size: none;
 		padding: 1rem;
@@ -821,14 +834,8 @@ hgroup {
 	/* No taller than the room on its side, e.g. on a phone held sideways, so its list scrolls instead of covering the field.
 	   With its margin it is 0.25rem taller than that room, so a list too long for the room below tries the room above */
 	max-block-size: calc(100% - 0.25rem);
-	box-sizing: border-box;
 	margin: 0.25rem 0;
 	padding: 0.25rem;
-	border: 1px solid var(--border);
-	border-radius: var(--radius);
-	background: var(--surface);
-	color: var(--text);
-	box-shadow: 0 0.5rem 1.5rem color-mix(in oklch, var(--text) 12%, transparent);
 
 	/* A column whose list shrinks, unlike a grid row, when the popover can’t be as tall as it */
 	&:popover-open {
@@ -947,10 +954,6 @@ hgroup {
 	border-radius: var(--radius) var(--radius) 0 0;
 	background: var(--fill);
 
-	&[hidden] {
-		display: none;
-	}
-
 	/* The card below continues it */
 	&:not([hidden]) ~ :is(.scroller, #empty) {
 		border-block-start: none;
@@ -968,10 +971,6 @@ hgroup {
 		gap: 0.5rem;
 		align-items: start;
 		min-inline-size: 0;
-
-		&[hidden] {
-			display: none;
-		}
 	}
 
 	/* A phone’s field gets a row of its own, beside the fold button. The menus share the next one, half each, as wide as the row */
@@ -1024,10 +1023,6 @@ hgroup {
 	/* A wrapped line’s values are 24px targets, which touch without overlap */
 	line-height: 2;
 	text-box: trim-both cap alphabetic;
-
-	&[hidden] {
-		display: none;
-	}
 
 	/* Each value a button, laid out as a word on the line */
 	> button {
@@ -1229,10 +1224,6 @@ hgroup {
 		}
 	}
 
-	&[hidden] {
-		display: none;
-	}
-
 	&:active {
 		scale: none;
 	}
@@ -1311,23 +1302,14 @@ hgroup {
 :is(#author-button, #authors, #filters .applied) img {
 	flex: none;
 	inline-size: var(--face, 1.25rem);
-	block-size: auto;
 	aspect-ratio: 1;
-	border-radius: 50%;
-	background: var(--rule);
 }
 
 /* A menu’s card over the page */
 :is(#authors, #display) {
 	inline-size: min(24rem, 100vw - 2rem);
 	max-block-size: min(32rem, 100dvh - 2rem);
-	box-sizing: border-box;
 	padding: 0;
-	border: 1px solid var(--border);
-	border-radius: var(--radius);
-	background: var(--surface);
-	color: var(--text);
-	box-shadow: 0 0.5rem 1.5rem color-mix(in oklch, var(--text) 12%, transparent);
 	/* Scrolling past the list’s end doesn’t scroll the page */
 	overscroll-behavior: contain;
 	/* Under the button, its implicit anchor, and in from its end, where the button sits */
@@ -1444,10 +1426,6 @@ hgroup {
 		padding-inline: 0.5rem;
 		border-radius: var(--control-radius);
 		cursor: pointer;
-
-		&[hidden] {
-			display: none;
-		}
 
 		/* Not on touch, where a tap would leave a gray close to a checked row’s */
 		@media (hover: hover) {
@@ -1873,13 +1851,6 @@ td:not(.requested) {
 		font-weight: 500;
 		white-space: nowrap;
 		text-decoration: none;
-		transition: scale 160ms var(--ease-out);
-
-		@media (prefers-reduced-motion: no-preference) {
-			&:active {
-				scale: 0.97;
-			}
-		}
 	}
 
 	/* A step no one waits for, e.g. a draft’s “Ready for review” */
@@ -1998,9 +1969,6 @@ tbody {
 	img {
 		display: block;
 		inline-size: 100%;
-		block-size: auto;
-		border-radius: 50%;
-		background: var(--rule);
 	}
 }
 
@@ -2103,13 +2071,6 @@ tbody {
 		border-radius: calc(0.5lh + 1px);
 		background: var(--color);
 		outline-offset: 1px;
-		transition: scale 160ms var(--ease-out);
-
-		@media (prefers-reduced-motion: no-preference) {
-			&:active {
-				scale: 0.97;
-			}
-		}
 	}
 
 	.more {
@@ -2266,13 +2227,14 @@ td:is(.diff, .since-review) small {
 	}
 }
 
-/* Avatar links: a ring on hover and focus, a press on click */
+/* Avatar links: a ring on hover and focus */
 .pull-request .avatar,
 .reviewers a {
+	--press: 0.95;
+
 	border-radius: 50%;
 	outline: 2px solid transparent;
 	outline-offset: 2px;
-	transition: scale 160ms var(--ease-out);
 
 	&:hover {
 		outline-color: var(--border);
@@ -2280,12 +2242,6 @@ td:is(.diff, .since-review) small {
 
 	&:focus-visible {
 		outline-color: var(--text);
-	}
-
-	@media (prefers-reduced-motion: no-preference) {
-		&:active {
-			scale: 0.95;
-		}
 	}
 }
 
@@ -2299,10 +2255,6 @@ td:is(.diff, .since-review) small {
 	border: 1px solid var(--border);
 	border-radius: var(--radius);
 	text-align: center;
-
-	&[hidden] {
-		display: none;
-	}
 
 	hgroup {
 		justify-items: center;
@@ -2412,9 +2364,6 @@ td:is(.diff, .since-review) small {
 
 	img {
 		inline-size: var(--avatar);
-		block-size: auto;
-		border-radius: 50%;
-		background: var(--rule);
 	}
 
 	a::after {
