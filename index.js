@@ -3,6 +3,7 @@ import { forget, storedQueues } from "./queues.js";
 import { unmark } from "./row.js";
 import { offerRecent } from "./recent.js";
 import { showDisplay } from "./display.js";
+import { passFocus } from "./menu.js";
 import { href, normalizeParams, paramNames, viewKey, viewOf } from "./view.js";
 import { showNotice } from "./status.js";
 import { onScreen, pickAuthors, showQueue } from "./screen.js";
@@ -100,11 +101,7 @@ for (let name of ["repo", "user"]) {
 // An empty filter field submits no `filter`
 filterForm.querySelector(".cancel").addEventListener("click", event => {
 	filterForm.elements.filter.value = "";
-	// Pressed from the keyboard, it hides itself and would drop the focus to the page, so the emptied field takes it.
-	// Not after a tap, since a focused field opens the on-screen keyboard
-	if (event.currentTarget.matches(":focus-visible")) {
-		filterForm.elements.filter.focus();
-	}
+	passFocus(event.currentTarget, filterForm.elements.filter);
 	filterForm.requestSubmit();
 });
 

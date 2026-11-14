@@ -102,12 +102,8 @@ button {
 }
 
 /* What looks like a button shrinks under the press, an avatar link a little more.
-   No id in the list: nested, each rule gets the specificity of its strongest selector, and would win over a control that opts out */
-button,
-.step .action,
-.labels a,
-.pull-request .avatar,
-.reviewers a {
+   Without specificity, so a control opts out with any rule, e.g. a value of the folded filters */
+:where(button, .step .action, .labels a, .pull-request .avatar, .reviewers a) {
 	/* The press eases. A hover changes at once, as one seen many times a day needs no fade */
 	transition: scale 160ms var(--ease-out);
 

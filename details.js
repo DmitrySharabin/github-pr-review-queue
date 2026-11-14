@@ -41,9 +41,8 @@ export async function fillDetails (stale, { view: { repo, role, exclude }, user 
 				batch.map(row => row.pr.id),
 				signal,
 			);
-			return batch.map(async (row, i) => {
-				// GitHub answers the nodes in the order of their ids
-				let pr = (await prs)[i];
+			return batch.map(async row => {
+				let pr = (await prs).find(pr => pr?.id === row.pr.id);
 				// Rows a newer load owns, e.g. after a role switch
 				if (signal.aborted) {
 					return;

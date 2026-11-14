@@ -9,6 +9,18 @@ for (let type of ["keydown", "pointerdown"]) {
 	});
 }
 
+/**
+ * Move the focus from a button that is about to hide to a field, e.g. from Clear to the field it emptied, or the focus would drop to the page.
+ * Only after a press from the keyboard, since a focused field opens the on-screen keyboard after a tap.
+ * @param {HTMLButtonElement} button
+ * @param {HTMLInputElement} field
+ */
+export function passFocus (button, field) {
+	if (button.matches(":focus-visible")) {
+		field.focus();
+	}
+}
+
 /** @type {Map<HTMLFormElement, () => void>} How to close each menu without applying it */
 let dismissals = new Map();
 

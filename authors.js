@@ -16,7 +16,7 @@
 import { isLogin } from "./pull-request.js";
 import { plural } from "./plural.js";
 import { highlight } from "./highlight.js";
-import { applyOnClose } from "./menu.js";
+import { applyOnClose, passFocus } from "./menu.js";
 
 /** The roles GitHub gives people added to the repo, or to the organization that owns it */
 const roles = ["OWNER", "MEMBER", "COLLABORATOR"];
@@ -72,7 +72,9 @@ export function showAuthors (rows, authors) {
 	latest = { rows, authors };
 	/** @type {Map<string, Person>} */
 	let found = new Map();
-	for (let { author, avatar, association } of rows.map(row => row.summary)) {
+	for (let {
+		summary: { author, avatar, association },
+	} of rows) {
 		found.getOrInsert(author.toLowerCase(), { author, avatar, association, count: 0 }).count++;
 	}
 	// A picked author with no PRs left, e.g. all merged, stays in the list to unpick
@@ -276,10 +278,7 @@ form.querySelector(".clear").addEventListener("click", event => {
 	for (let box of boxes()) {
 		box.checked = false;
 	}
-	// Pressed from the keyboard, it hides itself and would drop the focus to the page, so the search field takes it
-	if (event.currentTarget.matches(":focus-visible")) {
-		search.focus();
-	}
+	passFocus(event.currentTarget, search);
 	update();
 });
 

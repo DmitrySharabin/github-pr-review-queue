@@ -37,7 +37,6 @@ export function offerRecent (input, { values, remove }) {
 				option.dataset.value = value;
 				option.querySelector("span").append(...highlight(value, typed));
 
-				// Hidden from a screen reader, whose user removes the active option with Shift+Delete instead
 				let button = option.querySelector("button");
 				button.addEventListener("click", () => {
 					remove(value);

@@ -1,5 +1,5 @@
 import { pattern } from "./pull-request.js";
-import { applyOnClose } from "./menu.js";
+import { applyOnClose, passFocus } from "./menu.js";
 
 let form = document.querySelector("#display");
 let button = document.querySelector("#display-button");
@@ -12,11 +12,7 @@ field.addEventListener("input", check);
 // An empty pattern waits for Apply, as the author list’s Clear does
 clear.addEventListener("click", () => {
 	field.value = "";
-	// Pressed from the keyboard, it hides itself and would drop the focus to the page, so the emptied field takes it.
-	// Not after a tap, since a focused field opens the on-screen keyboard
-	if (clear.matches(":focus-visible")) {
-		field.focus();
-	}
+	passFocus(clear, field);
 	check();
 });
 
