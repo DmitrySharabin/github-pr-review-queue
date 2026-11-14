@@ -10,6 +10,7 @@ export { expect };
  * `user` gets GitHub’s answer to whose token it is, e.g. `github.user = () => 401` for a token GitHub rejects.
  * `compare` gets the comparison of two commits, with no changed files until it adds some, and its range, e.g. `L...N`.
  * `files` gets a page of a PR’s files, with none until it adds some, and the PR’s number and the page’s, e.g. `65, 1`.
+ * `queries` and `searches` say what the page asked, e.g. `expect(github.searches).toBe(1)` for a view that loaded once.
  */
 export const test = base.extend({
 	// The token Madata finds stored, or none for the sign-in card: `test.use({ token: null })`
@@ -19,6 +20,12 @@ export const test = base.extend({
 	github: [
 		async ({ context, token }, use) => {
 			let github = {
+				// Every GraphQL query the page sent, as posted
+				queries: [],
+				// How many of them searched for PRs
+				get searches () {
+					return this.queries.filter(query => query.includes("search(")).length;
+				},
 				user () {},
 				search () {},
 				details () {},
@@ -66,6 +73,7 @@ export const test = base.extend({
 					return route.fulfill(failed(status) ?? { json: answer });
 				}
 
+				github.queries.push(route.request().postData());
 				let { query } = route.request().postDataJSON();
 				let isSearch = query.includes("search(");
 				let answer = isSearch

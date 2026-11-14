@@ -334,12 +334,6 @@ test("Display with every setting at its default shows no count, nor names one", 
 });
 
 test("Display closed with no change loads nothing", async ({ page, github }) => {
-	let searches = 0;
-	let answer = github.search;
-	github.search = found => {
-		searches++;
-		answer(found);
-	};
 	await open(page, "/?repo=foo/bar&exclude=test");
 	await unfold(page);
 
@@ -350,7 +344,7 @@ test("Display closed with no change loads nothing", async ({ page, github }) => 
 	await refresh(page);
 	await loaded(page);
 
-	expect(searches).toBe(2);
+	expect(github.searches).toBe(2);
 });
 
 test("Enter in Display applies the pattern", async ({ page }) => {

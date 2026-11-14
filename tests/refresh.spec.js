@@ -470,21 +470,17 @@ test.describe("A failed refresh says why", () => {
 });
 
 test("Refresh during a load waits for it, and doesn’t start another", async ({ page, github }) => {
-	let searches = 0;
 	let { promise, resolve } = Promise.withResolvers();
-	github.search = () => {
-		searches++;
-		return promise;
-	};
+	github.search = () => promise;
 	await page.goto("/?repo=foo/bar");
-	await expect.poll(() => searches).toBe(1);
+	await expect.poll(() => github.searches).toBe(1);
 
 	// aria-disabled, so Playwright would wait for it to be enabled. A click still reaches it
 	await page.getByRole("button", { name: "Refresh" }).click({ force: true });
 	resolve();
 	await loaded(page);
 
-	expect(searches).toBe(1);
+	expect(github.searches).toBe(1);
 });
 
 test("A load with another filter marks nothing, as the PRs it finds aren’t new", async ({

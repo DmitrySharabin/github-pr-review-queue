@@ -688,21 +688,15 @@ test.describe("A filter that repeats the view’s qualifiers", () => {
 
 	test("A link to the view with other repos in the filter searches only its own repo", async ({
 		page,
+		github,
 	}) => {
-		let queries = [];
-		page.on("request", request => {
-			if (request.url().endsWith("/graphql")) {
-				queries.push(request.postData());
-			}
-		});
-
 		await page.goto(
 			`/?repo=foo/bar&filter=${encodeURIComponent("repo:foo/baz org:baz user:baz label:bug")}`,
 		);
 		await loaded(page);
 
 		expect(view(page)).toEqual({ user: null, filter: "label:bug" });
-		expect(queries.some(query => query.includes("baz"))).toBe(false);
+		expect(github.queries.some(query => query.includes("baz"))).toBe(false);
 	});
 
 	test("A link to the view with closed PRs or issues in the filter keeps to open PRs, drafts and all", async ({

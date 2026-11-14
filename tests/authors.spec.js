@@ -59,12 +59,6 @@ function pick (page, login) {
 
 test("Picked authors show only their PRs, without a new search", async ({ page, github }) => {
 	authored(github);
-	let searches = 0;
-	let answer = github.search;
-	github.search = found => {
-		searches++;
-		answer(found);
-	};
 	await open(page);
 	await unfold(page);
 
@@ -73,7 +67,7 @@ test("Picked authors show only their PRs, without a new search", async ({ page, 
 	await page.getByRole("button", { name: "Show 2 PRs" }).click();
 
 	await expect(page.locator("#queue tbody tr")).toHaveCount(2);
-	expect(searches).toBe(1);
+	expect(github.searches).toBe(1);
 });
 
 test("A pick of authors doesn’t write the update time again, which a screen reader would read as a refresh", async ({
@@ -219,12 +213,6 @@ test("Enter in the list with no change closes it without a new search", async ({
 	github,
 }) => {
 	authored(github);
-	let searches = 0;
-	let answer = github.search;
-	github.search = found => {
-		searches++;
-		answer(found);
-	};
 	await open(page);
 	await unfold(page);
 
@@ -235,7 +223,7 @@ test("Enter in the list with no change closes it without a new search", async ({
 	await refresh(page);
 	await loaded(page);
 
-	expect(searches).toBe(2);
+	expect(github.searches).toBe(2);
 });
 
 test("Every collaborator picked by name stays those people, not every later collaborator", async ({
@@ -541,18 +529,12 @@ test("The same filter applied again loads the queue again, as only other authors
 	github,
 }) => {
 	authored(github);
-	let searches = 0;
-	let answer = github.search;
-	github.search = found => {
-		searches++;
-		answer(found);
-	};
 	await open(page, "/?repo=foo/bar&filter=label:baz");
 	await unfold(page);
 
 	await filter(page).press("Enter");
 
-	await expect.poll(() => searches).toBe(2);
+	await expect.poll(() => github.searches).toBe(2);
 });
 
 test("Rows that tie in the new sort column keep the order of the last one", async ({

@@ -361,16 +361,11 @@ test.describe("Exclude from counts", () => {
 
 	test("Without a pattern, the details don’t ask for files, which slow them down", async ({
 		page,
+		github,
 	}) => {
-		let queries = [];
-		page.on("request", request => {
-			if (request.url().endsWith("/graphql")) {
-				queries.push(request.postData());
-			}
-		});
 		await open(page);
 
-		expect(queries.some(query => query.includes("files("))).toBe(false);
+		expect(github.queries.some(query => query.includes("files("))).toBe(false);
 	});
 
 	test("A comparison counts the changes since the review apart from the excluded files", async ({
@@ -702,15 +697,9 @@ test.describe("Exclude from counts", () => {
 		expect(unsplit.x + unsplit.width).toBeCloseTo(split.x + split.width, 0);
 	});
 
-	test("The author view asks for no files, as it counts no lines", async ({ page }) => {
-		let queries = [];
-		page.on("request", request => {
-			if (request.url().endsWith("/graphql")) {
-				queries.push(request.postData());
-			}
-		});
+	test("The author view asks for no files, as it counts no lines", async ({ page, github }) => {
 		await open(page, "/?repo=foo/bar&role=author&exclude=test");
 
-		expect(queries.some(query => query.includes("files("))).toBe(false);
+		expect(github.queries.some(query => query.includes("files("))).toBe(false);
 	});
 });
