@@ -118,7 +118,7 @@ export function mark (rows, last) {
 		}
 	}
 
-	let left = [...last.keys()].filter(id => !rows.some(row => row.pr.id === id)).length;
+	let left = new Set(last.keys()).difference(new Set(rows.map(row => row.pr.id))).size;
 	return { added, left };
 }
 

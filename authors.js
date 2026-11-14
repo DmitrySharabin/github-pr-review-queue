@@ -72,22 +72,13 @@ export function showAuthors (rows, authors) {
 	latest = { rows, authors };
 	/** @type {Map<string, Person>} */
 	let found = new Map();
-	for (let { summary } of rows) {
-		let { author, avatar, association } = summary;
-		let key = author.toLowerCase();
-		let person = found.get(key) ?? { author, avatar, association, count: 0 };
-		person.count++;
-		found.set(key, person);
+	for (let { author, avatar, association } of rows.map(row => row.summary)) {
+		found.getOrInsert(author.toLowerCase(), { author, avatar, association, count: 0 }).count++;
 	}
 	// A picked author with no PRs left, e.g. all merged, stays in the list to unpick
-	for (let author of authors) {
-		if (author !== collaborators && !found.has(author.toLowerCase())) {
-			found.set(author.toLowerCase(), {
-				author,
-				avatar: `https://github.com/${author}.png?size=40`,
-				count: 0,
-			});
-		}
+	for (let author of authors.filter(author => author !== collaborators)) {
+		let avatar = `https://github.com/${author}.png?size=40`;
+		found.getOrInsert(author.toLowerCase(), { author, avatar, count: 0 });
 	}
 
 	// No authors match anyone, but pick no one
@@ -125,23 +116,19 @@ export function showAuthors (rows, authors) {
 	let sorted = [...people.values()].sort(
 		(a, b) => b.count - a.count || a.author.localeCompare(b.author),
 	);
-	for (let [group, inside] of [
-		[insiders, true],
-		[others, false],
+	let { true: members = [], false: outsiders = [] } = Object.groupBy(sorted, person =>
+		roles.includes(person.association));
+	for (let [group, list] of [
+		[insiders, members],
+		[others, outsiders],
 	]) {
+		let legend = group.querySelector("legend");
+		// A heading names a difference, so one group alone has none, e.g. a queue of outside contributors only
+		legend.hidden = members.length === 0 || outsiders.length === 0;
 		group.replaceChildren(
-			group.querySelector("legend"),
-			...sorted
-				.filter(person => roles.includes(person.association) === inside)
-				.map(person => option(person, picked.includes(person))),
+			legend,
+			...list.map(person => option(person, picked.includes(person))),
 		);
-	}
-
-	let members = sorted.filter(person => roles.includes(person.association));
-	// A heading names a difference, so one group alone has none, e.g. a queue of outside contributors only
-	for (let group of [insiders, others]) {
-		group.querySelector("legend").hidden =
-			members.length === 0 || members.length === sorted.length;
 	}
 	let prs = members.reduce((sum, person) => sum + person.count, 0);
 	// Shown, not hidden, when the queue has no collaborators, so the filter stays where it was and says why it can’t pick anyone
