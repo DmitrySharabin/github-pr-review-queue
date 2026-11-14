@@ -57,57 +57,307 @@ function pick (page, login) {
 	return page.locator("#authors").getByRole("checkbox", { name: login });
 }
 
-test("Picked authors show only their PRs, without a new search", async ({ page, github }) => {
-	authored(github);
-	await open(page);
-	await unfold(page);
-
-	await page.getByRole("button", { name: "Author" }).click();
-	await pick(page, "qux").check();
-	await page.getByRole("button", { name: "Show 2 PRs" }).click();
-
-	await expect(page.locator("#queue tbody tr")).toHaveCount(2);
-	expect(github.searches).toBe(1);
-});
-
-test("A pick of authors doesn’t write the update time again, which a screen reader would read as a refresh", async ({
-	page,
-	github,
-}) => {
-	authored(github);
-	await open(page);
-	await unfold(page);
-	await page.evaluate(() => {
-		window.writes = 0;
-		new MutationObserver(() => window.writes++).observe(document.querySelector("#updated"), {
-			subtree: true,
-			childList: true,
-			characterData: true,
-		});
+test.describe("The Author list", () => {
+	test.beforeEach(async ({ page, github }) => {
+		authored(github);
+		await open(page);
+		await unfold(page);
 	});
 
-	await pickQux(page);
+	test("Picked authors show only their PRs, without a new search", async ({ page, github }) => {
+		await page.getByRole("button", { name: "Author" }).click();
+		await pick(page, "qux").check();
+		await page.getByRole("button", { name: "Show 2 PRs" }).click();
 
-	expect(await page.evaluate(() => window.writes)).toBe(0);
-});
+		await expect(page.locator("#queue tbody tr")).toHaveCount(2);
+		expect(github.searches).toBe(1);
+	});
 
-test("“All collaborators” keeps the PRs of owners, members and collaborators, and the new ones of each later", async ({
-	page,
-	github,
-}) => {
-	authored(github);
-	await open(page);
-	await unfold(page);
+	test("A pick of authors doesn’t write the update time again, which a screen reader would read as a refresh", async ({
+		page,
+	}) => {
+		await page.evaluate(() => {
+			window.writes = 0;
+			new MutationObserver(() => window.writes++).observe(
+				document.querySelector("#updated"),
+				{
+					subtree: true,
+					childList: true,
+					characterData: true,
+				},
+			);
+		});
 
-	await page.getByRole("button", { name: "Author" }).click();
-	await page.getByRole("checkbox", { name: "All collaborators" }).check();
-	await page.getByRole("button", { name: "Show 3 PRs" }).click();
+		await pickQux(page);
 
-	await expect(page).toHaveURL(/authors=%40collaborators$/);
-	await expect(page.locator("#queue tbody tr")).toHaveCount(3);
-	for (let id of "ABC") {
-		await expect(row(page, id)).toBeVisible();
-	}
+		expect(await page.evaluate(() => window.writes)).toBe(0);
+	});
+
+	test("“All collaborators” keeps the PRs of owners, members and collaborators, and the new ones of each later", async ({
+		page,
+	}) => {
+		await page.getByRole("button", { name: "Author" }).click();
+		await page.getByRole("checkbox", { name: "All collaborators" }).check();
+		await page.getByRole("button", { name: "Show 3 PRs" }).click();
+
+		await expect(page).toHaveURL(/authors=%40collaborators$/);
+		await expect(page.locator("#queue tbody tr")).toHaveCount(3);
+		for (let id of "ABC") {
+			await expect(row(page, id)).toBeVisible();
+		}
+	});
+
+	test("Esc drops the authors checked since the list opened", async ({ page }) => {
+		await page.getByRole("button", { name: "Author" }).click();
+		await pick(page, "qux").check();
+		await page.keyboard.press("Escape");
+		await expect(page.locator("#authors")).toBeHidden();
+		await page.getByRole("button", { name: "Author" }).click();
+
+		await expect(pick(page, "qux")).not.toBeChecked();
+	});
+
+	test("A click outside the list shows the authors checked in it", async ({ page }) => {
+		await page.getByRole("button", { name: "Author" }).click();
+		await pick(page, "quux").check();
+		await page.locator("#updated").click();
+
+		await expect(page.locator("#queue tbody tr")).toHaveCount(1);
+	});
+
+	test("Tab past the list’s last button closes it and shows the authors checked in it, as a click outside does", async ({
+		page,
+		browserName,
+	}) => {
+		test.skip(
+			browserName === "webkit",
+			"WebKit’s Tab skips buttons, as Safari’s does by default",
+		);
+
+		await page.getByRole("button", { name: "Author" }).click();
+		await pick(page, "quux").check();
+		await page.getByRole("button", { name: "Show 1 PR" }).focus();
+		await page.keyboard.press("Tab");
+
+		await expect(page.locator("#authors")).toBeHidden();
+		await expect(page.locator("#queue tbody tr")).toHaveCount(1);
+	});
+
+	test("A click on the Author button closes the open list, as the focus the click moves to it isn’t focus leaving from the keyboard", async ({
+		page,
+	}) => {
+		let button = page.getByRole("button", { name: "Author" });
+		await button.click();
+		await expect(page.locator("#authors")).toBeVisible();
+		await button.click();
+
+		await expect(page.locator("#authors")).toBeHidden();
+	});
+
+	test("Esc that only clears the search field leaves the picks to show on a click outside", async ({
+		page,
+		browserName,
+	}) => {
+		test.skip(browserName === "webkit", "WebKit closes the list on that Esc");
+
+		await openList(page);
+		let field = page.getByRole("searchbox", { name: "Filter authors" });
+		await field.fill("quux");
+		await pick(page, "quux").check();
+		await field.press("Escape");
+		await page.locator("#updated").click();
+
+		await expect(page.locator("#queue tbody tr")).toHaveCount(1);
+	});
+
+	test("Enter in the list with no change closes it without a new search", async ({
+		page,
+		github,
+	}) => {
+		await page.getByRole("button", { name: "Author" }).click();
+		await page.getByRole("searchbox", { name: "Filter authors" }).press("Enter");
+		await expect(page.locator("#authors")).toBeHidden();
+		// A search that Enter started would come before the refresh’s
+		await refresh(page);
+		await loaded(page);
+
+		expect(github.searches).toBe(2);
+	});
+
+	test("Every collaborator picked by name stays those people, not every later collaborator", async ({
+		page,
+	}) => {
+		await page.getByRole("button", { name: "Author" }).click();
+		for (let login of ["foo", "other-user", "third-user"]) {
+			await pick(page, login).check();
+		}
+		await page.getByRole("button", { name: "Show 3 PRs" }).click();
+
+		await expect(page).toHaveURL(/authors=foo%2Cother-user%2Cthird-user$/);
+	});
+
+	test("A list open while a refresh ends lists the refresh’s authors once opened again", async ({
+		page,
+		github,
+	}) => {
+		let { promise, resolve } = Promise.withResolvers();
+		authored(github, { F: ["newcomer", "CONTRIBUTOR"] });
+		let answer = github.search;
+		github.search = async found => {
+			await promise;
+			answer(found);
+		};
+		await refresh(page);
+		await page.getByRole("button", { name: "Author" }).click();
+		resolve();
+		await loaded(page);
+		await page.keyboard.press("Escape");
+		await page.getByRole("button", { name: "Author" }).click();
+
+		await expect(pick(page, "newcomer")).toBeVisible();
+	});
+
+	test("A list of collaborators and others names both groups", async ({ page }) => {
+		await page.getByRole("button", { name: "Author" }).click();
+
+		await expect(page.locator("#authors legend:visible")).toHaveText([
+			"Collaborators",
+			"Other authors",
+		]);
+	});
+
+	test("Typing in the list narrows it to the logins that have what is typed", async ({
+		page,
+	}) => {
+		await openList(page);
+		await page.getByRole("searchbox", { name: "Filter authors" }).fill("qu");
+
+		await expect(page.locator("#authors fieldset label:visible")).toHaveText([/qux/, /quux/]);
+	});
+
+	test("Enter after typing in the list checks the first author that matches, and keeps the list open for more", async ({
+		page,
+	}) => {
+		await openList(page);
+		let field = page.getByRole("searchbox", { name: "Filter authors" });
+		await field.fill("qu");
+		await field.press("Enter");
+
+		await expect(pick(page, "qux")).toBeChecked();
+		await expect(pick(page, "quux")).not.toBeChecked();
+		await expect(page.locator("#authors")).toBeVisible();
+	});
+
+	test("↓ and ↑ move from the list’s search field through the authors it shows and back", async ({
+		page,
+	}) => {
+		await openList(page);
+		let field = page.getByRole("searchbox", { name: "Filter authors" });
+		await field.fill("qu");
+		await page.keyboard.press("ArrowDown");
+		await expect(pick(page, "qux")).toBeFocused();
+		await page.keyboard.press("ArrowDown");
+		await expect(pick(page, "quux")).toBeFocused();
+		await page.keyboard.press("ArrowUp");
+		await page.keyboard.press("ArrowUp");
+
+		await expect(field).toBeFocused();
+	});
+
+	test("Tab goes from the list to its buttons in one press, not through every author", async ({
+		page,
+		browserName,
+	}) => {
+		test.skip(
+			browserName === "webkit",
+			"WebKit’s Tab skips buttons, as Safari’s does by default",
+		);
+
+		await openList(page);
+		await page.keyboard.press("Tab");
+		await expect(page.getByRole("checkbox", { name: "All collaborators" })).toBeFocused();
+		await page.keyboard.press("Tab");
+
+		await expect(page.getByRole("button", { name: "Show 6 PRs" })).toBeFocused();
+	});
+
+	test("With something typed, Tab from the list’s search field goes to the first author shown, not past the list", async ({
+		page,
+	}) => {
+		await openList(page);
+		await page.getByRole("searchbox", { name: "Filter authors" }).fill("qu");
+		await page.keyboard.press("Tab");
+
+		await expect(pick(page, "qux")).toBeFocused();
+	});
+
+	test("Shift+Tab back into the list goes to the author ↓ and ↑ last moved to, not to the first", async ({
+		page,
+		browserName,
+	}) => {
+		test.skip(
+			browserName === "webkit",
+			"WebKit’s Tab skips buttons, as Safari’s does by default",
+		);
+
+		await openList(page);
+		await page.getByRole("searchbox", { name: "Filter authors" }).fill("qu");
+		await page.keyboard.press("ArrowDown");
+		await page.keyboard.press("ArrowDown");
+		await page.keyboard.press("Tab");
+		await page.keyboard.press("Shift+Tab");
+
+		await expect(pick(page, "quux")).toBeFocused();
+	});
+
+	test("Enter in the list’s search field says which author it checked, as the focus stays in the field", async ({
+		page,
+	}) => {
+		await openList(page);
+		let field = page.getByRole("searchbox", { name: "Filter authors" });
+		await field.fill("qu");
+		await field.press("Enter");
+
+		await expect(page.locator("#authors .spoken")).toHaveText("qux checked");
+	});
+
+	test("While something is typed, the author that Enter checks is marked", async ({ page }) => {
+		await openList(page);
+		await page.getByRole("searchbox", { name: "Filter authors" }).fill("qu");
+
+		await expect(page.locator("#authors label", { hasText: "qux" })).toHaveCSS(
+			"outline-style",
+			"solid",
+		);
+	});
+
+	test("Typing in the list marks the typed part of each login, in any case", async ({ page }) => {
+		await openList(page);
+		await page.getByRole("searchbox", { name: "Filter authors" }).fill("QU");
+
+		await expect(page.locator("#authors fieldset label:visible mark")).toHaveText(["qu", "qu"]);
+	});
+
+	test("A step back to other authors after a failed load loads the queue, as none is on screen", async ({
+		page,
+		github,
+	}) => {
+		await page.getByRole("button", { name: "Author" }).click();
+		await pick(page, "qux").check();
+		await page.getByRole("button", { name: "Show 2 PRs" }).click();
+		await expect(page).toHaveURL(/authors=qux/);
+
+		// Nothing stored shows either
+		await page.evaluate(() => localStorage.clear());
+		let answer = github.search;
+		github.search = () => 500;
+		await page.reload();
+		await expect(page.locator("#repo-form .notice")).toBeVisible();
+		github.search = answer;
+		await page.goBack();
+
+		await expect(page.locator("#queue tbody tr")).toHaveCount(6);
+	});
 });
 
 test("Clear pressed from the keyboard leaves the focus in the list’s search field, not on the page", async ({
@@ -125,147 +375,6 @@ test("Clear pressed from the keyboard leaves the focus in the list’s search fi
 	await page.getByRole("button", { name: "Clear authors" }).press("Enter");
 
 	await expect(page.getByRole("searchbox", { name: "Filter authors" })).toBeFocused();
-});
-
-test("Esc drops the authors checked since the list opened", async ({ page, github }) => {
-	authored(github);
-	await open(page);
-	await unfold(page);
-
-	await page.getByRole("button", { name: "Author" }).click();
-	await pick(page, "qux").check();
-	await page.keyboard.press("Escape");
-	await expect(page.locator("#authors")).toBeHidden();
-	await page.getByRole("button", { name: "Author" }).click();
-
-	await expect(pick(page, "qux")).not.toBeChecked();
-});
-
-test("A click outside the list shows the authors checked in it", async ({ page, github }) => {
-	authored(github);
-	await open(page);
-	await unfold(page);
-
-	await page.getByRole("button", { name: "Author" }).click();
-	await pick(page, "quux").check();
-	await page.locator("#updated").click();
-
-	await expect(page.locator("#queue tbody tr")).toHaveCount(1);
-});
-
-test("Tab past the list’s last button closes it and shows the authors checked in it, as a click outside does", async ({
-	page,
-	github,
-	browserName,
-}) => {
-	test.skip(browserName === "webkit", "WebKit’s Tab skips buttons, as Safari’s does by default");
-	authored(github);
-	await open(page);
-	await unfold(page);
-
-	await page.getByRole("button", { name: "Author" }).click();
-	await pick(page, "quux").check();
-	await page.getByRole("button", { name: "Show 1 PR" }).focus();
-	await page.keyboard.press("Tab");
-
-	await expect(page.locator("#authors")).toBeHidden();
-	await expect(page.locator("#queue tbody tr")).toHaveCount(1);
-});
-
-test("A click on the Author button closes the open list, as the focus the click moves to it isn’t focus leaving from the keyboard", async ({
-	page,
-	github,
-}) => {
-	authored(github);
-	await open(page);
-	await unfold(page);
-
-	let button = page.getByRole("button", { name: "Author" });
-	await button.click();
-	await expect(page.locator("#authors")).toBeVisible();
-	await button.click();
-
-	await expect(page.locator("#authors")).toBeHidden();
-});
-
-test("Esc that only clears the search field leaves the picks to show on a click outside", async ({
-	page,
-	github,
-	browserName,
-}) => {
-	test.skip(browserName === "webkit", "WebKit closes the list on that Esc");
-	authored(github);
-	await open(page);
-	await unfold(page);
-
-	await openList(page);
-	let field = page.getByRole("searchbox", { name: "Filter authors" });
-	await field.fill("quux");
-	await pick(page, "quux").check();
-	await field.press("Escape");
-	await page.locator("#updated").click();
-
-	await expect(page.locator("#queue tbody tr")).toHaveCount(1);
-});
-
-test("Enter in the list with no change closes it without a new search", async ({
-	page,
-	github,
-}) => {
-	authored(github);
-	await open(page);
-	await unfold(page);
-
-	await page.getByRole("button", { name: "Author" }).click();
-	await page.getByRole("searchbox", { name: "Filter authors" }).press("Enter");
-	await expect(page.locator("#authors")).toBeHidden();
-	// A search that Enter started would come before the refresh’s
-	await refresh(page);
-	await loaded(page);
-
-	expect(github.searches).toBe(2);
-});
-
-test("Every collaborator picked by name stays those people, not every later collaborator", async ({
-	page,
-	github,
-}) => {
-	authored(github);
-	await open(page);
-	await unfold(page);
-
-	await page.getByRole("button", { name: "Author" }).click();
-	for (let login of ["foo", "other-user", "third-user"]) {
-		await pick(page, login).check();
-	}
-	await page.getByRole("button", { name: "Show 3 PRs" }).click();
-
-	await expect(page).toHaveURL(/authors=foo%2Cother-user%2Cthird-user$/);
-});
-
-test("A list open while a refresh ends lists the refresh’s authors once opened again", async ({
-	page,
-	github,
-}) => {
-	authored(github);
-	await open(page);
-	await unfold(page);
-
-	let { promise, resolve } = Promise.withResolvers();
-	authored(github, { F: ["newcomer", "CONTRIBUTOR"] });
-	let answer = github.search;
-	github.search = async found => {
-		await promise;
-		answer(found);
-	};
-	await refresh(page);
-	await page.getByRole("button", { name: "Author" }).click();
-	resolve();
-	await loaded(page);
-	await page.keyboard.press("Escape");
-	await page.getByRole("button", { name: "Author" }).click();
-
-	await expect(pick(page, "newcomer")).toBeVisible();
 });
 
 test("A list of outside contributors only has no group headings, as there is nothing to tell apart", async ({
@@ -304,19 +413,6 @@ test("A queue without collaborators keeps “All collaborators” in the list, g
 	await expect(page.locator("#authors .all")).toContainText("None in this queue");
 });
 
-test("A list of collaborators and others names both groups", async ({ page, github }) => {
-	authored(github);
-	await open(page);
-	await unfold(page);
-
-	await page.getByRole("button", { name: "Author" }).click();
-
-	await expect(page.locator("#authors legend:visible")).toHaveText([
-		"Collaborators",
-		"Other authors",
-	]);
-});
-
 test("The button keeps its avatars when the list closes unchanged, so they don’t flash while they load again", async ({
 	page,
 	github,
@@ -349,159 +445,6 @@ test("The button names the one picked author", async ({ page, github }) => {
 	await unfold(page);
 
 	await expect(page.getByRole("button", { name: "Author: quux" })).toBeVisible();
-});
-
-test("Typing in the list narrows it to the logins that have what is typed", async ({
-	page,
-	github,
-}) => {
-	authored(github);
-	await open(page);
-	await unfold(page);
-
-	await openList(page);
-	await page.getByRole("searchbox", { name: "Filter authors" }).fill("qu");
-
-	await expect(page.locator("#authors fieldset label:visible")).toHaveText([/qux/, /quux/]);
-});
-
-test("Enter after typing in the list checks the first author that matches, and keeps the list open for more", async ({
-	page,
-	github,
-}) => {
-	authored(github);
-	await open(page);
-	await unfold(page);
-
-	await openList(page);
-	let field = page.getByRole("searchbox", { name: "Filter authors" });
-	await field.fill("qu");
-	await field.press("Enter");
-
-	await expect(pick(page, "qux")).toBeChecked();
-	await expect(pick(page, "quux")).not.toBeChecked();
-	await expect(page.locator("#authors")).toBeVisible();
-});
-
-test("↓ and ↑ move from the list’s search field through the authors it shows and back", async ({
-	page,
-	github,
-}) => {
-	authored(github);
-	await open(page);
-	await unfold(page);
-
-	await openList(page);
-	let field = page.getByRole("searchbox", { name: "Filter authors" });
-	await field.fill("qu");
-	await page.keyboard.press("ArrowDown");
-	await expect(pick(page, "qux")).toBeFocused();
-	await page.keyboard.press("ArrowDown");
-	await expect(pick(page, "quux")).toBeFocused();
-	await page.keyboard.press("ArrowUp");
-	await page.keyboard.press("ArrowUp");
-
-	await expect(field).toBeFocused();
-});
-
-test("Tab goes from the list to its buttons in one press, not through every author", async ({
-	page,
-	github,
-	browserName,
-}) => {
-	test.skip(browserName === "webkit", "WebKit’s Tab skips buttons, as Safari’s does by default");
-	authored(github);
-	await open(page);
-	await unfold(page);
-
-	await openList(page);
-	await page.keyboard.press("Tab");
-	await expect(page.getByRole("checkbox", { name: "All collaborators" })).toBeFocused();
-	await page.keyboard.press("Tab");
-
-	await expect(page.getByRole("button", { name: "Show 6 PRs" })).toBeFocused();
-});
-
-test("With something typed, Tab from the list’s search field goes to the first author shown, not past the list", async ({
-	page,
-	github,
-}) => {
-	authored(github);
-	await open(page);
-	await unfold(page);
-
-	await openList(page);
-	await page.getByRole("searchbox", { name: "Filter authors" }).fill("qu");
-	await page.keyboard.press("Tab");
-
-	await expect(pick(page, "qux")).toBeFocused();
-});
-
-test("Shift+Tab back into the list goes to the author ↓ and ↑ last moved to, not to the first", async ({
-	page,
-	github,
-	browserName,
-}) => {
-	test.skip(browserName === "webkit", "WebKit’s Tab skips buttons, as Safari’s does by default");
-	authored(github);
-	await open(page);
-	await unfold(page);
-
-	await openList(page);
-	await page.getByRole("searchbox", { name: "Filter authors" }).fill("qu");
-	await page.keyboard.press("ArrowDown");
-	await page.keyboard.press("ArrowDown");
-	await page.keyboard.press("Tab");
-	await page.keyboard.press("Shift+Tab");
-
-	await expect(pick(page, "quux")).toBeFocused();
-});
-
-test("Enter in the list’s search field says which author it checked, as the focus stays in the field", async ({
-	page,
-	github,
-}) => {
-	authored(github);
-	await open(page);
-	await unfold(page);
-
-	await openList(page);
-	let field = page.getByRole("searchbox", { name: "Filter authors" });
-	await field.fill("qu");
-	await field.press("Enter");
-
-	await expect(page.locator("#authors .spoken")).toHaveText("qux checked");
-});
-
-test("While something is typed, the author that Enter checks is marked", async ({
-	page,
-	github,
-}) => {
-	authored(github);
-	await open(page);
-	await unfold(page);
-
-	await openList(page);
-	await page.getByRole("searchbox", { name: "Filter authors" }).fill("qu");
-
-	await expect(page.locator("#authors label", { hasText: "qux" })).toHaveCSS(
-		"outline-style",
-		"solid",
-	);
-});
-
-test("Typing in the list marks the typed part of each login, in any case", async ({
-	page,
-	github,
-}) => {
-	authored(github);
-	await open(page);
-	await unfold(page);
-
-	await openList(page);
-	await page.getByRole("searchbox", { name: "Filter authors" }).fill("QU");
-
-	await expect(page.locator("#authors fieldset label:visible mark")).toHaveText(["qu", "qu"]);
 });
 
 test("Picked authors with no PRs left, e.g. all merged, are named in the card, which clears them in one click", async ({
@@ -579,30 +522,6 @@ test("Unchecking the only picked author shows every PR", async ({ page, github }
 	await page.getByRole("button", { name: "Author: qux" }).click();
 	await pick(page, "qux").uncheck();
 	await page.getByRole("button", { name: "Show 6 PRs" }).click();
-
-	await expect(page.locator("#queue tbody tr")).toHaveCount(6);
-});
-
-test("A step back to other authors after a failed load loads the queue, as none is on screen", async ({
-	page,
-	github,
-}) => {
-	authored(github);
-	await open(page);
-	await unfold(page);
-	await page.getByRole("button", { name: "Author" }).click();
-	await pick(page, "qux").check();
-	await page.getByRole("button", { name: "Show 2 PRs" }).click();
-	await expect(page).toHaveURL(/authors=qux/);
-
-	// Nothing stored shows either
-	await page.evaluate(() => localStorage.clear());
-	let answer = github.search;
-	github.search = () => 500;
-	await page.reload();
-	await expect(page.locator("#repo-form .notice")).toBeVisible();
-	github.search = answer;
-	await page.goBack();
 
 	await expect(page.locator("#queue tbody tr")).toHaveCount(6);
 });
