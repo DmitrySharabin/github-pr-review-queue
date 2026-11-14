@@ -275,12 +275,12 @@ h1 {
 }
 
 /* No time to show and nothing loading, e.g. after a failed first load */
-header:has(progress[hidden]) #updated:has(time:empty) {
+#controls:has(~ progress[hidden]) #updated:has(> time:empty) {
 	visibility: hidden;
 }
 
 /* Nothing on screen to refresh, e.g. after a failed first load, where Show queue tries again, or before the sign-in */
-main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #refresh {
+header:has(~ :is(#repo-form, #sign-in):not([hidden])):has(~ #summary[hidden]) #refresh {
 	display: none;
 }
 
@@ -340,7 +340,7 @@ header.failed #updated .now {
 }
 
 /* Fades in as each load ends, so even a refresh in the same minute shows it finished */
-#controls:has(#refresh:not([aria-disabled])) time {
+#updated:has(~ #refresh:not([aria-disabled])) time {
 	animation: appear 200ms var(--ease-out);
 }
 
@@ -359,8 +359,8 @@ caption,
 .spoken,
 #updated .changes,
 #counter:not([hidden]) + #updated,
-main:has(> :is(#repo-form, #sign-in, #summary):not([hidden])) > #status,
-main:has(> :is(#repo-form, #sign-in):not([hidden])):has(> #summary[hidden]) #updated {
+#status:has(~ :is(#repo-form, #sign-in, #summary):not([hidden])),
+header:has(~ :is(#repo-form, #sign-in):not([hidden])):has(~ #summary[hidden]) #updated {
 	position: absolute;
 	/* At the start of the page, not where the text would be, e.g. in a column of a table scrolled past the window’s edge.
 	   The table’s frame doesn’t clip it, so there it would widen the page, and Safari would zoom out to fit */
@@ -574,7 +574,7 @@ progress {
 
 /* The page that asks for a repo, the sign-in, and why the queue didn’t load each show one card in the middle.
    The card sits lower than the summary that replaces it */
-main:has(> #summary[hidden]) > :is(#repo-form, #sign-in) {
+:is(#repo-form, #sign-in):has(~ #summary[hidden]) {
 	margin: clamp(var(--block-gap), 12vh, 7rem) auto var(--block-gap);
 }
 
@@ -1114,7 +1114,7 @@ main:has(> #summary[hidden]) > :is(#repo-form, #sign-in) {
 		}
 
 		/* Alone, e.g. without Display when the search finds no PRs, it takes the whole row */
-		&:has(#display-button[hidden]) #author-button {
+		#author-button:has(~ #display-button[hidden]) {
 			grid-column: 1 / -1;
 		}
 
@@ -1945,7 +1945,7 @@ tbody td {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-	/* A focused checkbox finds its login through `~`, not `label:has()`, which made each load restyle the page through the `main:has()` rules */
+	/* A focused checkbox finds its login through `~`, not `label:has()`, which made each load restyle the page */
 	:is(
 		.pull-request .author:is(:hover, :focus-visible),
 		#authors :is(label:hover, :focus-visible ~ .who) .login
