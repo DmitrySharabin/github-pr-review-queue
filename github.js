@@ -49,6 +49,25 @@ export function signedIn (signal) {
 }
 
 /**
+ * A request through Madata, which wraps a failed fetch in its connection error, but not an answer that fails as it arrives.
+ * The browser throws a TypeError when the connection drops then, e.g. as the laptop sleeps, so this wraps it the same way.
+ * @param {Parameters<typeof github.request>} args
+ */
+async function request (...args) {
+	try {
+		return await github.request(...args);
+	}
+	catch (error) {
+		if (error instanceof TypeError) {
+			let phrase = GithubAPI.phrase("something_went_wrong_while_connecting", GithubAPI.name);
+			throw new Error(phrase, { cause: error });
+		}
+
+		throw error;
+	}
+}
+
+/**
  * GitHub’s answer to a GraphQL query, through Madata’s request() rather than its load().
  * For a PR deleted since the search, GitHub answers null and an error, and Madata’s load() throws the whole answer away for it, the other PRs included.
  * @param {string} text
@@ -56,7 +75,7 @@ export function signedIn (signal) {
  * @returns {Promise<object>} The answer’s `data`
  */
 export async function graphql (text, signal) {
-	let { data, errors = [] } = await github.request(
+	let { data, errors = [] } = await request(
 		"https://api.github.com/graphql",
 		{ query: text },
 		"POST",
@@ -78,7 +97,7 @@ export async function graphql (text, signal) {
  * @param {AbortSignal} signal - The load’s
  */
 export function rest (path, signal) {
-	return github.request(`https://api.github.com/${path}`, {}, "GET", { signal: inTime(signal) });
+	return request(`https://api.github.com/${path}`, {}, "GET", { signal: inTime(signal) });
 }
 
 /**
@@ -142,7 +161,7 @@ export function describe (error, advice = "Try again.") {
 	// A defect in the page’s own code isn’t GitHub’s answer, e.g. a method that an older browser lacks. The console keeps its stack
 	if ([TypeError, ReferenceError, RangeError].some(type => error instanceof type)) {
 		console.error(error);
-		return "This page ran into a problem. Update your browser, then reload the page.";
+		return "Something went wrong on this page. Reload the page, or update your browser.";
 	}
 
 	// Madata drops the failed fetch’s error, so only its own message tells a network failure apart, e.g. a request inTime() stopped before GitHub answered

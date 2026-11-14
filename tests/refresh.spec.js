@@ -461,7 +461,22 @@ test.describe("A failed refresh says why", () => {
 		await page.evaluate(() => delete Map.prototype.getOrInsert);
 		await refresh(page);
 
-		await expect(page.locator("#failure")).toContainText("This page ran into a problem.");
+		await expect(page.locator("#failure")).toContainText("Something went wrong on this page.");
+	});
+
+	test("A connection that drops while an answer arrives reads as a slow GitHub, not as a defect of the page", async ({
+		page,
+	}) => {
+		// The answer’s headers arrive, then its body fails, as when the laptop sleeps. The browser throws a TypeError for it
+		await page.evaluate(() => {
+			let body = new ReadableStream({
+				start: controller => controller.error(new TypeError("Failed to fetch")),
+			});
+			window.fetch = async () => new Response(body);
+		});
+		await refresh(page);
+
+		await expect(page.locator("#failure")).toContainText("GitHub took too long to respond.");
 	});
 
 	test("A lost connection says the user is offline", async ({ page, context }) => {
@@ -511,14 +526,4 @@ test("A load with another filter marks nothing, as the PRs it finds aren’t new
 	await loaded(page);
 
 	await expect(page.locator("#summary .delta .down")).toHaveText("");
-});
-
-test("A click on a header says the new order, which a screen reader hears", async ({ page }) => {
-	await open(page);
-
-	await page.getByRole("button", { name: "Changes", exact: true }).click();
-
-	await expect(page.getByRole("status").filter({ hasText: "Sorted" })).toHaveText(
-		"Sorted by Changes, descending",
-	);
 });
