@@ -36,7 +36,7 @@
  * @property {string} [association] - How the author relates to the repo, as GitHub’s `authorAssociation`, e.g. `MEMBER`
  * @property {Label[]} labels
  * @property {number} [opened] - When the PR was opened, in epoch ms, in the author’s view, where it says that instead of by whom
- * @property {boolean} [draft] - Whether the PR is a draft, in the author’s view, where an icon says so in place of the avatar
+ * @property {boolean} [draft] - Whether the PR is a draft, which its icon shows
  * @property {Step} [step] - What the PR waits for, in the author’s view
  * @property {Diff} [diff] - The whole PR
  * @property {Diff} [diffSinceReview] - What the user has left to review, or the whole PR when that is unknown
@@ -334,10 +334,10 @@ export function summarize (pr, user, role, ignore) {
 		avatar: pr.author?.avatarUrl ?? "https://github.com/ghost.png",
 		association: pr.authorAssociation,
 		labels: pr.labels.nodes,
+		draft: pr.isDraft,
 	};
 	if (role === "author") {
 		summary.opened = Date.parse(pr.createdAt);
-		summary.draft = pr.isDraft;
 	}
 
 	if (!pr.commits) {

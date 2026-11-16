@@ -1987,20 +1987,24 @@ tbody td {
 	}
 }
 
-/* GitHub’s icon of an open PR, or a draft’s, in place of the author’s avatar, as GitHub’s list of pull requests has it */
-.kind {
-	display: none;
-}
-
+/* An author’s view has the icon in place of the avatar: title and byline hang to its right */
 #queue.author .pull-request {
-	grid-template-columns: 1em 1fr;
-	column-gap: 0.6em;
+	grid-template-columns: 1fr;
+	padding-inline-start: 1.6em;
 
 	.kind {
-		display: block;
-		grid-row: span 2;
-		/* Centered on the title’s first line */
-		margin-block-start: calc((1lh - 1em) / 2);
+		margin-inline-start: -1.6em;
+		margin-inline-end: 0.6em;
+	}
+}
+
+/* GitHub’s icon of an open PR, or a draft’s, as GitHub’s list of pull requests has it */
+.pull-request {
+	.kind {
+		display: inline-block;
+		/* Centered on the title’s capitals, as the labels are */
+		vertical-align: calc((1cap - 1em) / 2);
+		margin-inline-end: 0.4em;
 		inline-size: 1em;
 		aspect-ratio: 1;
 		background-color: var(--positive);
@@ -2016,19 +2020,12 @@ tbody td {
 
 /* Forced colors paint backgrounds as the page, which would hide an icon drawn as a mask */
 @media (forced-colors: active) {
-	#queue.author .pull-request .kind,
+	.pull-request .kind,
 	#filters .applied::before,
 	#narrow .box::before {
 		forced-color-adjust: none;
 		background-color: CanvasText;
 	}
-}
-
-/* Where the icon will be */
-#queue.author .skeleton .kind {
-	background: color-mix(in oklch, var(--text) 8%, var(--surface));
-	mask: none;
-	border-radius: 50%;
 }
 
 /* Start on the title’s last line, or all move to the next when they don’t fit there */
