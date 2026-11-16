@@ -1,6 +1,7 @@
 import {
 	test,
 	expect,
+	assign,
 	filter,
 	filterBy,
 	label,
@@ -609,4 +610,118 @@ test("A step back to other authors while their view loads after a failed load se
 	await loaded(page);
 
 	expect(searches).toBe(1);
+});
+
+test("“All collaborators” keeps the PRs of authors GitHub lets be assigned, as their role misses some with write access", async ({
+	page,
+	github,
+}) => {
+	authored(github);
+	assign(github, ["qux"]);
+	await open(page, "/?repo=foo/bar&authors=%40collaborators");
+
+	await expect(page.locator("#queue tbody tr")).toHaveCount(5);
+	for (let id of "DE") {
+		await expect(row(page, id)).toBeVisible();
+	}
+});
+
+test("A revisit counts the authors GitHub let be assigned last time until it answers again, so their PRs don’t pop in", async ({
+	page,
+	github,
+}) => {
+	authored(github);
+	assign(github, ["qux"]);
+	await open(page, "/?repo=foo/bar&authors=%40collaborators");
+
+	let asked = Promise.withResolvers();
+	let { promise, resolve } = Promise.withResolvers();
+	github.assignable = () => {
+		asked.resolve();
+		return promise;
+	};
+	await page.reload();
+	// Asked once the search’s rows show
+	await asked.promise;
+
+	await expect(page.locator("#queue tbody tr")).toHaveCount(5);
+	resolve();
+	await loaded(page);
+});
+
+test("Another pattern keeps the authors GitHub let be assigned in the repo until it answers again", async ({
+	page,
+	github,
+}) => {
+	authored(github);
+	assign(github, ["qux"]);
+	await open(page, "/?repo=foo/bar&authors=%40collaborators");
+
+	let asked = Promise.withResolvers();
+	let { promise, resolve } = Promise.withResolvers();
+	github.assignable = () => {
+		asked.resolve();
+		return promise;
+	};
+	await page.evaluate(
+		() => navigation.navigate("?repo=foo/bar&authors=%40collaborators&exclude=test").finished,
+	);
+	await asked.promise;
+
+	await expect(page.locator("#queue tbody tr")).toHaveCount(5);
+	resolve();
+	await loaded(page);
+});
+
+test("The Author list puts authors GitHub lets be assigned among the collaborators", async ({
+	page,
+	github,
+}) => {
+	authored(github);
+	assign(github, ["qux"]);
+	await open(page);
+	await unfold(page);
+
+	await page.getByRole("button", { name: "Author" }).click();
+
+	await expect(
+		page.locator("#authors .collaborators").getByRole("checkbox", { name: "qux" }),
+	).toBeVisible();
+});
+
+test("The count of the repo’s collaborators’ PRs includes those of authors GitHub lets be assigned", async ({
+	page,
+	github,
+}) => {
+	authored(github);
+	assign(github, ["qux"]);
+	await open(page, "/?repo=foo/bar&authors=%40collaborators");
+
+	await expect(page.locator("#summary .count")).toHaveText("5 of 6");
+});
+
+test("A failed question of who can be assigned keeps the last answer, and the refresh doesn’t fail", async ({
+	page,
+	github,
+}) => {
+	authored(github);
+	assign(github, ["qux"]);
+	await open(page, "/?repo=foo/bar&authors=%40collaborators");
+
+	github.assignable = () => 500;
+	await refresh(page);
+	await loaded(page);
+
+	await expect(page.locator("#queue tbody tr")).toHaveCount(5);
+	await expect(page.getByText("Couldn’t refresh")).toBeHidden();
+});
+
+test("The author view doesn’t ask GitHub who can be assigned, as it lists no authors", async ({
+	page,
+	github,
+}) => {
+	authored(github);
+	await open(page, "/?repo=foo/bar&role=author");
+
+	expect(github.queries.some(query => query.includes("suggestedActors"))).toBe(false);
 });

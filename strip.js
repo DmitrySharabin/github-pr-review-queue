@@ -95,8 +95,9 @@ export function showSummary (view, user) {
  * @param {Queue} queue
  * @param {string[]} authors - Whose PRs show, see {@link matches}
  */
-export function showCounts ({ view, rows }, authors) {
-	let shown = rows.filter(row => matches(row.summary, authors));
+export function showCounts (queue, authors) {
+	let { view, rows } = queue;
+	let shown = rows.filter(row => matches(row.summary, authors, queue));
 	// Of all the search found, e.g. “3 of 12” for the picked authors
 	strip.querySelector(".count").textContent =
 		authors.length > 0 ? `${shown.length} of ${rows.length}` : rows.length;

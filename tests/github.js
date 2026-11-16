@@ -10,6 +10,7 @@ export { expect };
  * `user` gets GitHub’s answer to whose token it is, e.g. `github.user = () => 401` for a token GitHub rejects.
  * `compare` gets the comparison of two commits, with no changed files until it adds some, and its range, e.g. `L...N`.
  * `files` gets a page of a PR’s files, with none until it adds some, and the PR’s number and the page’s, e.g. `65, 1`.
+ * `assignable` gets the answer to which authors GitHub lets be assigned, with none until it adds some, see {@link assign}.
  * `queries` and `searches` say what the page asked, e.g. `expect(github.searches).toBe(1)` for a view that loaded once.
  */
 export const test = base.extend({
@@ -31,6 +32,7 @@ export const test = base.extend({
 				details () {},
 				compare () {},
 				files () {},
+				assignable () {},
 			};
 
 			// Madata signs in with a stored token without asking GitHub for one
@@ -76,6 +78,20 @@ export const test = base.extend({
 				github.queries.push(route.request().postData());
 				let { query } = route.request().postDataJSON();
 				let isSearch = query.includes("search(");
+				if (query.includes("suggestedActors(")) {
+					// One field per 10 logins, as the page asks
+					let fields = query.matchAll(/(\w+): suggestedActors/g);
+					let answer = {
+						data: {
+							repository: Object.fromEntries(
+								fields.map(([, alias]) => [alias, { nodes: [] }]),
+							),
+						},
+					};
+					let status = await github.assignable(answer);
+					return route.fulfill(failed(status) ?? { json: answer });
+				}
+
 				let answer = isSearch
 					? {
 							data: {
@@ -121,6 +137,14 @@ export const test = base.extend({
 /** A commit of a PR’s details, e.g. a merge with 2 parents. */
 export function commit (id, parents = 1) {
 	return { commit: { id, oid: id, parents: { totalCount: parents } } };
+}
+
+/** Let GitHub assign these authors in the repo, e.g. `["qux"]`. */
+export function assign (github, logins) {
+	github.assignable = answer => {
+		let [first] = Object.values(answer.data.repository);
+		first.nodes = logins.map(login => ({ login }));
+	};
 }
 
 /** Give PRs their details from `fields`, e.g. `{ A: { additions: 1 } }`. */

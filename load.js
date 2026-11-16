@@ -5,6 +5,7 @@
  */
 import {
 	addedLabel,
+	assignability,
 	hasLabel,
 	incomplete,
 	isLogin,
@@ -64,6 +65,7 @@ export async function load () {
 
 	// Another view shows at once what it can, e.g. the rows with a label just added, or what it showed on the last visit
 	if (!refreshing) {
+		// NOTE: A stored queue brings its own answer of who GitHub lets be assigned, which may be older than the one on screen
 		let next = narrowed(view) ?? restore(view, queue?.rows);
 		if (next) {
 			showQueue(next);
@@ -103,9 +105,12 @@ export async function load () {
 		}
 
 		let stale = await find(view, user, signal);
-		let failed = await fillDetails(stale, queue, signal);
+		let [failed, assignable] = await Promise.all([
+			fillDetails(stale, queue, signal),
+			findAssignable(queue, signal),
+		]);
 		signal.throwIfAborted();
-		finish(failed);
+		finish(failed, assignable);
 	}
 	catch (error) {
 		// The newer load shows its own outcome
@@ -157,6 +162,8 @@ async function find (view, user, signal) {
 	let { role } = view;
 	// Rows of another queue, e.g. before a role switch, stay on screen until the search replaces them, but don’t update
 	let kept = countsAs(view) ? queue.rows : [];
+	// Who GitHub let be assigned in the repo stays until it answers again, e.g. under another pattern
+	let assignable = sameQueue(view) ? queue.assignable : undefined;
 
 	let { repository, search: found } = await graphql(query({ ...view, user }), signal);
 	signal.throwIfAborted();
@@ -187,19 +194,48 @@ async function find (view, user, signal) {
 	});
 	// What the last finished load showed, and when, holds only for its own view, e.g. not after a role switch
 	let { at, seen } = onScreen(view) ? queue : {};
-	showQueue({ view, user, rows, at, seen });
+	showQueue({ view, user, rows, at, seen, assignable });
 	return stale;
+}
+
+/**
+ * Ask GitHub which authors of the queue it lets be assigned, so they count among the collaborators.
+ * Each load asks again, e.g. after someone lost access. Until it answers, the queue keeps the last answer, stored with it.
+ * @param {Queue} queue - The load’s
+ * @param {AbortSignal} signal - The load’s
+ * @returns {Promise<string[] | undefined>} Their logins, or nothing when GitHub didn’t answer
+ */
+async function findAssignable ({ view: { repo, role }, rows }, signal) {
+	// An author’s view lists no authors, and an empty queue has none to ask about
+	if (role === "author" || rows.length === 0) {
+		return;
+	}
+
+	try {
+		let logins = [...new Set(rows.map(row => row.summary.author))];
+		let { repository } = await graphql(assignability(repo, logins), signal);
+		signal.throwIfAborted();
+
+		// Shown by finish(). Shown sooner, the rows would take their places before finish() slides them there
+		return Object.values(repository).flatMap(({ nodes }) => nodes.map(({ login }) => login));
+	}
+	catch (error) {
+		signal.throwIfAborted();
+		// The last answer, if any, and the roles still tell most collaborators apart
+		console.warn("Couldn’t ask GitHub who can be assigned.", error);
+	}
 }
 
 /**
  * Show the queue on screen as the load leaves it, with what changed since the last one, and store it.
  * A queue with failed details shows the failure beside Refresh instead, and isn’t stored
  * @param {PromiseRejectedResult} [failed] - The first failure of {@link fillDetails}, if any
+ * @param {string[]} [assignable] - What {@link findAssignable} found, if GitHub answered
  */
-function finish (failed) {
+function finish (failed, assignable = queue.assignable) {
 	let { rows, seen: last } = queue;
 	// The user has seen what the search found, even when details failed
-	showQueue({ ...queue, at: Date.now(), seen: summaries(rows) }, { animate: true });
+	showQueue({ ...queue, at: Date.now(), seen: summaries(rows), assignable }, { animate: true });
 
 	// Rows whose details didn’t arrive, e.g. failed or of a deleted PR, show what they had, undimmed.
 	// The next load asks for them again. The loop goes over `rows`, not the table, since rows of authors not picked are off the page

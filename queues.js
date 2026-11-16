@@ -8,6 +8,7 @@
  * @property {string} user - Whose queue it is
  * @property {number} at - When the load finished, in epoch ms
  * @property {{ pr: object, summary: Summary }[]} rows
+ * @property {string[]} [assignable] - See {@link Queue}
  */
 import { viewKey, viewOf } from "./view.js";
 import { fill, summaries } from "./row.js";
@@ -60,6 +61,7 @@ export function restore (view, rows = []) {
 			rows: restored,
 			at: stored.at,
 			seen: summaries(restored),
+			assignable: stored.assignable,
 		};
 	}
 	catch (error) {
@@ -104,9 +106,14 @@ export function forget (test = () => true) {
  * Store what a view shows, so the next visit shows it at once while it loads again.
  * @param {Stored & { view: View }} queue - Its rows may hold more, e.g. their `<tr>`, which isn’t stored
  */
-export function store ({ view, user, at, rows }) {
+export function store ({ view, user, at, rows, assignable }) {
 	let key = queueKey(view);
-	let text = JSON.stringify({ user, at, rows: rows.map(({ pr, summary }) => ({ pr, summary })) });
+	let text = JSON.stringify({
+		user,
+		at,
+		rows: rows.map(({ pr, summary }) => ({ pr, summary })),
+		assignable,
+	});
 	let others;
 
 	// A full storage drops the queues stored longest ago, e.g. of a label looked at once, until this one fits

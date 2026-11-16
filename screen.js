@@ -33,6 +33,7 @@ let displayForm = document.querySelector("#display");
  * @property {Row[]} rows
  * @property {number} [at] - When its rows last finished loading, in epoch ms
  * @property {Map<string, Summary>} [seen] - What they showed then, by PR id, for the next load to mark what changed
+ * @property {string[]} [assignable] - Its authors GitHub lets be assigned in the repo, which counts them among the collaborators. Unknown until GitHub answers
  */
 /** @type {Queue | undefined} None while nothing or bars are on screen. Only {@link showQueue} sets it, and {@link showSkeleton} and {@link hideQueue} clear it */
 export let queue;
@@ -58,7 +59,7 @@ export function pickAuthors (names) {
 
 /** Whether the table shows a row, that is, whether its PR is by one of the picked authors. */
 function shows (row) {
-	return matches(row.summary, authors);
+	return matches(row.summary, authors, queue);
 }
 
 /**
@@ -84,7 +85,7 @@ export function showQueue (next = queue, { animate } = {}) {
 	table.parentElement.hidden = shownRows.length === 0;
 	empty.hidden = shownRows.length > 0;
 	repoForm.hidden = true;
-	let author = showAuthors(rows, authors);
+	let author = showAuthors(queue, authors);
 	relink(rows);
 	authorButton.disabled = false;
 	// Open, a menu stays by its button, e.g. while a refresh that empties the queue ends
@@ -135,7 +136,7 @@ export function showSkeleton (view, user = view.user) {
 	authorButton.hidden = role === "author";
 	// No authors to list until the search ends, but the button names the picked ones, not those of the view before.
 	// NOTE: `@collaborators,foo` reads “foo” until the rows say who the collaborators are
-	let author = showAuthors([], authors);
+	let author = showAuthors({ rows: [] }, authors);
 	authorButton.disabled = true;
 	filters.hidden = false;
 	displayButton.hidden = role === "author";

@@ -1,6 +1,7 @@
 /**
  * @import { Summary } from "./pull-request.js"
  * @import { Row } from "./row.js"
+ * @import { Queue } from "./screen.js"
  *
  * @typedef {object} Person - An author of PRs in the queue, named as in a {@link Summary}
  * @property {string} author - The login
@@ -42,7 +43,7 @@ let people = new Map();
 /** How many PRs the queue has, which show when no one is picked */
 let total = 0;
 /** What the list shows once it closes, e.g. the rows of a refresh that ended while it was open */
-let latest = { rows: [], authors: [] };
+let latest = { queue: { rows: [] }, authors: [] };
 /** Whether “All collaborators” was picked, so later collaborators show too, rather than each of today’s */
 let everyone = false;
 
@@ -50,26 +51,37 @@ let everyone = false;
  * Whether a PR is by one of the authors, e.g. `["@collaborators", "foo"]` for the repo’s collaborators and foo. No authors means anyone.
  * @param {Pick<Summary, "author" | "association">} summary - Or a {@link Person}
  * @param {string[]} authors
+ * @param {Pick<Queue, "assignable">} queue - The PR’s, which says who else counts among the collaborators
  */
-export function matches (summary, authors) {
+export function matches (summary, authors, queue) {
 	return (
 		authors.length === 0 ||
 		authors.some(author =>
 			author === collaborators
-				? roles.includes(summary.association)
+				? isCollaborator(summary, queue)
 				: isLogin(author, summary.author))
 	);
 }
 
 /**
+ * Whether an author is one of the repo’s people, by their role or by GitHub letting them be assigned, which the role misses for some.
+ * @param {Pick<Summary, "author" | "association">} summary - Or a {@link Person}
+ * @param {Pick<Queue, "assignable">} queue - Unknown until GitHub answers, so the role alone tells
+ */
+function isCollaborator ({ author, association }, { assignable = [] }) {
+	return roles.includes(association) || assignable.some(login => isLogin(login, author));
+}
+
+/**
  * List the authors of the rows to pick from, the repo’s collaborators first, and check the picked ones.
  * The button says who is picked, e.g. “2 authors” after their faces.
- * @param {Row[]} rows
+ * @param {Pick<Queue, "rows" | "assignable">} queue - Or none yet, e.g. `{ rows: [] }` while bars stand in for it
  * @param {string[]} authors - The picked ones, see {@link matches}
  * @returns {Picked | undefined} What the button says of the pick, or nothing when no one is picked
  */
-export function showAuthors (rows, authors) {
-	latest = { rows, authors };
+export function showAuthors (queue, authors) {
+	latest = { queue, authors };
+	let { rows } = queue;
 	/** @type {Map<string, Person>} */
 	let found = new Map();
 	for (let {
@@ -85,7 +97,9 @@ export function showAuthors (rows, authors) {
 
 	// With no one picked, matches() lets every author through, but the button shows no faces
 	let picked =
-		authors.length > 0 ? [...found.values()].filter(person => matches(person, authors)) : [];
+		authors.length > 0
+			? [...found.values()].filter(person => matches(person, authors, queue))
+			: [];
 	// The key agrees with the name, e.g. “Authors Collaborators”. “2 authors” names itself
 	let [key, name] =
 		authors.length === 0
@@ -119,7 +133,7 @@ export function showAuthors (rows, authors) {
 		(a, b) => b.count - a.count || a.author.localeCompare(b.author),
 	);
 	let { true: members = [], false: outsiders = [] } = Object.groupBy(sorted, person =>
-		roles.includes(person.association));
+		isCollaborator(person, queue));
 	for (let [group, list] of [
 		[insiders, members],
 		[others, outsiders],
@@ -315,5 +329,5 @@ applyOnClose(form, {
 		said.textContent = "";
 		narrow();
 	},
-	discard: () => showAuthors(latest.rows, latest.authors),
+	discard: () => showAuthors(latest.queue, latest.authors),
 });

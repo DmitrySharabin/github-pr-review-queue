@@ -281,6 +281,30 @@ export function details ({ user, role, exclude, ids }) {
 }
 
 /**
+ * GraphQL query for which of these authors GitHub lets be assigned in a repo.
+ * Their role misses some who can push to it, e.g. `CONTRIBUTOR` for one with write access.
+ * @param {string} repo
+ * @param {string[]} logins
+ * @returns {string}
+ */
+export function assignability (repo, logins) {
+	let [owner, name] = repo.split("/");
+	// GitHub matches at most 10 logins per field, ignoring case
+	let fields = Array.from(
+		{ length: Math.ceil(logins.length / 10) },
+		(_, i) =>
+			`a${i}: suggestedActors(loginNames: ${JSON.stringify(logins.slice(i * 10, (i + 1) * 10).join(","))}, capabilities: [CAN_BE_ASSIGNED], first: 10) {
+			nodes { ... on Actor { login } }
+		}`,
+	);
+	return `query {
+	repository(owner: ${JSON.stringify(owner)}, name: ${JSON.stringify(name)}) {
+		${fields.join("\n\t\t")}
+	}
+}`;
+}
+
+/**
  * GraphQL query for the sizes of commits, e.g. of a {@link Diff}’s `commits`.
  * A query of its own, not a part of {@link details}, since the sizes are the slowest field, e.g. 1–2 s for the last 100 commits of a PR.
  * A PR needs few of them.
