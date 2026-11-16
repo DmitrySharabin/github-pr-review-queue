@@ -13,8 +13,11 @@ import { normalize } from "./pull-request.js";
 /** The URL parameters of a view, see {@link viewOf} */
 export const viewNames = ["repo", "user", "role", "filter", "exclude"];
 
-/** The URL parameters the page reads, those of a view and the picked `authors` */
-export const paramNames = [...viewNames, "authors"];
+/** The URL parameters that only hide rows of a view */
+export const pickNames = ["authors", "drafts"];
+
+/** The URL parameters the page reads */
+export const paramNames = [...viewNames, ...pickNames];
 
 /**
  * The view of these URL parameters, e.g. of a key from {@link viewKey}. A missing one means its default, e.g. no `user` is the signed-in user.
@@ -39,15 +42,15 @@ export function viewKey (view) {
  * @param {URLSearchParams | FormData} params
  */
 export function normalizeParams (params) {
-	let { user, filter, authors } = normalize(
+	let { user, filter, authors, drafts } = normalize(
 		Object.fromEntries(paramNames.map(name => [name, params.get(name)])),
 	);
-	assign(params, { user, filter, authors });
+	assign(params, { user, filter, authors, drafts });
 }
 
 /**
  * The page’s URL with these parameters changed, and rewritten as {@link normalizeParams} does, e.g. `href({ role: "author" })`. An empty value removes one.
- * @param {Partial<Record<keyof View | "authors", string | null>>} changes
+ * @param {Partial<Record<keyof View | "authors" | "drafts", string | null>>} changes
  */
 export function href (changes) {
 	let params = new URLSearchParams(location.search);

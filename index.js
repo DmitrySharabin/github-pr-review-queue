@@ -4,9 +4,9 @@ import { unmark } from "./row.js";
 import { offerRecent } from "./recent.js";
 import { showDisplay } from "./display.js";
 import { passFocus } from "./menu.js";
-import { href, normalizeParams, paramNames, viewKey, viewOf } from "./view.js";
+import { href, normalizeParams, paramNames, pickNames, viewKey, viewOf } from "./view.js";
 import { showNotice } from "./status.js";
-import { onScreen, pickAuthors, showQueue } from "./screen.js";
+import { onScreen, pick, showQueue } from "./screen.js";
 import { load, loading } from "./load.js";
 
 let table = document.querySelector("#queue");
@@ -22,7 +22,15 @@ let strip = document.querySelector("#summary");
 let filterForm = document.querySelector("#narrow");
 let authorForm = document.querySelector("#authors");
 let displayForm = document.querySelector("#display");
-let forms = [repoForm, filterForm, authorForm, displayForm, ...strip.querySelectorAll("form")];
+let draftsForm = document.querySelector("#drafts");
+let forms = [
+	repoForm,
+	filterForm,
+	authorForm,
+	displayForm,
+	draftsForm,
+	...strip.querySelectorAll("form"),
+];
 
 // Opening a link in a marked row, e.g. its PR, is seeing what changed in it. A middle click opens a link too. A right click opens a menu instead
 for (let type of ["click", "auxclick"]) {
@@ -144,14 +152,14 @@ window.navigation?.addEventListener("navigate", event => {
 	}
 
 	// The same view submitted again, e.g. Enter with the same terms, loads it again
-	let onlyAuthors =
+	let onlyPicks =
 		viewKey(viewOf(next)) === viewKey(viewOf(current)) &&
-		next.get("authors") !== current.get("authors");
+		pickNames.some(name => next.get(name) !== current.get(name));
 	// The handler runs once the URL has changed. Focus and scroll stay where they were, e.g. in the filter field
 	event.intercept({
 		focusReset: "manual",
 		scroll: "manual",
-		handler: () => showView({ onlyAuthors }),
+		handler: () => showView({ onlyPicks }),
 	});
 });
 
@@ -159,13 +167,16 @@ showView();
 
 /**
  * Show what the URL asks for, e.g. `?repo=foo/bar&filter=label:baz`.
- * @param {{ onlyAuthors?: boolean }} [options] - Whether the URL changed only its `authors`, e.g. after a pick in the list
+ * @param {{ onlyPicks?: boolean }} [options] - Whether the URL changed only what hides rows, e.g. its `authors` after a pick in the list
  */
-function showView ({ onlyAuthors } = {}) {
+function showView ({ onlyPicks } = {}) {
 	let params = new URLSearchParams(location.search);
 	let view = viewOf(params);
 	let { role, filter, exclude } = view;
-	pickAuthors(role === "author" ? [] : (params.get("authors")?.split(",").filter(Boolean) ?? []));
+	pick({
+		authors: role === "author" ? [] : (params.get("authors")?.split(",").filter(Boolean) ?? []),
+		drafts: params.get("drafts"),
+	});
 
 	// As defaults, so a reset, e.g. Esc in a form of the strip, goes back to what the URL says
 	for (let form of forms) {
@@ -191,12 +202,12 @@ function showView ({ onlyAuthors } = {}) {
 	showDisplay(exclude);
 
 	if (view.repo) {
-		// Other authors of the view on screen need no load. Their rows are on screen already
-		if (onlyAuthors && onScreen(view)) {
+		// Other picks of the view on screen need no load, e.g. other authors. Their rows are on screen already
+		if (onlyPicks && onScreen(view)) {
 			return showQueue();
 		}
-		// The load of this view in flight shows the picked authors once its search ends
-		if (onlyAuthors && loading) {
+		// The load of this view in flight shows the picks once its search ends
+		if (onlyPicks && loading) {
 			return;
 		}
 		return load();

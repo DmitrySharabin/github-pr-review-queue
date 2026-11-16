@@ -4,15 +4,17 @@
  * @import { Row } from "./row.js"
  */
 import { isYou } from "./github.js";
-import { isLogin } from "./pull-request.js";
+import { hidesDrafts, isLogin } from "./pull-request.js";
 import { relink } from "./row.js";
 import { chooseSort, showSort, sort } from "./sort.js";
 import { collaborators, matches, showAuthors } from "./authors.js";
-import { dismissMenus } from "./menu.js";
+import { dismissMenus, passFocus } from "./menu.js";
 import { href, viewKey } from "./view.js";
 import { showDelta, showUpdated } from "./status.js";
 import { clearCounts, showCounts, showSummary } from "./strip.js";
 import { showApplied } from "./filters.js";
+import { showDrafts } from "./drafts.js";
+import { plural } from "./plural.js";
 
 let table = document.querySelector("#queue");
 let status = document.querySelector("#status");
@@ -25,6 +27,8 @@ let authorButton = document.querySelector("#author-button");
 let authorForm = document.querySelector("#authors");
 let displayButton = document.querySelector("#display-button");
 let displayForm = document.querySelector("#display");
+let draftsForm = document.querySelector("#drafts");
+let draftsButton = document.querySelector("#drafts-button");
 
 /**
  * @typedef {object} Queue - What the table shows
@@ -39,6 +43,8 @@ let displayForm = document.querySelector("#display");
 export let queue;
 /** Whose PRs show, e.g. `["@collaborators", "foo"]`, see {@link matches}. An author’s PRs are all theirs */
 let authors = [];
+/** The URL’s `drafts`, see {@link hidesDrafts} */
+let drafts = null;
 
 // Sorts without a view transition, whose snapshot delays the new order by up to 300 ms on 100 rows. When every row moves, the eye follows none of them.
 // Bars wait for the search, which sorts what it finds
@@ -49,17 +55,30 @@ table.addEventListener("command", event => {
 	}
 });
 
+// The card goes once its link shows the rows, so the focus moves to the control that undoes the link, rather than drop to the page
+empty.querySelector(".clear").addEventListener("click", event => {
+	passFocus(
+		event.currentTarget,
+		empty.classList.contains("drafts") ? draftsButton : authorButton,
+	);
+});
+
 /**
- * Pick whose PRs the table shows, e.g. `["@collaborators", "foo"]`, or none for everyone’s. {@link showQueue} shows the pick.
- * @param {string[]} names
+ * Pick which PRs the table shows, as the URL does. {@link showQueue} shows the pick.
+ * @param {{ authors: string[], drafts: string | null }} picks - Whose, e.g. `["@collaborators", "foo"]`, or none for everyone’s, and whether drafts, e.g. `show`
  */
-export function pickAuthors (names) {
-	authors = names;
+export function pick (picks) {
+	({ authors, drafts } = picks);
 }
 
-/** Whether the table shows a row, that is, whether its PR is by one of the picked authors. */
+/** Whether the view hides a row as a draft. */
+function hidden ({ summary }) {
+	return summary.draft && hidesDrafts({ ...queue.view, drafts });
+}
+
+/** Whether the table shows a row, that is, whether its PR isn’t a hidden draft and is by one of the picked authors. */
 function shows (row) {
-	return matches(row.summary, authors, queue);
+	return !hidden(row) && matches(row.summary, authors, queue);
 }
 
 /**
@@ -75,17 +94,23 @@ export function showQueue (next = queue, { animate } = {}) {
 		rows,
 		at,
 	} = queue;
+	let ready = rows.filter(row => !hidden(row));
 	let shownRows = rows.filter(shows);
+	// Those a press would show, so not those of authors not picked
+	let hiddenDrafts = rows.filter(
+		row => hidden(row) && matches(row.summary, authors, queue),
+	).length;
 	showRole(role);
 	sort(rows, { animate, shows });
 	showUpdated(at);
 	showSummary(queue.view, user);
-	showCounts(queue, authors);
+	showCounts(queue, shownRows, authors.length > 0 || hiddenDrafts > 0);
 
 	table.parentElement.hidden = shownRows.length === 0;
 	empty.hidden = shownRows.length > 0;
 	repoForm.hidden = true;
-	let author = showAuthors(queue, authors);
+	// The list counts the PRs it can show, so a hidden draft isn’t among them
+	let author = showAuthors({ ...queue, rows: ready }, authors, rows.filter(hidden));
 	relink(rows);
 	authorButton.disabled = false;
 	// Open, a menu stays by its button, e.g. while a refresh that empties the queue ends
@@ -102,13 +127,33 @@ export function showQueue (next = queue, { animate } = {}) {
 	// An author’s view counts no lines
 	displayButton.hidden =
 		role === "author" || (rows.length === 0 && !displayForm.matches(":popover-open"));
+	showDraftsToggle(queue.view, hiddenDrafts);
+	// Nothing to hide when the search found nothing
+	if (rows.length === 0) {
+		draftsForm.hidden = true;
+	}
 	// The status names the progress bar, so it says “Loading” until there is nothing left to load
 	if (shownRows.length === 0) {
 		showEmpty();
 	}
 	status.hidden = shownRows.length > 0;
 	// A value shows only while its control does, e.g. no Exclude in the author view
-	showApplied({ filter, author, exclude: displayButton.hidden ? null : queue.view.exclude });
+	showApplied({
+		filter,
+		author,
+		exclude: displayButton.hidden ? null : queue.view.exclude,
+		drafts: hiddenDrafts,
+	});
+}
+
+/**
+ * Show the drafts toggle as the view sets it, or hide it while the filter asks for drafts, e.g. `is:draft`, which shows them anyway.
+ * @param {View} view
+ * @param {number} [count] - How many drafts hide, unknown while bars stand in for the rows
+ */
+function showDraftsToggle (view, count) {
+	draftsForm.hidden = !hidesDrafts({ ...view, drafts: "hide" });
+	showDrafts(hidesDrafts({ ...view, drafts }), count);
 }
 
 /**
@@ -140,6 +185,7 @@ export function showSkeleton (view, user = view.user) {
 	authorButton.disabled = true;
 	filters.hidden = false;
 	displayButton.hidden = role === "author";
+	showDraftsToggle(view);
 	showApplied({
 		filter: view.filter,
 		author,
@@ -184,13 +230,32 @@ function showEmpty () {
 	let text = author
 		? `${you ? "You have" : `${user} has`} no open pull requests in ${repo}.`
 		: `No pull requests in ${repo} are waiting for ${whose} review.`;
+	let names = new Intl.ListFormat("en", { type: "disjunction" }).format(
+		authors.map(name => (name === collaborators ? "the repo’s collaborators" : name)),
+	);
+	// Of the picked authors, or of anyone. With none shown, all of them are hidden drafts
+	let theirs = rows.filter(row => matches(row.summary, authors, queue)).length;
 	// The search found PRs, but none by the picked authors, e.g. after theirs were merged. The card names them, and Clear shows the others’
-	let picked = authors.length > 0 && rows.length > 0;
-	if (picked) {
-		let names = authors.map(name =>
-			name === collaborators ? "the repo’s collaborators" : name);
+	let picked = authors.length > 0 && rows.length > 0 && theirs === 0;
+	if (theirs > 0) {
+		let one = theirs === 1;
+		let prs = `${one ? "The only" : `All ${theirs}`} ${plural("pull request", theirs)}`;
+		if (author) {
+			text = `${prs} ${you ? "you have" : `${user} has`} open in ${repo}`;
+		}
+		else {
+			let by = authors.length > 0 ? ` by ${names}` : "";
+			text = `${prs}${by} waiting for ${whose} review in ${repo}`;
+		}
+		if (filter) {
+			text += ` that match “${filter}”`;
+		}
+		text += one ? " is a draft." : " are drafts.";
+		title = "Nothing ready for review";
+	}
+	else if (picked) {
 		title = "No matching pull requests";
-		text = `None of the pull requests waiting for ${whose} review in ${repo} are by ${new Intl.ListFormat("en", { type: "disjunction" }).format(names)}.`;
+		text = `None of the pull requests waiting for ${whose} review in ${repo} are by ${names}.`;
 	}
 	else if (filter) {
 		title = "No matching pull requests";
@@ -201,13 +266,17 @@ function showEmpty () {
 	}
 
 	empty.classList.toggle("author", author);
-	empty.classList.toggle("filtered", Boolean(filter) || picked);
+	empty.classList.toggle("filtered", Boolean(filter) || picked || theirs > 0);
+	empty.classList.toggle("drafts", theirs > 0);
 	empty.querySelector("h2").textContent = title;
 	empty.querySelector("p").textContent = text;
 	empty.querySelector(".github").href = `https://github.com/${repo}/pulls`;
 	let clear = empty.querySelector(".clear");
-	clear.href = href({ authors: null });
-	clear.hidden = !picked;
+	[clear.href, clear.textContent] =
+		theirs > 0
+			? [href({ drafts: "show" }), "Show drafts"]
+			: [href({ authors: null }), "Clear authors"];
+	clear.hidden = !picked && theirs === 0;
 	// The same text written again makes a screen reader say it again, e.g. when the load that found nothing ends
 	if (status.textContent !== text) {
 		status.textContent = text;

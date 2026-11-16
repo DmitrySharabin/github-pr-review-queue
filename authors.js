@@ -7,7 +7,8 @@
  * @property {string} author - The login
  * @property {string} avatar
  * @property {string} [association] - GitHub’s `authorAssociation`, unknown for a picked author with no PRs left
- * @property {number} count - How many PRs in the queue are theirs
+ * @property {number} count - How many PRs in the queue are theirs, and show
+ * @property {number} drafts - How many of theirs hide as drafts
  *
  * @typedef {object} Picked - What the Author button says of the picked authors, e.g. `{ key: "Author", name: "foo" }`
  * @property {string} key - What the name is, e.g. “Authors” before “Collaborators”, or none before “2 authors”, which names itself
@@ -77,22 +78,31 @@ function isCollaborator ({ author, association }, { assignable = [] }) {
  * The button says who is picked, e.g. “2 authors” after their faces.
  * @param {Pick<Queue, "rows" | "assignable">} queue - Or none yet, e.g. `{ rows: [] }` while bars stand in for it
  * @param {string[]} authors - The picked ones, see {@link matches}
+ * @param {Row[]} [drafts] - Rows the queue hides as drafts, apart from its `rows`, which the list counts
  * @returns {Picked | undefined} What the button says of the pick, or nothing when no one is picked
  */
-export function showAuthors (queue, authors) {
-	latest = { queue, authors };
-	let { rows } = queue;
+export function showAuthors (queue, authors, drafts = []) {
+	latest = { queue, authors, drafts };
 	/** @type {Map<string, Person>} */
 	let found = new Map();
-	for (let {
-		summary: { author, avatar, association },
-	} of rows) {
-		found.getOrInsert(author.toLowerCase(), { author, avatar, association, count: 0 }).count++;
+	let person = ({ author, avatar, association }) =>
+		found.getOrInsert(author.toLowerCase(), {
+			author,
+			avatar,
+			association,
+			count: 0,
+			drafts: 0,
+		});
+	for (let { summary } of queue.rows) {
+		person(summary).count++;
+	}
+	// An author whose PRs all hide as drafts stays listed, so a reviewer learns why none show
+	for (let { summary } of drafts) {
+		person(summary).drafts++;
 	}
 	// A picked author with no PRs left, e.g. all merged, stays in the list to unpick
 	for (let author of authors.filter(author => author !== collaborators)) {
-		let avatar = `https://github.com/${author}.png?size=40`;
-		found.getOrInsert(author.toLowerCase(), { author, avatar, count: 0 });
+		person({ author, avatar: `https://github.com/${author}.png?size=40` });
 	}
 
 	// With no one picked, matches() lets every author through, but the button shows no faces
@@ -126,7 +136,7 @@ export function showAuthors (queue, authors) {
 		return shown;
 	}
 	people = found;
-	total = rows.length;
+	total = queue.rows.length;
 	everyone = authors.includes(collaborators);
 
 	let sorted = [...people.values()].sort(
@@ -174,7 +184,16 @@ function option (person, checked) {
 	box.defaultChecked = checked;
 	label.querySelector("img").src = person.avatar;
 	label.querySelector(".login span").textContent = person.author;
-	label.querySelector(".prs").textContent = person.count;
+	let prs = label.querySelector(".prs");
+	// The draft icon in place of a 0, which means none left, as a number would break the column of counts
+	if (person.count === 0 && person.drafts > 0) {
+		prs.classList.add("drafts");
+		prs.role = "img";
+		prs.ariaLabel = `${person.drafts} hidden ${plural("draft", person.drafts)}`;
+	}
+	else {
+		prs.textContent = person.count;
+	}
 	return label;
 }
 
@@ -329,5 +348,5 @@ applyOnClose(form, {
 		said.textContent = "";
 		narrow();
 	},
-	discard: () => showAuthors(latest.queue, latest.authors),
+	discard: () => showAuthors(latest.queue, latest.authors, latest.drafts),
 });

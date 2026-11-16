@@ -167,6 +167,13 @@
 					</footer>
 				</form>
 
+				<!-- Hides drafts on screen, as the Author list hides other authors’ PRs. The button submits the state it switches to -->
+				<form id="drafts" hidden>
+					<button id="drafts-button" name="drafts" aria-pressed="false"><span class="text">Hide drafts</span><span class="badge" aria-hidden="true" hidden></span></button>
+					<!-- Says what a press did, since the rows it shows or hides are away from the focus -->
+					<p class="spoken" role="status"></p>
+				</form>
+
 				<!-- How the rows show, rather than which -->
 				<button id="display-button" type="button" popovertarget="display" hidden><span class="text">Display</span><span class="badge" hidden>1</span></button>
 				<form id="display" popover aria-label="Display">
@@ -231,7 +238,7 @@
 				<p></p>
 			</hgroup>
 			<a class="github" target="_blank">See all open pull requests on GitHub</a>
-			<a class="clear" hidden>Clear authors</a>
+			<a class="clear" hidden></a>
 		</section>
 
 		<template id="row">

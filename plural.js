@@ -4,6 +4,7 @@ const rules = new Intl.PluralRules("en");
 const plurals = {
 	author: "authors",
 	conversation: "conversations",
+	draft: "drafts",
 	label: "labels",
 	person: "people",
 	PR: "PRs",

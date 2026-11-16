@@ -246,7 +246,8 @@ function finish (failed, assignable = queue.assignable) {
 	}
 
 	if (last) {
-		// NOTE: Counts the PRs of authors not picked too, e.g. “+1” for a new PR that doesn’t show
+		// NOTE: Counts the PRs of authors not picked and hidden drafts too, e.g. “+1” for a new PR that doesn’t show.
+		// A draft turned ready for review, which shows only then, is marked changed, not new
 		showDelta(mark(rows, last));
 	}
 

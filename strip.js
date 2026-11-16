@@ -1,11 +1,11 @@
 /**
  * @import { View } from "./view.js"
  * @import { Queue } from "./screen.js"
+ * @import { Row } from "./row.js"
  */
 import { search } from "./pull-request.js";
 import { isYou } from "./github.js";
 import { showTime } from "./time.js";
-import { matches } from "./authors.js";
 
 let strip = document.querySelector("#summary");
 
@@ -93,14 +93,14 @@ export function showSummary (view, user) {
 /**
  * Fill in how many PRs the strip counts, and since when or whose turn.
  * @param {Queue} queue
- * @param {string[]} authors - Whose PRs show, see {@link matches}
+ * @param {Row[]} shown - The rows the table shows
+ * @param {boolean} narrowed - Whether a pick hides rows, e.g. of other authors or of drafts, so the count says of how many
  */
-export function showCounts (queue, authors) {
-	let { view, rows } = queue;
-	let shown = rows.filter(row => matches(row.summary, authors, queue));
+export function showCounts ({ view, rows }, shown, narrowed) {
 	// Of all the search found, e.g. “3 of 12” for the picked authors
-	strip.querySelector(".count").textContent =
-		authors.length > 0 ? `${shown.length} of ${rows.length}` : rows.length;
+	strip.querySelector(".count").textContent = narrowed
+		? `${shown.length} of ${rows.length}`
+		: rows.length;
 
 	// Unknown until every row has its details, e.g. while they load
 	if (view.role === "author") {

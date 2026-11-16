@@ -663,7 +663,7 @@ test("A queue stored before PRs had steps shows while it loads, then counts the 
 			reviewers: [],
 		};
 		localStorage.setItem(
-			"review-queue:queue:3:repo=foo%2Fbar&role=author",
+			"review-queue:queue:4:repo=foo%2Fbar&role=author",
 			JSON.stringify({
 				user: "DmitrySharabin",
 				at: Date.now(),

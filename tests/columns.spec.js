@@ -700,7 +700,7 @@ test("A draft has GitHub’s draft icon before its title, so a reviewer can skip
 	github.search = answer => {
 		answer.data.search.nodes[0].isDraft = true;
 	};
-	await open(page);
+	await open(page, "/?repo=foo/bar&drafts=show");
 
 	await expect(row(page, "A").getByRole("img", { name: "Draft" })).toBeVisible();
 	await expect(row(page, "B").getByRole("img", { name: "Draft" })).toHaveCount(0);

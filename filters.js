@@ -1,4 +1,6 @@
 /** @import { Picked } from "./authors.js" */
+import { plural } from "./plural.js";
+
 let filters = document.querySelector("#filters");
 let applied = filters.querySelector(".applied");
 let controls = filters.querySelector(".controls");
@@ -23,14 +25,15 @@ applied.addEventListener("click", event => {
 fold.addEventListener("click", () => setFolded(!folded));
 
 /**
- * Say on the folded line what the controls apply, e.g. “Filter label:foo Author bar Exclude test”, or just “Filter”.
- * @param {{ filter?: string | null, author?: Picked, exclude?: string | null }} values - Only those whose control shows, e.g. no `exclude` in the author view
+ * Say on the folded line what the controls apply, e.g. “Filter label:foo Author bar 2 drafts hidden Exclude test”, or just “Filter”.
+ * @param {{ filter?: string | null, author?: Picked, drafts?: number, exclude?: string | null }} values - Only those whose control shows, e.g. no `exclude` in the author view. `drafts` counts the hidden ones, each a PR someone asked about
  */
-export function showApplied ({ filter, author, exclude }) {
+export function showApplied ({ filter, author, drafts, exclude }) {
 	let values = [
 		filter && value("filter", "Filter", code(filter)),
 		author &&
 			value("author-button", author.key, author.faces.cloneNode(true), name(author.name)),
+		drafts && value("drafts-button", "", `${drafts} ${plural("draft", drafts)} hidden`),
 		exclude && value("display-button", "Exclude", code(exclude)),
 	].filter(Boolean);
 

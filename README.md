@@ -11,6 +11,7 @@ It runs in the browser, with no build step and no server of its own.
 - **Review history**: how many times you were asked to review again, when the last request came, and what the other reviewers did.
 - **Labels and filters**: click a label to show only its PRs, or filter the queue with any GitHub search terms.
 - **Authors**: pick whose PRs to show, by name or all the repo’s collaborators at once.
+- **Drafts**: hidden from a reviewer, who can’t review them yet, and shown to their author. One press switches.
 - **Exclude from counts**, under Display: leave out files such as tests or lockfiles. Each size then shows the code left to read, with the total under it.
 - **Sorting**: sort by any column except the pull request and the reviewers. The page remembers the sort for each view.
 - **Changes since the last refresh**: new PRs and changed values stay marked. A counter shows how many PRs came and went.
@@ -67,6 +68,7 @@ http://localhost:8123/?repo=foo/bar&role=author
 | `filter` | No | More [GitHub search terms](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests), e.g. `label:foo -label:bar` or words from the title. As on GitHub’s pulls page, `author:` in the author view and `review-requested:` in the reviewer view choose the user. If there are several, the last one wins. In the reviewer view, `author:` picks the authors instead, as the Author button does. The search ignores `repo:`, `org:`, `user:`, `is:closed` and `is:issue`. |
 | `exclude` | No | A regular expression for the paths of files to exclude from counts, e.g. `test\|\.lock$`. Their lines count only in the total. A size that adds up the commits since the review, or the size of a PR of over 3000 files, shows only the total. Not in the author view. |
 | `authors` | No | Whose PRs to show, as logins separated by commas, e.g. `foo,bar`. `@collaborators` stands for the repo’s owners, organization members and collaborators, including later ones, and anyone else GitHub lets be assigned in the repo. The page hides the other rows, so no search runs. `author:` terms in the filter replace them. In the author view, the last one becomes `user`. |
+| `drafts` | No | `show` or `hide`. The reviewer view hides drafts and the author view shows them, unless this says otherwise. A filter that asks for drafts, e.g. `is:draft`, shows them anyway. The page hides the rows, so no search runs. |
 
 You can change the repo, the user and the view above the table too.
 

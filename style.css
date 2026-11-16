@@ -25,6 +25,8 @@
 	--chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 4l4 4-4 4'/%3E%3C/svg%3E");
 	/* A circled “!”, next to a failure, so color isn’t the only sign of it */
 	--alert: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round'%3E%3Ccircle cx='8' cy='8' r='6.25'/%3E%3Cpath d='M8 4.75v3.75M8 11.25v0'/%3E%3C/svg%3E");
+	/* GitHub’s icon of a draft PR */
+	--draft: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.25 1A2.25 2.25 0 0 1 4 5.372v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.251 2.251 0 0 1 3.25 1Zm9.5 14a2.25 2.25 0 1 1 0-4.5 2.25 2.25 0 0 1 0 4.5ZM2.5 3.25a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0ZM3.25 12a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm9.5 0a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5ZM14 7.5a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Zm0-4.25a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Z'/%3E%3C/svg%3E");
 	/* A white tick, on the green of an approval or of an empty queue */
 	--check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
 }
@@ -1089,8 +1091,9 @@ progress {
 		min-inline-size: 0;
 	}
 
-	/* A phone’s field gets a row of its own, beside the fold button. The menus share the next one, half each, as wide as the row */
-	@container (width < 36rem) {
+	/* A phone’s field gets a row of its own, beside the fold button. The menus share the next one, half each, as wide as the row.
+	   Wider than elsewhere, as the field and three buttons don’t fit one line below it */
+	@container (width < 40rem) {
 		--height: var(--control-size);
 
 		grid-template-columns: 1fr 1fr;
@@ -1120,6 +1123,12 @@ progress {
 
 		#display-button {
 			grid-area: 2 / 2;
+		}
+
+		/* A row of its own, so three buttons don’t squeeze a phone’s line. The first free one, e.g. the menus’ in the author view, which has none */
+		#drafts {
+			grid-column: 1 / -1;
+			display: grid;
 		}
 	}
 }
@@ -1244,7 +1253,8 @@ progress {
 	--glass: 1.2cap;
 	--glass-inset: 0.7rem;
 
-	flex: 1 1 20rem;
+	/* Shrinks before the buttons beside it, whose labels would cut off, down to the longest word of its note */
+	flex: 1 1000 20rem;
 
 	/* ✕ and Octicons’ magnifier share the field’s cell, as the chevron of a field with recent values does.
 	   The magnifier at 1.2cap, picked side by side with 1cap and 1.35cap, weighs as much as the text */
@@ -1316,7 +1326,7 @@ progress {
 }
 
 /* Menus at the end of the filter, as tall as its field. A transparent border, which forced colors draw as their edge */
-:is(#author-button, #display-button) {
+:is(#author-button, #drafts button, #display-button) {
 	display: flex;
 	gap: 0.4em;
 	align-items: center;
@@ -1329,7 +1339,7 @@ progress {
 	color: var(--text);
 
 	/* Filled while set, so the row says which control hides rows. Filled on hover only where a tap leaves no hover on, which would read as set */
-	&.set {
+	&:is(.set, [aria-pressed="true"]) {
 		--fill: var(--rule);
 		background: var(--fill);
 	}
@@ -1365,7 +1375,7 @@ progress {
 	}
 
 	/* A phone’s half of a row, with the text in the middle */
-	@container (width < 36rem) {
+	@container (width < 40rem) {
 		justify-content: center;
 		max-inline-size: none;
 	}
@@ -1374,12 +1384,12 @@ progress {
 /* A long login shrinks it, rather than push Display onto a line of its own */
 #author-button {
 	min-inline-size: 0;
+}
 
-	/* While bars stand in for the rows, there are no authors to list */
-	&:disabled {
-		color: var(--muted);
-		cursor: progress;
-	}
+/* While bars stand in for the rows, there are no authors to list, and a press of the toggle would wait for them */
+:is(#author-button, #drafts button):disabled {
+	color: var(--muted);
+	cursor: progress;
 }
 
 /* The fill under faces that overlap rings each of them, e.g. the set button’s or the filters’ */
@@ -1400,8 +1410,44 @@ progress {
 	}
 }
 
-/* How many settings differ from their defaults, as a pill */
-#display-button .badge {
+/* A toggle, which opens no list */
+/* A toggle, which opens no list */
+#drafts button {
+	white-space: nowrap;
+
+	&::before {
+		content: "";
+		flex: none;
+		inline-size: 1em;
+		aspect-ratio: 1;
+		background-color: var(--muted);
+		forced-color-adjust: preserve-parent-color;
+		mask: var(--draft) no-repeat center / contain;
+	}
+
+	&::after {
+		display: none;
+	}
+
+	/* Lighter than the pressed fill, so a press under the pointer shows at once */
+	@media (hover: hover) {
+		&:not([aria-pressed="true"]):enabled:hover {
+			background: color-mix(in oklch, var(--rule) 50%, transparent);
+		}
+	}
+
+	/* Forced colors paint the fill as the page, and the fill is the only sign it is pressed */
+	@media (forced-colors: active) {
+		&[aria-pressed="true"] {
+			forced-color-adjust: none;
+			background: SelectedItem;
+			color: SelectedItemText;
+		}
+	}
+}
+
+/* How many settings differ from their defaults, or how many drafts hide, as a pill */
+:is(#display-button, #drafts button) .badge {
 	min-inline-size: 1lh;
 	/* Trimmed to the digit’s cap height, then padded back to a line, so the digit sits in the middle of the pill */
 	padding: calc((1lh - 1cap) / 2) 0.4em;
@@ -1594,6 +1640,15 @@ progress {
 	.prs {
 		color: var(--muted);
 		font-variant-numeric: tabular-nums;
+	}
+
+	/* An author whose PRs all hide as drafts */
+	.drafts {
+		inline-size: 1em;
+		aspect-ratio: 1;
+		background-color: currentColor;
+		forced-color-adjust: preserve-parent-color;
+		mask: var(--draft) no-repeat center / contain;
 	}
 
 	.none {
@@ -2014,7 +2069,7 @@ tbody td {
 
 	.draft {
 		background-color: var(--muted);
-		mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.25 1A2.25 2.25 0 0 1 4 5.372v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.251 2.251 0 0 1 3.25 1Zm9.5 14a2.25 2.25 0 1 1 0-4.5 2.25 2.25 0 0 1 0 4.5ZM2.5 3.25a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0ZM3.25 12a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm9.5 0a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5ZM14 7.5a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Zm0-4.25a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Z'/%3E%3C/svg%3E");
+		mask-image: var(--draft);
 	}
 }
 
@@ -2448,7 +2503,11 @@ time.rounded {
 	}
 }
 
-#empty.filtered .tile {
+#empty.drafts .tile {
+	--icon: var(--draft);
+}
+
+#empty.filtered:not(.drafts) .tile {
 	--icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M10.25 2a8.25 8.25 0 0 1 6.34 13.53l5.69 5.69a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215l-5.69-5.69A8.25 8.25 0 1 1 10.25 2ZM3.5 10.25a6.75 6.75 0 1 0 13.5 0 6.75 6.75 0 0 0-13.5 0Z'/%3E%3C/svg%3E");
 }
 

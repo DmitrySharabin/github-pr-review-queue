@@ -69,16 +69,30 @@ function roleQualifier (role) {
 }
 
 /**
+ * Whether a view hides its drafts, e.g. a reviewer’s, who can’t review them yet. An author sees their own.
+ * `drafts` overrides that, and a filter that asks for drafts, e.g. `is:draft`, shows them anyway.
+ * @param {Pick<View, "role" | "filter"> & { drafts?: string | null }} view - `drafts` is `show` or `hide`, or none for the role’s default
+ */
+export function hidesDrafts ({ role, filter, drafts }) {
+	let asked = [
+		["is", "draft"],
+		["draft", "true"],
+	].some(([name, value]) => qualifier(filter, name, value).values.length > 0);
+	return !asked && (drafts === "hide" || (drafts !== "show" && role !== "author"));
+}
+
+/**
  * The user and filter of a view as GitHub’s pulls page shows them, e.g. `{ user: "b", filter: null }` for `{ user: "a", role: "author", filter: "author:b" }`.
  * The search joins the repeats of a qualifier with an OR, e.g. the PRs of both authors.
  * GitHub’s page keeps the last one instead. On a repo’s page, it ignores other repos.
  * In the reviewer view, `author:` picks the authors as the Author button does, e.g. `authors: "a,b"` for `author:a author:b`, in place of the picks before.
- * In the author view, the last picked author is the user
- * @param {Pick<View, "user" | "role" | "filter"> & { authors?: string | null }} view
- * @returns {Pick<View, "user" | "filter"> & { authors?: string | null }}
+ * In the author view, the last picked author is the user.
+ * `drafts` that changes nothing goes, e.g. `show` after a switch to the author view, which shows them anyway
+ * @param {Pick<View, "user" | "role" | "filter"> & { authors?: string | null, drafts?: string | null }} view
+ * @returns {Pick<View, "user" | "filter"> & { authors?: string | null, drafts?: string | null }}
  */
 // NOTE: A value that isn’t a login, e.g. `author:app/foo`, becomes the user all the same
-export function normalize ({ user, role, filter, authors }) {
+export function normalize ({ user, role, filter, authors, drafts }) {
 	let { values, rest } = qualifier(filter, roleQualifier(role));
 	if (values.length > 0) {
 		// `@me` is the signed-in user, as is no `user`
@@ -114,7 +128,12 @@ export function normalize ({ user, role, filter, authors }) {
 		rest = qualifier(rest, name, value).rest;
 	}
 
-	return { user, filter: rest || null, authors };
+	filter = rest || null;
+	if (hidesDrafts({ role, filter, drafts }) === hidesDrafts({ role, filter })) {
+		drafts = null;
+	}
+
+	return { user, filter, authors, drafts };
 }
 
 /**
@@ -211,7 +230,7 @@ export function query ({ repo, user, role, filter }) {
 
 	// The search finds nothing for a repo or a user that does not exist. `repository` and `user` fail with an error instead.
 	// `repository` also tells what the signed-in user may do in it, see turn()
-	// NOTE: Gets only the first 100 PRs and their first 100 labels
+	// NOTE: Gets only the first 100 PRs and their first 100 labels. Drafts the page hides take some of the 100
 	return `query {
 	repository(owner: ${JSON.stringify(owner)}, name: ${JSON.stringify(name)}) { viewerPermission }
 	user(login: ${JSON.stringify(user)}) { id }
