@@ -62,6 +62,7 @@ test("The author view shows the author’s own drafts", async ({ page, github })
 	await unfold(page);
 
 	await expect(row(page, "A")).toBeVisible();
+	await expect(toggle(page)).toBeVisible();
 	await expect(toggle(page)).toHaveAttribute("aria-pressed", "false");
 });
 
@@ -73,7 +74,6 @@ for (let term of ["-is:draft", "draft:false", "-draft:true"]) {
 		draft(github);
 		await open(page, `/?repo=foo/bar&filter=${term}`);
 
-		await expect(row(page, "A")).toBeHidden();
 		await expect.poll(() => new URL(page.url()).search).toBe("?repo=foo%2Fbar");
 	});
 }
@@ -311,7 +311,7 @@ test("A load says nothing about drafts, as no press asked", async ({ page, githu
 	await expect(page.locator("#drafts [role=status]")).toHaveText("");
 });
 
-test("Two presses, to show and to hide, leave the toggle saying how many drafts hide", async ({
+test("The toggle names how many drafts hide only while they hide, and a press that hides them says the number", async ({
 	page,
 	github,
 }) => {
@@ -320,10 +320,10 @@ test("Two presses, to show and to hide, leave the toggle saying how many drafts 
 	await unfold(page);
 
 	await toggle(page).click();
-	await expect(row(page, "A")).toBeVisible();
+	await expect(toggle(page)).toHaveAccessibleName("Hide drafts");
 	await toggle(page).click();
 
-	await expect(row(page, "A")).toBeHidden();
+	await expect(toggle(page)).toHaveAccessibleName("Hide drafts, 1 hidden");
 	await expect(page.locator("#drafts [role=status]")).toHaveText("1 draft hidden");
 });
 

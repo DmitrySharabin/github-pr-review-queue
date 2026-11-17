@@ -467,6 +467,18 @@ test("The card of picked authors with no PRs names the filter too, as the PRs it
 	);
 });
 
+test("Clear authors from the keyboard leaves the focus on the Author button, not on the page, as its card goes", async ({
+	page,
+}) => {
+	await open(page, "/?repo=foo/bar&authors=nobody");
+	// From the keyboard, as Firefox takes no focus moved by script for :focus-visible
+	await page.getByRole("button", { name: "Show filters" }).press("Enter");
+
+	await page.getByRole("link", { name: "Clear authors" }).press("Enter");
+
+	await expect(page.getByRole("button", { name: "Author" })).toBeFocused();
+});
+
 test("Picked authors with no PRs left, e.g. all merged, are named in the card, which clears them in one click", async ({
 	page,
 }) => {
@@ -760,49 +772,47 @@ test("The author view doesn’t ask GitHub who can be assigned, as it lists no a
 	expect(github.queries.some(query => query.includes("suggestedActors"))).toBe(false);
 });
 
-test("With the repo’s collaborators picked on a narrow window, the menus move under the filter field, so neither it nor the button’s name is cut", async ({
-	page,
-	github,
-}) => {
-	authored(github);
-	assign(github, ["qux"]);
-	await page.setViewportSize({ width: 700, height: 900 });
-	await open(page, "/?repo=foo/bar&authors=%40collaborators&exclude=test");
-	await unfold(page);
-	await expect(page.locator("#author-button .text")).toHaveText("Collaborators");
+test.describe("On a narrow window, with the repo’s collaborators picked", () => {
+	test.beforeEach(async ({ page, github }) => {
+		authored(github);
+		assign(github, ["qux"]);
+		await page.setViewportSize({ width: 700, height: 900 });
+		// With a pattern, Display shows its count too, so the buttons are as wide as they get
+		await open(page, "/?repo=foo/bar&authors=%40collaborators&exclude=test");
+		await unfold(page);
+	});
 
-	let [field, menus, controls, text] = await Promise.all(
-		["#narrow", ".menus", ".controls", "#author-button .text"].map(selector =>
-			page.locator(selector).evaluate(element => {
-				let { top, bottom, width } = element.getBoundingClientRect();
-				return { top, bottom, width, cut: element.scrollWidth > element.clientWidth };
-			})),
-	);
+	test("The menus move under the filter field, so neither it nor the button’s name is cut", async ({
+		page,
+	}) => {
+		await expect(page.locator("#author-button .text")).toHaveText("Collaborators");
 
-	expect(menus.top).toBeGreaterThanOrEqual(field.bottom);
-	expect(text.cut).toBe(false);
-	expect(field.width).toBeCloseTo(controls.width, 0);
-});
+		let [field, menus, controls, text] = await Promise.all(
+			["#narrow", ".menus", ".controls", "#author-button .text"].map(selector =>
+				page.locator(selector).evaluate(element => {
+					let { top, bottom, width } = element.getBoundingClientRect();
+					return { top, bottom, width, cut: element.scrollWidth > element.clientWidth };
+				})),
+		);
 
-test("The open Author menu starts at its button’s left edge and stays in the window, so it reads as the button’s menu", async ({
-	page,
-	github,
-}) => {
-	authored(github);
-	assign(github, ["qux"]);
-	await page.setViewportSize({ width: 700, height: 900 });
-	await open(page, "/?repo=foo/bar&authors=%40collaborators&exclude=test");
-	await unfold(page);
+		expect(menus.top).toBeGreaterThanOrEqual(field.bottom);
+		expect(text.cut).toBe(false);
+		expect(field.width).toBeCloseTo(controls.width, 0);
+	});
 
-	await page.getByRole("button", { name: "Collaborators" }).click();
+	test("The open Author menu starts at its button’s left edge and stays in the window, so it reads as the button’s menu", async ({
+		page,
+	}) => {
+		await page.getByRole("button", { name: "Collaborators" }).click();
 
-	let [button, menu] = await Promise.all(
-		["#author-button", "#authors"].map(selector =>
-			page.locator(selector).evaluate(element => {
-				let { left, right } = element.getBoundingClientRect();
-				return { left, right };
-			})),
-	);
-	expect(menu.left).toBeCloseTo(button.left, 0);
-	expect(menu.right).toBeLessThanOrEqual(700);
+		let [button, menu] = await Promise.all(
+			["#author-button", "#authors"].map(selector =>
+				page.locator(selector).evaluate(element => {
+					let { left, right } = element.getBoundingClientRect();
+					return { left, right };
+				})),
+		);
+		expect(menu.left).toBeCloseTo(button.left, 0);
+		expect(menu.right).toBeLessThanOrEqual(page.viewportSize().width);
+	});
 });

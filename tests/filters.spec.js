@@ -288,6 +288,24 @@ test("A filter that finds nothing has Clear filter in its card, which shows the 
 	await expect(page).not.toHaveURL(/filter/);
 });
 
+test("Clear filter from the keyboard leaves the focus in the filter field, not on the page, as its card goes", async ({
+	page,
+	github,
+}) => {
+	github.search = answer => {
+		if (github.searches === 1) {
+			none(answer);
+		}
+	};
+	await open(page, "/?repo=foo/bar&filter=label:none");
+	// From the keyboard, as Firefox takes no focus moved by script for :focus-visible
+	await page.getByRole("button", { name: "Show filters" }).press("Enter");
+
+	await page.getByRole("link", { name: "Clear filter" }).press("Enter");
+
+	await expect(filter(page)).toBeFocused();
+});
+
 test("A filter that finds nothing leaves the field the whole line, as no button stands beside it", async ({
 	page,
 	github,

@@ -436,6 +436,19 @@ test("A label links to the queue with it in place of the filter’s other labels
 	);
 });
 
+test("A label’s link replaces a label of several words whole, quotes and all", async ({
+	page,
+	github,
+}) => {
+	label(github, { A: ["bug"] });
+	await page.goto(`/?repo=foo/bar&filter=${encodeURIComponent('label:"foo bar" -label:wip')}`);
+
+	await expect(page.getByRole("link", { name: "Filter by label bug" })).toHaveAttribute(
+		"href",
+		`?${new URLSearchParams({ repo: "foo/bar", filter: '-label:wip label:"bug"' })}`,
+	);
+});
+
 test.describe("A failed refresh says why", () => {
 	test.beforeEach(async ({ page }) => {
 		await open(page);
