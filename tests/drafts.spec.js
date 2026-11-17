@@ -116,6 +116,16 @@ for (let term of ["is:draft", "draft:true", "-draft:false"]) {
 	});
 }
 
+test("A queue without drafts disables the toggle and says so, as a press would change nothing", async ({
+	page,
+}) => {
+	await open(page);
+	await unfold(page);
+
+	await expect(toggle(page)).toBeDisabled();
+	await expect(toggle(page)).toHaveText("No drafts");
+});
+
 test("A search that finds nothing hides the toggle, as there is nothing to hide", async ({
 	page,
 	github,

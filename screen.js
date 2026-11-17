@@ -100,6 +100,10 @@ export function showQueue (next = queue, { animate } = {}) {
 	let hiddenDrafts = rows.filter(
 		row => hidden(row) && matches(row.summary, authors, queue),
 	).length;
+	// Hidden or shown. With none, a press would change nothing
+	let draftCount = rows.filter(
+		row => row.summary.draft && matches(row.summary, authors, queue),
+	).length;
 	showRole(role);
 	sort(rows, { animate, shows });
 	showUpdated(at);
@@ -127,7 +131,7 @@ export function showQueue (next = queue, { animate } = {}) {
 	// An author’s view counts no lines
 	displayButton.hidden =
 		role === "author" || (rows.length === 0 && !displayForm.matches(":popover-open"));
-	showDraftsToggle(queue.view, hiddenDrafts);
+	showDraftsToggle(queue.view, draftCount);
 	// Nothing to hide when the search found nothing
 	if (rows.length === 0) {
 		draftsForm.hidden = true;
@@ -149,7 +153,7 @@ export function showQueue (next = queue, { animate } = {}) {
 /**
  * Show the drafts toggle as the view sets it, or hide it while the filter asks for drafts, e.g. `is:draft`, which shows them anyway.
  * @param {View} view
- * @param {number} [count] - How many drafts hide, unknown while bars stand in for the rows
+ * @param {number} [count] - How many drafts the picked authors have, unknown while bars stand in for the rows
  */
 function showDraftsToggle (view, count) {
 	draftsForm.hidden = !hidesDrafts({ ...view, drafts: "hide" });

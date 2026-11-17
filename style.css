@@ -1398,9 +1398,14 @@ progress {
 	min-inline-size: 0;
 }
 
-/* While bars stand in for the rows, there are no authors to list, and a press of the toggle would wait for them */
-:is(#author-button, #drafts button):disabled {
+:is(#author-button, #drafts-button):disabled {
 	color: var(--muted);
+	cursor: default;
+}
+
+/* While bars stand in for the rows, there are no authors to list, and a press of the toggle would wait for them.
+   A toggle with no drafts waits for nothing. It has no pressed state then */
+:is(#author-button, #drafts-button[aria-pressed]):disabled {
 	cursor: progress;
 }
 
