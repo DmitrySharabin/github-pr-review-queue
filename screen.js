@@ -99,7 +99,7 @@ export function showQueue (next = queue, { animate } = {}) {
 	let hiddenDrafts = rows.filter(
 		row => hidden(row) && matches(row.summary, authors, queue),
 	).length;
-	// Hidden or shown. With none, a press would change nothing
+	// The drafts of the picked authors, hidden or shown. With none, a press would change nothing
 	let draftCount = rows.filter(
 		row => row.summary.draft && matches(row.summary, authors, queue),
 	).length;
@@ -271,7 +271,9 @@ function showEmpty () {
 	}
 
 	empty.classList.toggle("author", author);
-	empty.classList.toggle("filtered", Boolean(filter) || picked || theirs > 0);
+	// A card that says why the rows it could show are away has a link that shows them
+	let narrowed = Boolean(filter) || picked || theirs > 0;
+	empty.classList.toggle("filtered", narrowed);
 	empty.classList.toggle("drafts", theirs > 0);
 	empty.querySelector("h2").textContent = title;
 	empty.querySelector("p").textContent = text;
@@ -284,7 +286,7 @@ function showEmpty () {
 			: picked
 				? [href({ authors: null }), "Clear authors", "author-button"]
 				: [href({ filter: null }), "Clear filter", "filter"];
-	clear.hidden = !filter && !picked && theirs === 0;
+	clear.hidden = !narrowed;
 	// The same text written again makes a screen reader say it again, e.g. when the load that found nothing ends
 	if (status.textContent !== text) {
 		status.textContent = text;
