@@ -270,6 +270,21 @@ test("A queue a filter emptied keeps the filter, to change or clear it", async (
 	await expect(filter(page)).toHaveValue("label:none");
 });
 
+test("A filter that finds nothing leaves the field the whole line, as no button stands beside it", async ({
+	page,
+	github,
+}) => {
+	github.search = none;
+	await open(page, "/?repo=foo/bar&filter=label:none");
+	await unfold(page);
+
+	let [field, controls] = await Promise.all(
+		["#narrow", "#filters .controls"].map(selector =>
+			page.locator(selector).evaluate(element => element.getBoundingClientRect().width)),
+	);
+	expect(field).toBeCloseTo(controls, 0);
+});
+
 test("An empty queue with no filter has nothing to narrow, so no filter", async ({
 	page,
 	github,

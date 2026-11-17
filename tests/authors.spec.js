@@ -747,3 +747,50 @@ test("The author view doesn’t ask GitHub who can be assigned, as it lists no a
 
 	expect(github.queries.some(query => query.includes("suggestedActors"))).toBe(false);
 });
+
+test("With the repo’s collaborators picked on a narrow window, the menus move under the filter field, so neither it nor the button’s name is cut", async ({
+	page,
+	github,
+}) => {
+	authored(github);
+	assign(github, ["qux"]);
+	await page.setViewportSize({ width: 700, height: 900 });
+	await open(page, "/?repo=foo/bar&authors=%40collaborators&exclude=test");
+	await unfold(page);
+	await expect(page.locator("#author-button .text")).toHaveText("Collaborators");
+
+	let [field, menus, controls, text] = await Promise.all(
+		["#narrow", ".menus", ".controls", "#author-button .text"].map(selector =>
+			page.locator(selector).evaluate(element => {
+				let { top, bottom, width } = element.getBoundingClientRect();
+				return { top, bottom, width, cut: element.scrollWidth > element.clientWidth };
+			})),
+	);
+
+	expect(menus.top).toBeGreaterThanOrEqual(field.bottom);
+	expect(text.cut).toBe(false);
+	expect(field.width).toBeCloseTo(controls.width, 0);
+});
+
+test("The open Author menu starts at its button’s left edge and stays in the window, so it reads as the button’s menu", async ({
+	page,
+	github,
+}) => {
+	authored(github);
+	assign(github, ["qux"]);
+	await page.setViewportSize({ width: 700, height: 900 });
+	await open(page, "/?repo=foo/bar&authors=%40collaborators&exclude=test");
+	await unfold(page);
+
+	await page.getByRole("button", { name: "Collaborators" }).click();
+
+	let [button, menu] = await Promise.all(
+		["#author-button", "#authors"].map(selector =>
+			page.locator(selector).evaluate(element => {
+				let { left, right } = element.getBoundingClientRect();
+				return { left, right };
+			})),
+	);
+	expect(menu.left).toBeCloseTo(button.left, 0);
+	expect(menu.right).toBeLessThanOrEqual(700);
+});
