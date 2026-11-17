@@ -1338,7 +1338,7 @@ progress {
 }
 
 /* Menus at the end of the filter, as tall as its field. A transparent border, which forced colors draw as their edge */
-:is(#author-button, #drafts button, #display-button) {
+:is(#author-button, #drafts-button, #display-button) {
 	display: flex;
 	gap: 0.4em;
 	align-items: center;
@@ -1367,7 +1367,7 @@ progress {
 	}
 
 	/* Points down: a list opens under it */
-	&::after {
+	&[popovertarget]::after {
 		content: "";
 		flex: none;
 		inline-size: 1em;
@@ -1423,8 +1423,7 @@ progress {
 }
 
 /* A toggle, which opens no list */
-/* A toggle, which opens no list */
-#drafts button {
+#drafts-button {
 	white-space: nowrap;
 
 	&::before {
@@ -1435,10 +1434,6 @@ progress {
 		background-color: var(--muted);
 		forced-color-adjust: preserve-parent-color;
 		mask: var(--draft) no-repeat center / contain;
-	}
-
-	&::after {
-		display: none;
 	}
 
 	/* Lighter than the pressed fill, so a press under the pointer shows at once */
@@ -1455,11 +1450,16 @@ progress {
 			background: SelectedItem;
 			color: SelectedItemText;
 		}
+
+		/* Forced colors keep a gray as written. The button’s color follows the theme, as the chevrons beside it do */
+		&::before {
+			background-color: currentColor;
+		}
 	}
 }
 
 /* How many settings differ from their defaults, or how many drafts hide, as a pill */
-:is(#display-button, #drafts button) .badge {
+:is(#display-button, #drafts-button) .badge {
 	min-inline-size: 1lh;
 	/* Trimmed to the digit’s cap height, then padded back to a line, so the digit sits in the middle of the pill */
 	padding: calc((1lh - 1cap) / 2) 0.4em;
@@ -2093,7 +2093,8 @@ tbody td {
 @media (forced-colors: active) {
 	.pull-request .kind,
 	#filters .applied::before,
-	#narrow .box::before {
+	#narrow .box::before,
+	#empty .tile::before {
 		forced-color-adjust: none;
 		background-color: CanvasText;
 	}
