@@ -304,6 +304,39 @@ test("A filter with a word that only starts like `is:draft` leaves the draft hid
 	await expect(toggle(page)).toBeVisible();
 });
 
+test("A value in another case, e.g. `is:DRAFT`, asks for drafts only too, as GitHub’s search ignores a value’s case", async ({
+	page,
+	github,
+}) => {
+	draft(github);
+	await open(page, "/?repo=foo/bar&filter=is:DRAFT");
+	await unfold(page);
+
+	await expect(row(page, "A")).toBeVisible();
+	await expect(toggle(page)).toBeHidden();
+});
+
+test("The term `-is:DRAFT` moves from the filter to the toggle, as `-is:draft` does", async ({
+	page,
+	github,
+}) => {
+	draft(github);
+	await open(page, "/?repo=foo/bar&filter=-is:DRAFT");
+
+	await expect.poll(() => new URL(page.url()).search).toBe("?repo=foo%2Fbar");
+});
+
+test("A name in another case, e.g. `-IS:draft`, stays in the filter, as GitHub’s search doesn’t read it as a qualifier", async ({
+	page,
+	github,
+}) => {
+	draft(github);
+	await open(page, "/?repo=foo/bar&filter=-IS:draft");
+	await unfold(page);
+
+	await expect(page.locator("#filter")).toHaveValue("-IS:draft");
+});
+
 test("A load says nothing about drafts, as no press asked", async ({ page, github }) => {
 	draft(github);
 	await open(page);

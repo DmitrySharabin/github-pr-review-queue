@@ -172,8 +172,9 @@ export function normalize ({ user, role, filter, authors, drafts }) {
  */
 // NOTE: A name inside a quoted phrase counts too, e.g. `label:a` in `"fix label:a"`, and a value with `"` in it breaks the term
 function qualifier (filter, name, value) {
-	// A given value ends where its word does, so `is:drafts` is no `is:draft`. Any other value runs to the next space
-	let pattern = value ? `(?:${value})(?!\\w)` : `"[^"]*"|\\S+`;
+	// A given value ends where its word does, so `is:drafts` is no `is:draft`. Any other value runs to the next space.
+	// GitHub’s search ignores the case of a value, but not of a name: it reads `is:DRAFT`, and not `IS:draft`
+	let pattern = value ? `(?i:${value})(?!\\w)` : `"[^"]*"|\\S+`;
 	let values = [];
 	let rest = (filter ?? "")
 		.replace(new RegExp(`(^|\\s)${name}:(${pattern})`, "g"), (term, space, found) => {
