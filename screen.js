@@ -21,6 +21,7 @@ let status = document.querySelector("#status");
 let skeletonTemplate = document.querySelector("#skeleton");
 let repoForm = document.querySelector("#repo-form");
 let filters = document.querySelector("#filters");
+let fold = filters.querySelector(".fold");
 let empty = document.querySelector("#empty");
 let strip = document.querySelector("#summary");
 let authorButton = document.querySelector("#author-button");
@@ -28,7 +29,6 @@ let authorForm = document.querySelector("#authors");
 let displayButton = document.querySelector("#display-button");
 let displayForm = document.querySelector("#display");
 let draftsForm = document.querySelector("#drafts");
-let draftsButton = document.querySelector("#drafts-button");
 
 /**
  * @typedef {object} Queue - What the table shows
@@ -55,12 +55,11 @@ table.addEventListener("command", event => {
 	}
 });
 
-// The card goes once its link shows the rows, so the focus moves to the control that undoes the link, rather than drop to the page
+// The card goes once its link shows the rows, so the focus moves to the control that undoes the link, rather than drop to the page.
+// Folded, the filters hide that control, so the button that shows them takes the focus
 empty.querySelector(".clear").addEventListener("click", event => {
-	passFocus(
-		event.currentTarget,
-		empty.classList.contains("drafts") ? draftsButton : authorButton,
-	);
+	let control = document.getElementById(event.currentTarget.dataset.for);
+	passFocus(event.currentTarget, control.checkVisibility() ? control : fold);
 });
 
 /**
@@ -241,6 +240,8 @@ function showEmpty () {
 	let theirs = rows.filter(row => matches(row.summary, authors, queue)).length;
 	// The search found PRs, but none by the picked authors, e.g. after theirs were merged. The card names them, and Clear shows the others’
 	let picked = authors.length > 0 && rows.length > 0 && theirs === 0;
+	// The rows are those the filter found, so a card that counts them says so
+	let matching = filter ? ` that match “${filter}”` : "";
 	if (theirs > 0) {
 		let one = theirs === 1;
 		let prs = `${one ? "The only" : `All ${theirs}`} ${plural("pull request", theirs)}`;
@@ -251,15 +252,15 @@ function showEmpty () {
 			let by = authors.length > 0 ? ` by ${names}` : "";
 			text = `${prs}${by} waiting for ${whose} review in ${repo}`;
 		}
-		if (filter) {
-			text += ` that match “${filter}”`;
-		}
-		text += one ? " is a draft." : " are drafts.";
+		text += matching;
+		text += one
+			? " is a draft. Show drafts to see it."
+			: " are drafts. Show drafts to see them.";
 		title = "Nothing ready for review";
 	}
 	else if (picked) {
 		title = "No matching pull requests";
-		text = `None of the pull requests waiting for ${whose} review in ${repo} are by ${names}.`;
+		text = `None of the pull requests waiting for ${whose} review in ${repo}${matching} are by ${names}. Clear the authors to see the others.`;
 	}
 	else if (filter) {
 		title = "No matching pull requests";
@@ -275,12 +276,15 @@ function showEmpty () {
 	empty.querySelector("h2").textContent = title;
 	empty.querySelector("p").textContent = text;
 	empty.querySelector(".github").href = `https://github.com/${repo}/pulls`;
+	// The card’s way out, and the control that undoes it, which takes the focus once the card goes
 	let clear = empty.querySelector(".clear");
-	[clear.href, clear.textContent] =
+	[clear.href, clear.textContent, clear.dataset.for] =
 		theirs > 0
-			? [href({ drafts: "show" }), "Show drafts"]
-			: [href({ authors: null }), "Clear authors"];
-	clear.hidden = !picked && theirs === 0;
+			? [href({ drafts: "show" }), "Show drafts", "drafts-button"]
+			: picked
+				? [href({ authors: null }), "Clear authors", "author-button"]
+				: [href({ filter: null }), "Clear filter", "filter"];
+	clear.hidden = !filter && !picked && theirs === 0;
 	// The same text written again makes a screen reader say it again, e.g. when the load that found nothing ends
 	if (status.textContent !== text) {
 		status.textContent = text;

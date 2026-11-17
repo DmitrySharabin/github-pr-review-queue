@@ -2481,7 +2481,7 @@ time.rounded {
 		text-underline-offset: 0.2em;
 	}
 
-	/* The filter above, with the terms still in it, is the way out. Picked authors have a Clear in the card */
+	/* Each of these cards has a way out of its own, e.g. Clear filter */
 	&.filtered .github {
 		display: none;
 	}

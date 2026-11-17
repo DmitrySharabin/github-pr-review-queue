@@ -169,7 +169,7 @@ test("A queue of drafts only says so, and its link shows them", async ({ page, g
 	await open(page);
 	await expect(page.locator("#empty h2")).toHaveText("Nothing ready for review");
 	await expect(page.locator("#empty p")).toHaveText(
-		"All 6 pull requests waiting for your review in foo/bar are drafts.",
+		"All 6 pull requests waiting for your review in foo/bar are drafts. Show drafts to see them.",
 	);
 
 	await page.getByRole("link", { name: "Show drafts" }).click();
@@ -262,6 +262,20 @@ test("Show drafts from the keyboard leaves the focus on the toggle, not on the p
 	await page.getByRole("link", { name: "Show drafts" }).press("Enter");
 
 	await expect(toggle(page)).toBeFocused();
+});
+
+test("Show drafts from the keyboard leaves the focus on the button that shows the filters while they are folded, as the toggle is out of reach", async ({
+	page,
+	github,
+}) => {
+	draft(github, "ABCDEF");
+	await open(page);
+	// From the keyboard, as Firefox takes no focus moved by script for :focus-visible
+	await page.keyboard.press("Tab");
+
+	await page.getByRole("link", { name: "Show drafts" }).press("Enter");
+
+	await expect(page.getByRole("button", { name: "Show filters" })).toBeFocused();
 });
 
 test("A filter with a word that only starts like `is:draft` leaves the draft hidden and the toggle on screen", async ({

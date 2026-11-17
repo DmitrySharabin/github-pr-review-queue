@@ -270,6 +270,24 @@ test("A queue a filter emptied keeps the filter, to change or clear it", async (
 	await expect(filter(page)).toHaveValue("label:none");
 });
 
+test("A filter that finds nothing has Clear filter in its card, which shows the queue without it in one click", async ({
+	page,
+	github,
+}) => {
+	// Nothing has the label. The search without it finds the six PRs
+	github.search = answer => {
+		if (github.searches === 1) {
+			none(answer);
+		}
+	};
+	await open(page, "/?repo=foo/bar&filter=label:none");
+
+	await page.getByRole("link", { name: "Clear filter" }).click();
+
+	await expect(page.locator("#queue tbody tr")).toHaveCount(6);
+	await expect(page).not.toHaveURL(/filter/);
+});
+
 test("A filter that finds nothing leaves the field the whole line, as no button stands beside it", async ({
 	page,
 	github,

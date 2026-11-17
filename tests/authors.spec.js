@@ -457,12 +457,24 @@ test("The count says how many PRs of all the search found are by the picked auth
 	await expect(page.locator("#summary .count")).toHaveText("2 of 6");
 });
 
+test("The card of picked authors with no PRs names the filter too, as the PRs it counts are those the filter found", async ({
+	page,
+}) => {
+	await page.goto("/?repo=foo/bar&authors=nobody&filter=label:foo");
+
+	await expect(page.locator("#empty p")).toContainText(
+		"in foo/bar that match “label:foo” are by nobody.",
+	);
+});
+
 test("Picked authors with no PRs left, e.g. all merged, are named in the card, which clears them in one click", async ({
 	page,
 }) => {
 	// No PR has an author with a role in the repo
 	await page.goto("/?repo=foo/bar&authors=nobody,@collaborators");
-	await expect(page.locator("#empty p")).toContainText("by nobody or the repo’s collaborators");
+	await expect(page.locator("#empty p")).toContainText(
+		"by nobody or the repo’s collaborators. Clear the authors to see the others.",
+	);
 	await page.getByRole("link", { name: "Clear authors" }).click();
 
 	await expect(page.locator("#queue tbody tr")).toHaveCount(6);
