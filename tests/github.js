@@ -10,7 +10,8 @@ export { expect };
  * `user` gets GitHub’s answer to whose token it is, e.g. `github.user = () => 401` for a token GitHub rejects.
  * `compare` gets the comparison of two commits, with no changed files until it adds some, and its range, e.g. `L...N`.
  * `files` gets a page of a PR’s files, with none until it adds some, and the PR’s number and the page’s, e.g. `65, 1`.
- * `assignable` gets the answer to which authors GitHub lets be assigned, with none until it adds some, see {@link assign}.
+ * `assignable` gets the answer to which authors GitHub lets be assigned, with none until it adds some, and the logins each
+ * field of the query asked for, e.g. `{ a0: ["foo"] }`. See {@link assign}.
  * `queries` and `searches` say what the page asked, e.g. `expect(github.searches).toBe(1)` for a view that loaded once.
  */
 export const test = base.extend({
@@ -79,16 +80,28 @@ export const test = base.extend({
 				let { query } = route.request().postDataJSON();
 				let isSearch = query.includes("search(");
 				if (query.includes("suggestedActors(")) {
-					// One field per 10 logins, as the page asks
-					let fields = query.matchAll(/(\w+): suggestedActors/g);
+					// One field per 10 logins, as the page asks. GitHub reads only the first 10 of a field’s logins, ignoring case
+					let asked = Object.fromEntries(
+						query.matchAll(/(\w+): suggestedActors\(loginNames: "([^"]*)"/g).map(([
+							,
+							alias,
+							names,
+						]) => [
+							alias,
+							names
+								.split(",")
+								.slice(0, 10)
+								.map(login => login.toLowerCase()),
+						]),
+					);
 					let answer = {
 						data: {
 							repository: Object.fromEntries(
-								fields.map(([, alias]) => [alias, { nodes: [] }]),
+								Object.keys(asked).map(alias => [alias, { nodes: [] }]),
 							),
 						},
 					};
-					let status = await github.assignable(answer);
+					let status = await github.assignable(answer, asked);
 					return route.fulfill(failed(status) ?? { json: answer });
 				}
 
@@ -139,11 +152,14 @@ export function commit (id, parents = 1) {
 	return { commit: { id, oid: id, parents: { totalCount: parents } } };
 }
 
-/** Let GitHub assign these authors in the repo, e.g. `["qux"]`. */
+/** Let GitHub assign these authors in the repo, e.g. `["qux"]`, in the fields that asked for them among their first 10 logins. */
 export function assign (github, logins) {
-	github.assignable = answer => {
-		let [first] = Object.values(answer.data.repository);
-		first.nodes = logins.map(login => ({ login }));
+	github.assignable = (answer, asked) => {
+		for (let [alias, field] of Object.entries(answer.data.repository)) {
+			field.nodes = logins
+				.filter(login => asked[alias].includes(login.toLowerCase()))
+				.map(login => ({ login }));
+		}
 	};
 }
 

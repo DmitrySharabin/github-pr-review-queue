@@ -693,7 +693,7 @@ test.describe("Exclude from counts", () => {
 	});
 });
 
-test("A draft has GitHub’s draft icon before its title, so a reviewer can skip it", async ({
+test("A draft that shows has GitHub’s draft icon before its title, which tells it from a PR ready for review", async ({
 	page,
 	github,
 }) => {

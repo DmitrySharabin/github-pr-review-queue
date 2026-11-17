@@ -626,6 +626,28 @@ test("“All collaborators” keeps the PRs of authors GitHub lets be assigned, 
 	}
 });
 
+test("“All collaborators” keeps the PRs of an 11th author GitHub lets be assigned, as GitHub reads only 10 logins per field, so the page asks in fields of 10", async ({
+	page,
+	github,
+}) => {
+	// 11 PRs, each by another author, who all are only contributors by their role
+	github.search = answer => {
+		let { nodes } = answer.data.search;
+		for (let id of "GHIJK") {
+			nodes.push({ ...nodes[0], id, number: id.charCodeAt(0) });
+		}
+		for (let [i, pr] of nodes.entries()) {
+			let login = `author${i + 1}`;
+			pr.author = { login, avatarUrl: `https://github.com/${login}.png` };
+			pr.authorAssociation = "CONTRIBUTOR";
+		}
+	};
+	assign(github, ["author11"]);
+	await open(page, "/?repo=foo/bar&authors=%40collaborators");
+
+	await expect(row(page, "K")).toBeVisible();
+});
+
 test("A revisit counts the authors GitHub let be assigned last time until it answers again, so their PRs don’t pop in", async ({
 	page,
 	github,

@@ -1,4 +1,4 @@
-import { test, expect, open, row, unfold } from "./github.js";
+import { test, expect, none, open, row, unfold } from "./github.js";
 
 /** Make PRs drafts, e.g. `"A"` for #65, or all six. */
 function draft (github, ids = "A") {
@@ -74,6 +74,18 @@ test("A filter that asks for drafts shows them, and the toggle that could hide t
 	await unfold(page);
 
 	await expect(row(page, "A")).toBeVisible();
+	await expect(toggle(page)).toBeHidden();
+});
+
+test("A search that finds nothing hides the toggle, as there is nothing to hide", async ({
+	page,
+	github,
+}) => {
+	github.search = none;
+	// A filter keeps the row on screen, which an empty queue hides otherwise
+	await open(page, "/?repo=foo/bar&filter=label:x");
+	await unfold(page);
+
 	await expect(toggle(page)).toBeHidden();
 });
 
@@ -201,6 +213,29 @@ test("Show drafts from the keyboard leaves the focus on the toggle, not on the p
 	await page.getByRole("link", { name: "Show drafts" }).press("Enter");
 
 	await expect(toggle(page)).toBeFocused();
+});
+
+test("A load says nothing about drafts, as no press asked", async ({ page, github }) => {
+	draft(github);
+	await open(page);
+
+	await expect(page.locator("#drafts [role=status]")).toHaveText("");
+});
+
+test("Two presses, to show and to hide, leave the toggle saying how many drafts hide", async ({
+	page,
+	github,
+}) => {
+	draft(github);
+	await open(page);
+	await unfold(page);
+
+	await toggle(page).click();
+	await expect(row(page, "A")).toBeVisible();
+	await toggle(page).click();
+
+	await expect(row(page, "A")).toBeHidden();
+	await expect(page.locator("#drafts [role=status]")).toHaveText("1 draft hidden");
 });
 
 test("An author whose PRs all hide as drafts stays in the Author list, so a reviewer learns why none show", async ({
