@@ -69,15 +69,31 @@ function roleQualifier (role) {
 }
 
 /**
+ * The filter terms that ask for drafts only and those that ask for none, e.g. `-draft:false` asks as `draft:true` does, as GitHub reads `-` as NOT.
+ * The toggle can’t say “only drafts”, so those terms stay in the filter
+ */
+const draftTerms = {
+	only: [
+		["is", "draft"],
+		["draft", "true"],
+		["-draft", "false"],
+	],
+	none: [
+		["-is", "draft"],
+		["draft", "false"],
+		["-draft", "true"],
+	],
+};
+
+/**
  * Whether a view hides its drafts, e.g. a reviewer’s, who can’t review them yet. An author sees their own.
- * `drafts` overrides that, and a filter that asks for drafts, e.g. `is:draft`, shows them anyway.
+ * `drafts` overrides that, and a filter that asks for drafts, e.g. `is:draft` or `-draft:false`, shows them anyway.
  * @param {Pick<View, "role" | "filter"> & { drafts?: string | null }} view - `drafts` is `show` or `hide`, or none for the role’s default
  */
 export function hidesDrafts ({ role, filter, drafts }) {
-	let asked = [
-		["is", "draft"],
-		["draft", "true"],
-	].some(([name, value]) => qualifier(filter, name, value).values.length > 0);
+	let asked = draftTerms.only.some(
+		([name, value]) => qualifier(filter, name, value).values.length > 0,
+	);
 	return !asked && (drafts === "hide" || (drafts !== "show" && role !== "author"));
 }
 
@@ -87,11 +103,13 @@ export function hidesDrafts ({ role, filter, drafts }) {
  * GitHub’s page keeps the last one instead. On a repo’s page, it ignores other repos.
  * In the reviewer view, `author:` picks the authors as the Author button does, e.g. `authors: "a,b"` for `author:a author:b`, in place of the picks before.
  * In the author view, the last picked author is the user.
+ * A term that asks for no drafts, e.g. `-is:draft`, becomes `drafts: "hide"`, in place of the one before, as `author:` does.
  * `drafts` that changes nothing goes, e.g. `show` after a switch to the author view, which shows them anyway
  * @param {Pick<View, "user" | "role" | "filter"> & { authors?: string | null, drafts?: string | null }} view
  * @returns {Pick<View, "user" | "filter"> & { authors?: string | null, drafts?: string | null }}
  */
 // NOTE: A value that isn’t a login, e.g. `author:app/foo`, becomes the user all the same
+// NOTE: A filter that asks for drafts only and for none, e.g. `is:draft -is:draft`, keeps `is:draft` alone, so drafts show
 export function normalize ({ user, role, filter, authors, drafts }) {
 	let { values, rest } = qualifier(filter, roleQualifier(role));
 	if (values.length > 0) {
@@ -128,6 +146,14 @@ export function normalize ({ user, role, filter, authors, drafts }) {
 		rest = qualifier(rest, name, value).rest;
 	}
 
+	for (let [name, value] of draftTerms.none) {
+		let found = qualifier(rest, name, value);
+		rest = found.rest;
+		if (found.values.length > 0) {
+			drafts = "hide";
+		}
+	}
+
 	filter = rest || null;
 	if (hidesDrafts({ role, filter, drafts }) === hidesDrafts({ role, filter })) {
 		drafts = null;
@@ -145,10 +171,12 @@ export function normalize ({ user, role, filter, authors, drafts }) {
  * @returns {{ values: string[], rest: string }}
  */
 // NOTE: A name inside a quoted phrase counts too, e.g. `label:a` in `"fix label:a"`, and a value with `"` in it breaks the term
-function qualifier (filter, name, value = `"[^"]*"|\\S+`) {
+function qualifier (filter, name, value) {
+	// A given value ends where its word does, so `is:drafts` is no `is:draft`. Any other value runs to the next space
+	let pattern = value ? `(?:${value})(?!\\w)` : `"[^"]*"|\\S+`;
 	let values = [];
 	let rest = (filter ?? "")
-		.replace(new RegExp(`(^|\\s)${name}:(${value})`, "g"), (term, space, found) => {
+		.replace(new RegExp(`(^|\\s)${name}:(${pattern})`, "g"), (term, space, found) => {
 			values.push(found.replace(/^"(.*)"$/, "$1"));
 			return "";
 		})

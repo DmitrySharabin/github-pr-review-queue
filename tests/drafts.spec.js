@@ -65,17 +65,56 @@ test("The author view shows the author’s own drafts", async ({ page, github })
 	await expect(toggle(page)).toHaveAttribute("aria-pressed", "false");
 });
 
-test("A filter that asks for drafts shows them, and the toggle that could hide them goes", async ({
+for (let term of ["-is:draft", "draft:false", "-draft:true"]) {
+	test(`The term \`${term}\` moves from the filter to the toggle, so only one place says that drafts hide`, async ({
+		page,
+		github,
+	}) => {
+		draft(github);
+		await open(page, `/?repo=foo/bar&filter=${term}`);
+
+		await expect(row(page, "A")).toBeHidden();
+		await expect.poll(() => new URL(page.url()).search).toBe("?repo=foo%2Fbar");
+	});
+}
+
+test("A term that hides drafts in the author view becomes `drafts=hide`, as that view shows them by default", async ({
 	page,
 	github,
 }) => {
 	draft(github);
-	await open(page, "/?repo=foo/bar&filter=is:draft");
-	await unfold(page);
+	await open(page, "/?repo=foo/bar&role=author&filter=draft:false");
 
-	await expect(row(page, "A")).toBeVisible();
-	await expect(toggle(page)).toBeHidden();
+	await expect(row(page, "A")).toBeHidden();
+	await expect
+		.poll(() => Object.fromEntries(new URL(page.url()).searchParams))
+		.toEqual({ repo: "foo/bar", role: "author", drafts: "hide" });
 });
+
+test("A typed term that hides drafts wins over an older `drafts=show`, as a filter’s `author:` wins over older `authors`", async ({
+	page,
+	github,
+}) => {
+	draft(github);
+	await open(page, "/?repo=foo/bar&drafts=show&filter=-is:draft");
+
+	await expect(row(page, "A")).toBeHidden();
+	await expect.poll(() => new URL(page.url()).search).toBe("?repo=foo%2Fbar");
+});
+
+for (let term of ["is:draft", "draft:true", "-draft:false"]) {
+	test(`The term \`${term}\` asks for drafts only, so they show and the toggle that could hide them goes`, async ({
+		page,
+		github,
+	}) => {
+		draft(github);
+		await open(page, `/?repo=foo/bar&filter=${term}`);
+		await unfold(page);
+
+		await expect(row(page, "A")).toBeVisible();
+		await expect(toggle(page)).toBeHidden();
+	});
+}
 
 test("A search that finds nothing hides the toggle, as there is nothing to hide", async ({
 	page,
@@ -213,6 +252,18 @@ test("Show drafts from the keyboard leaves the focus on the toggle, not on the p
 	await page.getByRole("link", { name: "Show drafts" }).press("Enter");
 
 	await expect(toggle(page)).toBeFocused();
+});
+
+test("A filter with a word that only starts like `is:draft` leaves the draft hidden and the toggle on screen", async ({
+	page,
+	github,
+}) => {
+	draft(github);
+	await open(page, "/?repo=foo/bar&filter=is:drafts");
+	await unfold(page);
+
+	await expect(row(page, "A")).toBeHidden();
+	await expect(toggle(page)).toBeVisible();
 });
 
 test("A load says nothing about drafts, as no press asked", async ({ page, github }) => {
