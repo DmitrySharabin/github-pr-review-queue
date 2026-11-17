@@ -1398,15 +1398,16 @@ progress {
 	min-inline-size: 0;
 }
 
+/* While bars stand in for the rows, there are no authors to list, and a press of the toggle would wait for them */
 :is(#author-button, #drafts-button):disabled {
 	color: var(--muted);
-	cursor: default;
+	cursor: progress;
 }
 
-/* While bars stand in for the rows, there are no authors to list, and a press of the toggle would wait for them.
-   A toggle with no drafts waits for nothing. It has no pressed state then */
-:is(#author-button, #drafts-button[aria-pressed]):disabled {
-	cursor: progress;
+/* A toggle with no drafts stays in reach of the keyboard, where its name says why a press does nothing. It takes no pointer */
+#drafts-button[aria-disabled="true"] {
+	color: var(--muted);
+	pointer-events: none;
 }
 
 /* The fill under faces that overlap rings each of them, e.g. the set button’s or the filters’ */
@@ -1454,6 +1455,11 @@ progress {
 			forced-color-adjust: none;
 			background: SelectedItem;
 			color: SelectedItemText;
+		}
+
+		/* As a disabled button, which gets this color unasked */
+		&[aria-disabled="true"] {
+			color: GrayText;
 		}
 
 		/* Forced colors keep a gray as written. The button’s color follows the theme, as the chevrons beside it do */

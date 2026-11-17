@@ -124,6 +124,20 @@ test("A queue without drafts disables the toggle and says so, as a press would c
 
 	await expect(toggle(page)).toBeDisabled();
 	await expect(toggle(page)).toHaveText("No drafts");
+	await expect(toggle(page)).not.toHaveAttribute("aria-pressed");
+});
+
+test("The toggle without drafts keeps the focus and ignores a press, so a step back to such a queue doesn’t drop the focus to the page", async ({
+	page,
+}) => {
+	await open(page);
+	await unfold(page);
+
+	await toggle(page).focus();
+	await page.keyboard.press("Enter");
+
+	await expect(toggle(page)).toBeFocused();
+	await expect(page).not.toHaveURL(/drafts/);
 });
 
 test("A search that finds nothing hides the toggle, as there is nothing to hide", async ({
