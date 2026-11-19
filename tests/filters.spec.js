@@ -19,7 +19,7 @@ function display (page) {
 
 /** The pattern field in the Display menu */
 function pattern (page) {
-	return page.getByRole("textbox", { name: "Exclude from counts" });
+	return page.getByRole("textbox", { name: "Exclude from changes" });
 }
 
 test("The first visit opens with the filters folded, even with a filter, as the folded line names it", async ({

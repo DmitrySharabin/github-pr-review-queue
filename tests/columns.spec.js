@@ -306,7 +306,7 @@ test("A review after the user’s request still counts when the next request cam
 	await expect(row(page, "A").locator("time")).toHaveText("—");
 });
 
-test.describe("Exclude from counts", () => {
+test.describe("Exclude from changes", () => {
 	/** A PR’s changed files, as its details list them, e.g. `files({ "src/a.js": 10 })` for +10 −0. */
 	function files (lines, totalCount = Object.keys(lines).length) {
 		return {
@@ -419,7 +419,7 @@ test.describe("Exclude from counts", () => {
 		await expect(row(page, "A").locator(".diff a .added")).toHaveText("+10");
 
 		await page.getByRole("button", { name: /^Display/ }).click();
-		await page.getByRole("textbox", { name: "Exclude from counts" }).fill("src");
+		await page.getByRole("textbox", { name: "Exclude from changes" }).fill("src");
 		await page.locator("#display").getByRole("button", { name: "Apply" }).click();
 
 		// Now the tests are what is left to read
@@ -539,7 +539,7 @@ test.describe("Exclude from counts", () => {
 		await page.goto("/?repo=foo/bar");
 		await unfold(page);
 		await page.getByRole("button", { name: /^Display/ }).click();
-		let field = page.getByRole("textbox", { name: "Exclude from counts" });
+		let field = page.getByRole("textbox", { name: "Exclude from changes" });
 		await field.fill("test(");
 		// The browser fires `invalid` when it stops a form, and shows the field’s message
 		let stopped = field.evaluate(
@@ -578,7 +578,7 @@ test.describe("Exclude from counts", () => {
 
 		await page.getByRole("button", { name: "Clear display settings" }).press("Enter");
 
-		await expect(page.getByRole("textbox", { name: "Exclude from counts" })).toBeFocused();
+		await expect(page.getByRole("textbox", { name: "Exclude from changes" })).toBeFocused();
 	});
 
 	test("The filter’s ✕ leaves the focus in its emptied field", async ({ page }) => {
@@ -649,7 +649,7 @@ test.describe("Exclude from counts", () => {
 		await unfold(page);
 		await page.getByRole("button", { name: /^Display/ }).click();
 
-		await page.getByRole("textbox", { name: "Exclude from counts" }).fill("test");
+		await page.getByRole("textbox", { name: "Exclude from changes" }).fill("test");
 		await page.locator("#display").getByRole("button", { name: "Apply" }).click();
 
 		await expect(page).toHaveURL(/^(?=.*filter=label%3Abug)(?=.*exclude=test)/);
@@ -661,7 +661,7 @@ test.describe("Exclude from counts", () => {
 		await page.goto("/?repo=foo/bar&exclude=test");
 		await unfold(page);
 		await page.getByRole("button", { name: /^Display/ }).click();
-		let field = page.getByRole("textbox", { name: "Exclude from counts" });
+		let field = page.getByRole("textbox", { name: "Exclude from changes" });
 		let valid = await field.evaluate(input => getComputedStyle(input).borderColor);
 
 		await field.fill("test(");
