@@ -1,6 +1,8 @@
 import {
 	test,
 	expect,
+	commit,
+	detail,
 	filter,
 	filterBy,
 	label,
@@ -247,6 +249,33 @@ test("A refresh that finds nothing new marks nothing, even after one that marked
 
 	await refresh(page);
 	await expect(page.locator("#updated .changes")).toHaveText("No changes");
+
+	await expect(page.locator("#queue tbody mark:not([hidden])")).toHaveCount(0);
+});
+
+test("A merge of the base branch after a re-request doesn’t mark “No changes” as changed, since only its tooltip differs", async ({
+	page,
+	github,
+}) => {
+	let review = {
+		submittedAt: "2026-11-01T12:00:00Z",
+		author: { login: "DmitrySharabin" },
+		commit: { oid: "L" },
+	};
+	detail(github, {
+		A: { commits: { totalCount: 1, nodes: [commit("L")] }, reviews: { nodes: [review] } },
+	});
+	await open(page);
+
+	github.search = changeA;
+	detail(github, {
+		A: {
+			commits: { totalCount: 2, nodes: [commit("L"), commit("M", 2)] },
+			reviews: { nodes: [review] },
+		},
+	});
+	await refresh(page);
+	await loaded(page);
 
 	await expect(page.locator("#queue tbody mark:not([hidden])")).toHaveCount(0);
 });

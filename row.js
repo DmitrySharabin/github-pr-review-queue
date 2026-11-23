@@ -33,6 +33,13 @@ const wholeTitles = {
 	older: "The reviewed commit isn’t among the last 100 commits, so this counts the whole pull request",
 };
 
+/** Why “Changes since last review” has no changes, keyed by the diff’s `newCommits` */
+const newCommitsTitles = {
+	none: "No new commits since your last review",
+	merges: "The commits since your last review only merge the base branch, so this skips them",
+	own: "The commits since your last review change no lines in total",
+};
+
 /** What each other reviewer did, keyed by their `state` */
 const reviewerPhrases = {
 	awaiting: "has yet to review",
@@ -173,6 +180,8 @@ function same (cell, other) {
 
 	let [x, y] = [cell, other].map(element => {
 		let clone = element.cloneNode(true);
+		// The reason for “No changes” alone changes nothing on screen, e.g. a merge of the base branch after a re-request
+		clone.removeAttribute("title");
 		for (let time of clone.querySelectorAll("time")) {
 			time.replaceWith(time.dateTime);
 		}
@@ -364,10 +373,13 @@ function showDiff (cell, diff) {
 
 	let total = diff.ignored && sum([diff, diff.ignored]);
 
-	// Re-requested with no new commits, or a PR with no changed lines at all.
 	// NOTE: In a row with a total, it stays centered, below the other size’s first line
 	if (size(total ?? diff) === 0) {
 		cell.textContent = "No changes";
+		// The “Changes” column’s diff and a whole PR’s have no `newCommits`
+		if (diff.newCommits) {
+			cell.title = newCommitsTitles[diff.newCommits];
+		}
 		return;
 	}
 

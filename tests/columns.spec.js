@@ -109,6 +109,30 @@ test("A review of a commit before the last 100 isn’t called a force push", asy
 	await expect(row(page, "A").locator(".since-review .force-pushed")).toBeHidden();
 });
 
+test("“No changes” since the review names why, so the reviewer knows what the author pushed", async ({
+	page,
+	github,
+}) => {
+	detail(github, {
+		A: { commits: commits(["L"]), reviews: { nodes: [review("L")] } },
+		B: {
+			commits: { totalCount: 2, nodes: [commit("L"), commit("M", 2)] },
+			reviews: { nodes: [review("L")] },
+		},
+		// N’s comparison lists no files, as after a commit and its revert
+		C: { commits: commits(["L", "N"]), reviews: { nodes: [review("L")] } },
+	});
+	await page.goto("/?repo=foo/bar");
+
+	for (let [id, title] of Object.entries({
+		A: "No new commits since your last review",
+		B: "The commits since your last review only merge the base branch, so this skips them",
+		C: "The commits since your last review change no lines in total",
+	})) {
+		await expect(row(page, id).locator(".since-review")).toHaveAttribute("title", title);
+	}
+});
+
 test("A comparison counts the PR’s changes since the review exactly, by the files GitHub lists", async ({
 	page,
 	github,

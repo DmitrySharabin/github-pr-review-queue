@@ -10,6 +10,7 @@
  * @property {string[]} [commits] - The commits to add up for the estimate, with {@link sizes}, until then no `additions` and `deletions`
  * @property {true} [failed] - A comparison of `ranges` failed, so the commits’ sizes count the diff until the next load compares again
  * @property {"unreviewed" | "force-pushed" | "older"} [whole] - Why the diff is the whole PR
+ * @property {"none" | "merges" | "own"} [newCommits] - The commits since the review: none, only merges of the base branch, which bring in others’ commits, or the author’s own
  * @property {Pick<Diff, "additions" | "deletions">} [ignored] - With a pattern of ignored files, their lines, which `additions` and `deletions` leave out
  * @property {"too-many-files" | "unlisted" | "commits"} [unsplit] - With a pattern of ignored files, why they can’t be told apart, so `additions` and `deletions` count every file
  *
@@ -476,8 +477,12 @@ function forReviewer (pr, user, ignore) {
 					}
 				: {
 						...(own.length > 0
-							? { commits: own.map(commit => commit.id) }
-							: { additions: 0, deletions: 0 }),
+							? { commits: own.map(commit => commit.id), newCommits: "own" }
+							: {
+									additions: 0,
+									deletions: 0,
+									newCommits: since.length > 0 ? "merges" : "none",
+								}),
 						url: `${pr.url}/changes/${reviewed}..${commits.at(-1).oid}`,
 						ranges:
 							runs.length > 0 && runs.length <= compareLimit

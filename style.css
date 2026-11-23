@@ -2321,8 +2321,9 @@ td:is(.diff, .since-review) small {
 	mask: repeating-linear-gradient(to right, black 0 calc(20% - 1px), transparent 0 20%);
 }
 
-/* A wait rounded to months or years has its days in the tooltip. The dotted line says so, as under an abbreviation */
-time.rounded {
+/* A wait rounded to months or years has its days in the tooltip, and “No changes” its reason. The dotted line says so, as under an abbreviation */
+time.rounded,
+.since-review[title] {
 	text-decoration: underline dotted color-mix(in oklch, currentColor 40%, transparent);
 	text-underline-offset: 0.2em;
 	cursor: help;
