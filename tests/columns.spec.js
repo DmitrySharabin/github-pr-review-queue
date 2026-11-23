@@ -126,8 +126,8 @@ test("“No changes” since the review names why, so the reviewer knows what th
 
 	for (let [id, title] of Object.entries({
 		A: "No new commits since your last review",
-		B: "The commits since your last review only merge the base branch, so this skips them",
-		C: "The commits since your last review change no lines in total",
+		B: "Since your last review, only merges of the base branch were pushed. They bring in changes from other pull requests",
+		C: "The commits since your last review change no lines in total, for example a change and its revert",
 	})) {
 		await expect(row(page, id).locator(".since-review")).toHaveAttribute("title", title);
 	}

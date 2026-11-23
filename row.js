@@ -36,8 +36,8 @@ const wholeTitles = {
 /** Why “Changes since last review” has no changes, keyed by the diff’s `newCommits` */
 const newCommitsTitles = {
 	none: "No new commits since your last review",
-	merges: "The commits since your last review only merge the base branch, so this skips them",
-	own: "The commits since your last review change no lines in total",
+	merges: "Since your last review, only merges of the base branch were pushed. They bring in changes from other pull requests",
+	own: "The commits since your last review change no lines in total, for example a change and its revert",
 };
 
 /** What each other reviewer did, keyed by their `state` */
