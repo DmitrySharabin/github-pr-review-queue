@@ -32,7 +32,8 @@ let forms = [
 	...strip.querySelectorAll("form"),
 ];
 
-// Opening a link in a marked row on GitHub, e.g. its PR, is seeing what changed in it. A link that filters the queue, e.g. its author, is not.
+// Opening a GitHub link of a marked row, e.g. its PR, is seeing what changed in it.
+// GitHub links open in a new tab, so `[target]` leaves out links that filter the queue, e.g. its author.
 // A middle click opens a link too. A right click opens a menu instead
 for (let type of ["click", "auxclick"]) {
 	table.tBodies[0].addEventListener(type, event => {

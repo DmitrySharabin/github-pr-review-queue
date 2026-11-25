@@ -10,7 +10,7 @@ It runs in the browser, with no build step and no server of its own.
 - **Only what is new to you**: each PR shows the changes since your last review, so a re-review starts where you left off.
 - **Review history**: how many times you were asked to review again, when the last request came, and what the other reviewers did.
 - **Labels and filters**: click a label to show only its PRs, or filter the queue with any GitHub search terms.
-- **Authors**: click an author to show only their PRs, or pick whose PRs to show, by name or all the repo’s collaborators at once.
+- **Authors**: click an author’s name to show only their PRs, or pick whose PRs to show, by name or all the repo’s collaborators at once.
 - **Drafts**: hidden from a reviewer, who can’t review them yet, and shown to their author. One press switches.
 - **Exclude from changes**, under Display: leave out files such as tests or lockfiles. Each size then shows the code left to read, with the total under it.
 - **Sorting**: sort by any column except the pull request and the reviewers. The page remembers the sort for each view.

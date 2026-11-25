@@ -143,12 +143,12 @@ export function summaries (rows) {
  * @param {Row[]} rows
  */
 export function relink (rows) {
-	for (let { tr, summary } of rows) {
+	for (let { tr } of rows) {
 		for (let link of tr.querySelectorAll(".labels a")) {
 			link.href = labelLink(link.textContent);
 		}
 		for (let link of tr.querySelectorAll(".author")) {
-			link.href = authorLink(summary.author);
+			link.href = authorLink(link.textContent);
 		}
 	}
 }
@@ -219,10 +219,10 @@ function render ({
 	showLabels(tr.querySelector(".headline"), labels);
 	tr.querySelector(".number").textContent = `#${number}`;
 	// As on GitHub’s pulls page, a click on the author shows only their PRs
-	let byline = tr.querySelector(".author");
-	byline.querySelector("span").textContent = author;
-	byline.href = authorLink(author);
-	byline.ariaLabel = `Filter by author ${author}`;
+	let name = tr.querySelector(".author");
+	name.querySelector("span").textContent = author;
+	name.href = authorLink(author);
+	name.ariaLabel = `Filter by author ${author}`;
 	// An author’s PRs are all theirs, so the byline says when, not by whom
 	tr.querySelector(opened ? ".by" : ".opened").remove();
 	if (opened) {
