@@ -506,7 +506,8 @@ test("The same filter applied again loads the queue again, as only other authors
 	github,
 }) => {
 	authored(github);
-	await open(page, "/?repo=foo/bar&filter=label:baz");
+	// In the order the form submits, so the URL stays the same
+	await open(page, "/?filter=label%3Abaz&repo=foo%2Fbar");
 	await unfold(page);
 
 	await filter(page).press("Enter");
@@ -647,23 +648,39 @@ test("A click on the picked author’s name doesn’t search again, as it shows 
 	authored(github);
 	await open(page, "/?repo=foo/bar&authors=qux");
 
-	await page.getByRole("link", { name: "Filter by author qux" }).first().click();
+	await row(page, "D").getByRole("link", { name: "Filter by author qux" }).click();
 	await page.evaluate(() => navigation.transition?.finished);
 
 	expect(github.searches).toBe(1);
 });
 
-test("The avatar opens the author’s profile, which the name no longer does, from the keyboard too", async ({
+test("A click on the picked author’s name adds no step to go back to", async ({ page, github }) => {
+	authored(github);
+	await open(page, "/?repo=foo/bar&authors=qux");
+
+	await row(page, "D").getByRole("link", { name: "Filter by author qux" }).click();
+	await page.evaluate(() => navigation.transition?.finished);
+
+	expect(await page.evaluate(() => navigation.entries().length)).toBe(1);
+});
+
+test("The keyboard reaches the avatar, the one link to the author’s profile", async ({
 	page,
 	github,
+	browserName,
 }) => {
+	test.skip(browserName === "webkit", "WebKit’s Tab skips links, as Safari’s does by default");
 	authored(github);
 	await open(page);
 
-	await expect(row(page, "D").getByRole("link", { name: "@qux" })).toHaveAttribute(
-		"href",
-		"https://github.com/qux",
-	);
+	await row(page, "D").getByRole("link", { name: "A pull request titled D" }).focus();
+	await page.keyboard.press("Shift+Tab");
+
+	await expect(
+		row(page, "D")
+			.getByRole("link", { name: "@qux" })
+			.and(page.locator('[href="https://github.com/qux"]')),
+	).toBeFocused();
 });
 
 test("A refresh after a pick of authors marks no row that didn’t change", async ({

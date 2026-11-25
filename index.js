@@ -133,8 +133,10 @@ for (let field of [repoForm.elements.repo, repoForm.elements.user]) {
 		normalized.delete(field.name);
 	}
 }
-if (`${normalized}` !== `${current}`) {
-	history.replaceState(null, "", `?${normalized}${location.hash}`);
+// Encoded as the page’s links and forms encode it, e.g. `repo=foo%2Fbar`, so a link to the view on screen has its URL
+let search = `${normalized}` && `?${normalized}`;
+if (search !== location.search) {
+	history.replaceState(null, "", `${location.pathname}${search}${location.hash}`);
 }
 
 // A filter, a role switch or another repo loads in place, so what it doesn’t change stays put, e.g. the focus in the filter field.
@@ -153,7 +155,9 @@ window.navigation?.addEventListener("navigate", event => {
 		return;
 	}
 
-	// A link to the URL on screen changes nothing, e.g. a label already in the filter or the picked author
+	// A link to the URL on screen changes nothing, e.g. a label already in the filter or the picked author.
+	// A form submitted again loads anew, e.g. Enter with the same terms
+	// NOTE: A label typed in another form, e.g. `label:bug`, searches again, as its link quotes it: `label:"bug"`
 	if (event.sourceElement?.localName === "a" && `${next}` === `${current}`) {
 		event.intercept({ focusReset: "manual", scroll: "manual" });
 		return;
