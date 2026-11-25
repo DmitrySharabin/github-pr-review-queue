@@ -228,7 +228,10 @@ function render ({
 	if (opened) {
 		showTime(tr.querySelector(".opened time"), opened);
 	}
-	tr.querySelector(".avatar img").src = avatar;
+	let image = tr.querySelector(".avatar img");
+	image.src = avatar;
+	// The link to the profile, named as GitHub names avatars
+	image.alt = `@${author}`;
 	// As in GitHub’s list of pull requests, where a draft’s icon differs from an open PR’s
 	if (draft) {
 		let kind = tr.querySelector(".kind");

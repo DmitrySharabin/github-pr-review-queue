@@ -640,6 +640,19 @@ test("A click on an author’s name keeps the row’s mark, since it opens nothi
 	await expect(row(page, "D").locator("mark")).toHaveText("changed");
 });
 
+test("The avatar opens the author’s profile, which the name no longer does, from the keyboard too", async ({
+	page,
+	github,
+}) => {
+	authored(github);
+	await open(page);
+
+	await expect(row(page, "D").getByRole("link", { name: "@qux" })).toHaveAttribute(
+		"href",
+		"https://github.com/qux",
+	);
+});
+
 test("A refresh after a pick of authors marks no row that didn’t change", async ({
 	page,
 	github,
