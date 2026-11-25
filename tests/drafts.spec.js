@@ -208,7 +208,7 @@ test("A switch to the author view drops `drafts=show`, as the author view shows 
 	draft(github);
 	await open(page, "/?repo=foo/bar&drafts=show");
 
-	await page.getByRole("link", { name: "Author" }).click();
+	await page.getByRole("link", { name: "Author", exact: true }).click();
 
 	await expect(page).toHaveURL(/role=author/);
 	await expect(page).not.toHaveURL(/drafts/);

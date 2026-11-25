@@ -575,6 +575,71 @@ test("A label clicked after a pick of authors keeps the picked authors", async (
 	expect(new URL(page.url()).searchParams.get("authors")).toBe("qux");
 });
 
+test("A click on an author’s name shows only their PRs, as on GitHub’s pulls page", async ({
+	page,
+	github,
+}) => {
+	authored(github);
+	await open(page);
+	await unfold(page);
+
+	await page.getByRole("link", { name: "Filter by author qux" }).first().click();
+
+	await expect(page).toHaveURL(/authors=qux/);
+	await expect(page.locator("#queue tbody tr")).toHaveCount(2);
+	await expect(page.getByRole("button", { name: "Author: qux" })).toBeVisible();
+});
+
+test("A click on an author’s name replaces the picked authors, as a click on a label replaces the labels", async ({
+	page,
+	github,
+}) => {
+	authored(github);
+	await open(page, "/?repo=foo/bar&authors=@collaborators");
+
+	await page.getByRole("link", { name: "Filter by author foo" }).click();
+
+	await expect(page.locator("#queue tbody tr")).toHaveCount(1);
+});
+
+test("A click on an author’s name after drafts are shown keeps them shown", async ({
+	page,
+	github,
+}) => {
+	authored(github);
+	let { search } = github;
+	github.search = answer => {
+		search(answer);
+		answer.data.search.nodes.find(pr => pr.id === "A").isDraft = true;
+	};
+	await open(page);
+	await unfold(page);
+	// Shows the draft without a new search, so the rows aren’t rendered anew
+	await page.locator("#drafts-button").click();
+	await expect(page).toHaveURL(/drafts=show/);
+
+	await page.getByRole("link", { name: "Filter by author qux" }).first().click();
+	await expect(page).toHaveURL(/authors=qux/);
+
+	expect(new URL(page.url()).searchParams.get("drafts")).toBe("show");
+});
+
+test("A click on an author’s name keeps the row’s mark, since it opens nothing on GitHub", async ({
+	page,
+	github,
+}) => {
+	authored(github);
+	await open(page);
+	authored(github, { D: ["foo", "OWNER"] });
+	await refresh(page);
+	await expect(row(page, "D").locator("mark")).toHaveText("changed");
+
+	await row(page, "D").getByRole("link", { name: "Filter by author foo" }).click();
+	await expect(page).toHaveURL(/authors=foo/);
+
+	await expect(row(page, "D").locator("mark")).toHaveText("changed");
+});
+
 test("A refresh after a pick of authors marks no row that didn’t change", async ({
 	page,
 	github,

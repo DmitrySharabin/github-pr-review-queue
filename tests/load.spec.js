@@ -49,7 +49,7 @@ test("A failed search hides the bars that stood in for its rows, even of the vie
 	github.details = () => 500;
 	await open(page);
 	github.search = () => 500;
-	await page.getByRole("link", { name: "Author" }).click();
+	await page.getByRole("link", { name: "Author", exact: true }).click();
 	await expect(page.locator("#repo-form .notice")).toBeVisible();
 
 	// Back to the reviewer view, the one last shown, which shows bars since nothing is on screen
@@ -68,7 +68,7 @@ test("A step back after a failed role switch shows the stored queue at once, as 
 }) => {
 	await open(page);
 	github.search = () => 500;
-	await page.getByRole("link", { name: "Author" }).click();
+	await page.getByRole("link", { name: "Author", exact: true }).click();
 	await expect(page.locator("#repo-form .notice")).toBeVisible();
 
 	github.search = () => new Promise(() => {});
@@ -225,7 +225,7 @@ test("A role switch shows bars at once, not the other role’s rows", async ({ p
 	await open(page);
 	github.search = () => new Promise(() => {});
 
-	await page.getByRole("link", { name: "Author" }).click();
+	await page.getByRole("link", { name: "Author", exact: true }).click();
 
 	await expect(page.locator("#queue tbody tr:not(.skeleton)")).toHaveCount(0);
 });
@@ -262,7 +262,7 @@ test("A role switch hides the counter of the load it stops", async ({ page, gith
 	await expect(page.locator("#counter")).toBeVisible();
 
 	github.search = () => new Promise(() => {});
-	await page.getByRole("link", { name: "Author" }).click();
+	await page.getByRole("link", { name: "Author", exact: true }).click();
 
 	await expect(page.locator("#counter")).toBeHidden();
 });
@@ -337,7 +337,7 @@ test("A role switch stops the requests of the load it leaves", async ({ page, gi
 	let { promise, resolve } = Promise.withResolvers();
 	github.search = () => promise;
 	await refresh(page);
-	await page.getByRole("link", { name: "Author" }).click();
+	await page.getByRole("link", { name: "Author", exact: true }).click();
 
 	await expect.poll(stopped).toBe(1);
 	resolve();
@@ -352,7 +352,7 @@ test("A role switch stops the details requests of the load it leaves too", async
 	github.details = () => promise;
 	await page.goto("/?repo=foo/bar");
 	await expect(page.locator("#counter")).toBeVisible();
-	await page.getByRole("link", { name: "Author" }).click();
+	await page.getByRole("link", { name: "Author", exact: true }).click();
 
 	await expect.poll(stopped).toBe(1);
 	resolve();
@@ -473,7 +473,7 @@ test("A switch of role empties the said order, which may name a column the new r
 	await open(page);
 	await page.getByRole("button", { name: "Changes", exact: true }).click();
 
-	await page.getByRole("link", { name: "Author" }).click();
+	await page.getByRole("link", { name: "Author", exact: true }).click();
 	await loaded(page);
 
 	await expect(page.locator("#sorted")).toBeEmpty();

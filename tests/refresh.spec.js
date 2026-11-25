@@ -121,7 +121,7 @@ test("A failed reload of a view whose first load didn’t finish shows the form,
 	await unfold(page);
 	// The author view’s search answers, but its details never come
 	github.details = () => new Promise(() => {});
-	await page.getByRole("link", { name: "Author" }).click();
+	await page.getByRole("link", { name: "Author", exact: true }).click();
 	await expect(page.locator("#counter")).toBeVisible();
 
 	github.search = () => 502;
@@ -138,7 +138,7 @@ test("Rows of another view don’t show the time of the view before while their 
 	await expect(page.locator("#updated time")).not.toBeEmpty();
 	// The author view’s search answers, but its details never come
 	github.details = () => new Promise(() => {});
-	await page.getByRole("link", { name: "Author" }).click();
+	await page.getByRole("link", { name: "Author", exact: true }).click();
 	await expect(page.locator("#counter")).toBeVisible();
 
 	await expect(page.locator("#updated time")).toBeEmpty();
@@ -225,7 +225,7 @@ test("A step back to the view on screen before another view’s search answers s
 }) => {
 	await open(page);
 	github.search = () => new Promise(() => {});
-	await page.getByRole("link", { name: "Author" }).click();
+	await page.getByRole("link", { name: "Author", exact: true }).click();
 
 	github.search = answer => {
 		answer.data.search.nodes.pop();
@@ -423,7 +423,7 @@ test("A switch to the author and back keeps the reviewer sort of its own tab, th
 			"review-queue:sort",
 			JSON.stringify({ column: "diff", direction: "descending" }),
 		));
-	await page.getByRole("link", { name: "Author" }).click();
+	await page.getByRole("link", { name: "Author", exact: true }).click();
 	await expect(page.locator("#queue th[aria-sort]")).toHaveText("Next step");
 	await page.getByRole("link", { name: "Reviewer" }).click();
 	await loaded(page);

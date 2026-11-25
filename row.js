@@ -139,13 +139,16 @@ export function summaries (rows) {
 }
 
 /**
- * Point the label links of the rows at the URL’s view, e.g. after a pick of authors, which renders no row anew.
+ * Point the label and author links of the rows at the URL’s view, e.g. after a pick of authors, which renders no row anew.
  * @param {Row[]} rows
  */
 export function relink (rows) {
-	for (let { tr } of rows) {
+	for (let { tr, summary } of rows) {
 		for (let link of tr.querySelectorAll(".labels a")) {
 			link.href = labelLink(link.textContent);
+		}
+		for (let link of tr.querySelectorAll(".author")) {
+			link.href = authorLink(summary.author);
 		}
 	}
 }
@@ -215,7 +218,11 @@ function render ({
 	link.textContent = title;
 	showLabels(tr.querySelector(".headline"), labels);
 	tr.querySelector(".number").textContent = `#${number}`;
-	tr.querySelector(".author span").textContent = author;
+	// As on GitHub’s pulls page, a click on the author shows only their PRs
+	let byline = tr.querySelector(".author");
+	byline.querySelector("span").textContent = author;
+	byline.href = authorLink(author);
+	byline.ariaLabel = `Filter by author ${author}`;
 	// An author’s PRs are all theirs, so the byline says when, not by whom
 	tr.querySelector(opened ? ".by" : ".opened").remove();
 	if (opened) {
@@ -230,9 +237,7 @@ function render ({
 		kind.ariaLabel = "Draft";
 		kind.removeAttribute("aria-hidden");
 	}
-	for (let profile of tr.querySelectorAll(".avatar, .author")) {
-		profile.href = `https://github.com/${author}`;
-	}
+	tr.querySelector(".avatar").href = `https://github.com/${author}`;
 
 	showStep(tr.querySelector(".step"), step, url);
 	showDiff(tr.querySelector(".diff"), diff);
@@ -292,6 +297,11 @@ function showLabels (headline, labels) {
 /** The URL’s view with the label `name` in its filter, e.g. `?repo=foo/bar&filter=label:"bug"`. */
 function labelLink (name) {
 	return href({ filter: withLabel(viewOf().filter, name) });
+}
+
+/** The URL’s view with `login` as the only picked author, e.g. `?repo=foo/bar&authors=foo`. */
+function authorLink (login) {
+	return href({ authors: login });
 }
 
 function showAllLabels (element) {

@@ -32,10 +32,11 @@ let forms = [
 	...strip.querySelectorAll("form"),
 ];
 
-// Opening a link in a marked row, e.g. its PR, is seeing what changed in it. A middle click opens a link too. A right click opens a menu instead
+// Opening a link in a marked row on GitHub, e.g. its PR, is seeing what changed in it. A link that filters the queue, e.g. its author, is not.
+// A middle click opens a link too. A right click opens a menu instead
 for (let type of ["click", "auxclick"]) {
 	table.tBodies[0].addEventListener(type, event => {
-		let tr = event.target.closest("a")?.closest("tr");
+		let tr = event.target.closest("a[target]")?.closest("tr");
 		if (tr && event.button < 2) {
 			unmark(tr);
 		}
