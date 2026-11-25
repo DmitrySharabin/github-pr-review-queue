@@ -153,6 +153,12 @@ window.navigation?.addEventListener("navigate", event => {
 		return;
 	}
 
+	// A link to the URL on screen changes nothing, e.g. a label already in the filter or the picked author
+	if (event.sourceElement?.localName === "a" && `${next}` === `${current}`) {
+		event.intercept({ focusReset: "manual", scroll: "manual" });
+		return;
+	}
+
 	// The same view submitted again, e.g. Enter with the same terms, loads it again
 	let onlyPicks =
 		viewKey(viewOf(next)) === viewKey(viewOf(current)) &&

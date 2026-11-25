@@ -599,6 +599,19 @@ test("A click on a label keeps the rows that have it while the search runs", asy
 	await expect(numbers(page)).toHaveText(["#65", "#67"]);
 });
 
+test("A click on a label already in the filter doesn’t search again, as it shows the same PRs", async ({
+	page,
+	github,
+}) => {
+	label(github, { A: ["bug"] });
+	await open(page, `/?repo=foo/bar&filter=${encodeURIComponent('label:"bug"')}`);
+
+	await page.getByRole("link", { name: "Filter by label bug" }).click();
+	await page.evaluate(() => navigation.transition?.finished);
+
+	expect(github.searches).toBe(1);
+});
+
 test("A click on a label in a queue of 100 PRs, the most a search finds, keeps every row until the search ends", async ({
 	page,
 	github,

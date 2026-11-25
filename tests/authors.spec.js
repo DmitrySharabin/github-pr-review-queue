@@ -640,6 +640,19 @@ test("A click on an author’s name keeps the row’s mark, since it opens nothi
 	await expect(row(page, "D").locator("mark")).toHaveText("changed");
 });
 
+test("A click on the picked author’s name doesn’t search again, as it shows the same PRs", async ({
+	page,
+	github,
+}) => {
+	authored(github);
+	await open(page, "/?repo=foo/bar&authors=qux");
+
+	await page.getByRole("link", { name: "Filter by author qux" }).first().click();
+	await page.evaluate(() => navigation.transition?.finished);
+
+	expect(github.searches).toBe(1);
+});
+
 test("The avatar opens the author’s profile, which the name no longer does, from the keyboard too", async ({
 	page,
 	github,
